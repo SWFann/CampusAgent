@@ -99,6 +99,7 @@ CampusAgent/
 - [API 契约说明](docs/api/README.md)
 - [隐私工程基线](docs/privacy/PRIVACY_BASELINE.md)
 - [Demo 规范与验收](docs/demo/DEMO_SPEC.md)
+- [详细开发计划表](docs/development/DEVELOPMENT_PLAN.md)
 - [仓库协作规范](docs/development/REPOSITORY_CONVENTIONS.md)
 - [架构决策记录](docs/decisions/README.md)
 - [安全策略](SECURITY.md)
