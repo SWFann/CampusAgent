@@ -1,0 +1,48 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# JavaScript / TypeScript
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Build, runtime and local data
+dist/
+build/
+logs/
+tmp/
+data/
+*.log
+*.sqlite3
+
+# Test and tooling artifacts
+playwright-report/
+test-results/
+.coverage
+
+# Sensitive exports and local model artifacts
+exports/
+models/
+*.safetensors
+*.gguf
