@@ -61,7 +61,7 @@ python --version
 
 **重要**：所有后端 Python 代码必须在 `CampusAgent` 虚拟环境中运行。
 
-详见：[Python 虚拟环境说明](../README.md#python-虚拟环境)
+详见：[Python 虚拟环境说明](/README.md#python-虚拟环境)
 
 ---
 
@@ -237,7 +237,7 @@ make format
 
 **问题**：`docker: command not found`
 
-**解决**：参见 [工具版本规范](../TOOLING.md) 安装 Docker。
+**解决**：参见 [工具版本规范](TOOLING.md) 安装 Docker。
 
 **临时方案**：本地安装 PostgreSQL 和 Redis。
 
@@ -306,14 +306,14 @@ campus-agent/
 ├── package.json          # 根配置
 ├── pnpm-workspace.yaml   # Workspace 配置
 ├── .env.example          # 环境变量模板
-└── README.md
+└── /README.md
 ```
 
 ---
 
 ## 下一步
 
-- 阅读 [项目 README](README.md) 了解项目背景
+- 阅读 [项目 README](/README.md) 了解项目背景
 - 阅读 [架构与模块边界](../architecture/MODULE_BOUNDARIES.md)
 - 查看 [开发计划表](../development/DEVELOPMENT_PLAN.md)
 - 开始第一个开发任务

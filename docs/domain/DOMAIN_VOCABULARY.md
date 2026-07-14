@@ -780,7 +780,52 @@
 
 ## 附录
 
-### A. 相关文档
+### A. 枚举值对照表
+
+#### GlobalRole（全局角色）
+
+| 数据库值 | API 值 | 中文名 | 英文标识符 |
+|---------|--------|--------|----------|
+| student | STUDENT | 学生 | Student |
+| teacher | TEACHER | 教师 | Teacher |
+| counselor | COUNSELOR | 心理支持人员 | Counselor |
+| org_admin | ORG_ADMIN | 组织管理员 | OrganizationAdmin |
+| school_admin | SCHOOL_ADMIN | 校方管理员 | SchoolAdmin |
+| system_admin | SYSTEM_ADMIN | 系统管理员 | SystemAdmin |
+
+#### OrganizationRole（组织内角色）
+
+| 数据库值 | API 值 | 中文名 | 英文标识符 |
+|---------|--------|--------|----------|
+| owner | OWNER | 所有者 | Owner |
+| admin | ADMIN | 管理员 | Admin |
+| member | MEMBER | 成员 | Member |
+| guest | GUEST | 访客 | Guest |
+
+#### SceneState（场景状态）
+
+| 数据库值 | API 值 | 中文名 | 说明 |
+|---------|--------|--------|------|
+| draft | DRAFT | 草稿 | 场景定义中 |
+| published | PUBLISHED | 已发布 | 可被订阅 |
+| running | RUNNING | 运行中 | 实例进行中 |
+| voting | VOTING | 投票中 | 等待参与者投票 |
+| completed | COMPLETED | 已完成 | 场景实例结束 |
+| cancelled | CANCELLED | 已取消 | 提前终止 |
+| archived | ARCHIVED | 已归档 | 历史存档 |
+| failed | FAILED | 失败 | 运行出错 |
+| timeout | TIMEOUT | 超时 | 超时终止 |
+
+#### AgentAutonomyLevel（代理等级）
+
+| 数据库值 | API 值 | 中文名 | 说明 |
+|---------|--------|--------|------|
+| disabled | DISABLED | 禁用 | 仅人工处理 |
+| suggest | SUGGEST | 建议 | 提供建议，人工确认 |
+| auto_execute | AUTO_EXECUTE | 自动执行 | 自动处理，结果通知 |
+| autonomous | AUTONOMOUS | 自主 | 完全自主运行 |
+
+### B. 相关文档
 
 - [完整项目计划书](../product/CampusAgent_Project_Plan.md)
 - [架构与模块边界](../architecture/MODULE_BOUNDARIES.md)
@@ -795,8 +840,10 @@
 
 ### C. 待讨论问题
 
-- [ ] "Consent" 是否统一翻译为"授权"？（当前：是）
-- [ ] "Capsule" 是否统一翻译为"胶囊"？（当前：是）
+- [x] "Consent" 是否统一翻译为"授权"？（当前：是）
+  - **已确认**：统一翻译为"授权"，参见 `ConsentRecord（授权记录）`
+- [x] "Capsule" 是否统一翻译为"胶囊"？（当前：是）
+  - **已确认**：统一翻译为"胶囊"，参见 `PreferenceCapsule（偏好胶囊）`
 - [ ] 需要补充更多业务领域的术语吗？
 
 ---

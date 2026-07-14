@@ -244,7 +244,7 @@ A: 是的，Docker 是本地开发环境的必备工具，用于运行 PostgreSQ
 
 - [开发计划表](../development/DEVELOPMENT_PLAN.md)
 - [快速开始](../development/QUICK_START.md)
-- [项目 README](../README.md)
+- [项目 README](/README.md)
 
 ---
 
