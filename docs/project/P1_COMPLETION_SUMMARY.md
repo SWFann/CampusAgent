@@ -3,7 +3,7 @@
 **完成日期**：2026-07-14  
 **预计工期**：4-6 人日  
 **实际工期**：约 2 小时  
-**完成率**：100%（12/12 任务）
+**状态**：工程产物已完成，本地门禁通过；远端 GitHub Actions 待推送验证
 
 ---
 
@@ -76,7 +76,10 @@ def create_app() -> FastAPI:
 ├── schemas.py      # Pydantic 模型
 ├── models.py       # SQLAlchemy ORM
 ├── repository.py   # 数据访问层
-└── service.py      # 业务逻辑层
+├── service.py      # 业务逻辑层
+├── permissions.py  # 授权策略边界
+├── events.py       # 领域事件边界
+└── exceptions.py   # 模块异常边界
 ```
 
 ### 4. 代码质量工具（P1-06）
@@ -117,17 +120,16 @@ apps/web/
 
 ### 6. 统一命令（P1-08）
 
-#### ✅ Makefile
+#### ✅ 跨平台 package scripts
 
 | 命令 | 描述 |
 |------|------|
-| `make help` | 显示帮助 |
-| `make dev` | 启动开发服务 |
-| `make test` | 运行所有测试 |
-| `make lint` | 代码检查 |
-| `make typecheck` | 类型检查 |
-| `make build` | 构建项目 |
-| `make format` | 格式化代码 |
+| `corepack pnpm dev` | 同时启动 Web 和 API |
+| `corepack pnpm test` | 运行前后端测试 |
+| `corepack pnpm lint` | 运行 ESLint 和 Ruff |
+| `corepack pnpm typecheck` | 运行 TypeScript 和 mypy |
+| `corepack pnpm build` | 构建 Web |
+| `corepack pnpm test:e2e` | 运行 Playwright 基线 |
 
 ### 7. 环境管理（P1-09）
 
@@ -135,7 +137,7 @@ apps/web/
 
 - **`.env.example`**：完整的模板文件
 - **`env_validation.py`**：启动时校验
-- **生产环境强制校验**：SECRET_KEY ≥ 32 字符
+- **生产环境强制校验**：APP_SECRET ≥ 32 字符
 
 ### 8. CI/CD（P1-10）
 

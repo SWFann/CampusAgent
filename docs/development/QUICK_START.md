@@ -16,7 +16,7 @@
 | Node.js | 18.x LTS | 20.x LTS | `node --version` |
 | Python | 3.11 | 3.11 或 3.12 | `python3 --version` |
 | Git | 2.40 | 最新稳定版 | `git --version` |
-| pnpm | 8.x | 8.x | `pnpm --version` |
+| pnpm | 8.x | 8.15.0 | `corepack pnpm --version` |
 
 ### 推荐工具
 
@@ -70,26 +70,16 @@ python --version
 ### 安装前端依赖
 
 ```bash
-pnpm install
+corepack prepare pnpm@8.15.0 --activate
+corepack pnpm install --frozen-lockfile
 ```
 
 这会安装所有前端依赖（Next.js, React 等）。
 
 ### 安装后端依赖
 
-**前提**：已激活 `CampusAgent` 虚拟环境
-
 ```bash
-cd apps/api
-pip install -r requirements.txt
-```
-
-或手动安装：
-
-```bash
-conda activate CampusAgent
-cd apps/api
-pip install fastapi uvicorn pydantic sqlalchemy alembic redis python-dotenv
+conda run -n CampusAgent python -m pip install -r apps/api/requirements.lock
 ```
 
 这会安装所有后端依赖（FastAPI, SQLAlchemy 等）。
@@ -140,7 +130,7 @@ FIELD_ENCRYPTION_KEY=dev-encryption-key-change-in-production
 make docker-up
 
 # 启动开发服务
-make dev
+corepack pnpm dev
 ```
 
 ### 选项 B：本地安装服务
@@ -149,7 +139,7 @@ make dev
 
 ```bash
 # 启动开发服务
-make dev
+corepack pnpm dev
 ```
 
 这会启动：
@@ -192,19 +182,19 @@ make dev
 ### 所有测试
 
 ```bash
-make test
+corepack pnpm test
 ```
 
 ### 仅前端测试
 
 ```bash
-pnpm --filter @campus-agent/web test
+corepack pnpm --filter @campus-agent/web test -- --runInBand
 ```
 
 ### 仅后端测试
 
 ```bash
-cd apps/api && pytest
+conda run -n CampusAgent python -m pytest apps/api/tests -q -p no:cacheprovider
 ```
 
 ---
@@ -214,13 +204,13 @@ cd apps/api && pytest
 ### Lint
 
 ```bash
-make lint
+corepack pnpm lint
 ```
 
 ### Typecheck
 
 ```bash
-make typecheck
+corepack pnpm typecheck
 ```
 
 ### 格式化
@@ -270,11 +260,10 @@ kill -9 <PID>
 **解决**：
 ```bash
 # 清理缓存
-pnpm store prune
+corepack pnpm store prune
 
 # 重新安装
-rm -rf node_modules
-pnpm install
+corepack pnpm install --frozen-lockfile --force
 ```
 
 ### 5. 环境变量未生效
@@ -287,7 +276,7 @@ pnpm install
 ls -la .env
 
 # 重启开发服务
-make dev
+corepack pnpm dev
 ```
 
 ---

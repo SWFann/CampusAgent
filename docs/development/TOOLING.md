@@ -14,7 +14,7 @@
 
 - **最低版本**：18.x LTS
 - **推荐版本**：20.x LTS
-- **当前环境**：v24.18.0 ✅
+- **当前 Windows 环境**：v22.19.0 ✅
 
 **验证命令**：
 ```bash
@@ -39,7 +39,7 @@ node --version
 
 **验证命令**：
 ```bash
-pnpm --version
+corepack pnpm --version
 ```
 
 ### TypeScript
@@ -60,11 +60,11 @@ tsc --version
 
 - **最低版本**：3.11
 - **推荐版本**：3.11.x 或 3.12.x
-- **当前环境**：3.13.13 ✅
+- **项目 Conda 环境**：3.11.15 ✅
 
 **验证命令**：
 ```bash
-python3 --version
+conda run -n CampusAgent python --version
 ```
 
 **说明**：
@@ -79,7 +79,7 @@ python3 --version
 
 **验证命令**：
 ```bash
-pip --version
+conda run -n CampusAgent python -m pip --version
 ```
 
 ### Poetry（可选）

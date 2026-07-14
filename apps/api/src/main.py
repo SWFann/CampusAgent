@@ -5,46 +5,49 @@ FastAPI application factory
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from .config import settings
+from .config import Settings, settings
+from .middleware.env_validation import validate_production_env
 from .utils.errors import AppError
 
 # Environment validation will be called in lifespan, not at module level
 
 
-@asynccontextmanager
-async def lifespan(application: FastAPI):
-    """Application lifespan manager"""
-    # Startup
-    application.state.correlation_id = None
+def create_lifespan(app_settings: Settings):
+    """Create a lifespan handler bound to one application configuration."""
 
-    # Environment validation (only in production)
-    if settings.APP_ENV == "production":
-        from .middleware.env_validation import validate_production_env
-        try:
-            validate_production_env()
-        except Exception as e:
-            import sys
-            print(f"✗ Environment validation failed: {e}", file=sys.stderr)
-            sys.exit(1)
+    @asynccontextmanager
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        application.state.correlation_id = None
+        validate_production_env(
+            {
+                "APP_ENV": app_settings.APP_ENV,
+                "APP_SECRET": app_settings.APP_SECRET,
+                "DATABASE_URL": app_settings.DATABASE_URL,
+                "REDIS_URL": app_settings.REDIS_URL,
+                "FIELD_ENCRYPTION_KEY": app_settings.FIELD_ENCRYPTION_KEY,
+            }
+        )
+        yield
 
-    yield
-    # Shutdown
-    pass
+    return lifespan
 
 
-def create_app() -> FastAPI:
+def create_app(app_settings: Settings | None = None) -> FastAPI:
     """Create and configure FastAPI application"""
 
+    current_settings = app_settings or settings
+
     application = FastAPI(
-        title=settings.APP_NAME,
-        version=settings.APP_VERSION,
-        debug=settings.DEBUG,
-        lifespan=lifespan,
+        title=current_settings.APP_NAME,
+        version=current_settings.APP_VERSION,
+        debug=current_settings.DEBUG,
+        lifespan=create_lifespan(current_settings),
     )
 
     # Middleware
@@ -78,14 +81,16 @@ def create_app() -> FastAPI:
     @application.get("/health/live")
     async def health_live():
         """Liveness probe - check if process is alive"""
-        return {"status": "ok", "service": settings.APP_NAME}
+        return {"status": "ok", "service": current_settings.APP_NAME}
 
     @application.get("/health/ready")
     async def health_ready():
         """Readiness probe - check if dependencies are ready"""
-        # TODO: Add database, redis checks
-        # For now, return ready (dependencies not yet implemented)
-        return {"status": "ready", "service": settings.APP_NAME}
+        return {
+            "status": "ready",
+            "service": current_settings.APP_NAME,
+            "checks": {"database": "not_configured", "redis": "not_configured"},
+        }
 
     # API routes will be registered here
     # from .routers import auth, users, ...

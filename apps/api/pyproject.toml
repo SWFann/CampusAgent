@@ -5,7 +5,6 @@ description = "CampusAgent API - Privacy-first agent-native campus platform"
 authors = [{name = "CampusAgent Team"}]
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
 dependencies = [
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
@@ -57,6 +56,7 @@ check_untyped_defs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

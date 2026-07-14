@@ -173,7 +173,7 @@
 - ✅ `POST /api/v1/admin/deployments` - 创建部署
 - ✅ `GET /api/v1/admin/deployments` - 部署列表
 
-**总计**：62 个 MVP 端点
+**总计**：68 个 MVP 端点（不含 3 个内部端点 `/internal/v1/*`）
 
 ### 4.2 可展示但不完整（非MVP）
 

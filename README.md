@@ -4,7 +4,7 @@
 
 CampusAgent 让每名学生拥有一个由本人控制、按场景授权的个人智能体。智能体可以在校园组织与群聊场景中代表用户提交最小化的结构化偏好、参与低风险协商，但平台、管理员和其他成员默认不能读取用户的原始偏好、敏感记忆或智能体内部推理过程。
 
-> 当前状态：项目初始化阶段。本仓库只包含项目边界、Demo 规范、架构约束与目录骨架，尚未包含业务代码或可运行服务。
+> 当前状态：P1 工程骨架已可安装、测试和构建，FastAPI/Next.js 健康基线可运行；业务模块、数据库和 Demo 场景尚未实现。P0 API 契约仍有 27 个端点待补齐，不能进入 P2。
 
 ## Demo 要证明什么
 
@@ -115,7 +115,7 @@ CampusAgent/
 
 - **环境名称**：`CampusAgent`
 - **Python 版本**：3.11.15
-- **环境位置**：`/root/miniconda3/envs/CampusAgent`
+- **Windows 当前环境位置**：`D:\Conda\Soft\envs\CampusAgent`（其他系统以 `conda env list` 为准）
 
 ### 使用说明
 
@@ -153,23 +153,20 @@ conda deactivate
 ## 开发命令
 
 ```bash
-# 查看所有命令
-make help
-
 # 启动开发环境
-make dev
+corepack pnpm dev
 
 # 运行测试
-make test
+corepack pnpm test
 
 # 代码检查
-make lint
+corepack pnpm lint
 
 # 类型检查
-make typecheck
+corepack pnpm typecheck
 
 # 构建项目
-make build
+corepack pnpm build
 ```
 
 **注意**：首次使用请阅读 [快速开始指南](docs/development/QUICK_START.md)。

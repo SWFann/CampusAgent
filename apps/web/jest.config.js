@@ -9,6 +9,7 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  testPathIgnorePatterns: ['<rootDir>/e2e/', '<rootDir>/node_modules/'],
   // 模块名映射（如果使用 path alias）
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -19,7 +20,7 @@ const customJestConfig = {
     '!src/**/*.d.ts',
     '!src/**/index.ts',
   ],
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       branches: 70,
       functions: 70,
