@@ -1,0 +1,15 @@
+"""
+Integration test example
+"""
+
+from __future__ import annotations
+
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_health_live(client):
+    """Test health check endpoint"""
+    response = await client.get("/health/live")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
