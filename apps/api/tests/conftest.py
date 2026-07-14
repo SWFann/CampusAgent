@@ -8,13 +8,13 @@ import asyncio
 import os
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 # Set test environment
-os.environ["ENV"] = "test"
+os.environ["APP_ENV"] = "test"
 os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 os.environ["REDIS_URL"] = "redis://localhost:6379/1"
-os.environ["SECRET_KEY"] = "test-secret-key"
+os.environ["APP_SECRET"] = "test-secret-key"
 
 
 @pytest.fixture(scope="session")
@@ -28,8 +28,10 @@ def event_loop():
 @pytest.fixture
 async def client():
     """AsyncClient fixture for testing"""
-    from src.main import app
+    from src.main import create_app
 
-    transport = ASGITransport(app=app)
+    application = create_app()
+    transport = ASGITransport(app=application)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+

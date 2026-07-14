@@ -12,10 +12,8 @@ from fastapi.responses import JSONResponse
 
 from .config import settings
 from .utils.errors import AppError
-from ..middleware.env_validation import check_env
 
-# Validate environment variables on startup
-check_env()
+# Environment validation will be called in lifespan, not at module level
 
 
 @asynccontextmanager
@@ -23,6 +21,17 @@ async def lifespan(application: FastAPI):
     """Application lifespan manager"""
     # Startup
     application.state.correlation_id = None
+
+    # Environment validation (only in production)
+    if settings.APP_ENV == "production":
+        from .middleware.env_validation import validate_production_env
+        try:
+            validate_production_env()
+        except Exception as e:
+            import sys
+            print(f"✗ Environment validation failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
     yield
     # Shutdown
     pass
@@ -75,6 +84,7 @@ def create_app() -> FastAPI:
     async def health_ready():
         """Readiness probe - check if dependencies are ready"""
         # TODO: Add database, redis checks
+        # For now, return ready (dependencies not yet implemented)
         return {"status": "ready", "service": settings.APP_NAME}
 
     # API routes will be registered here

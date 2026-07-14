@@ -2,7 +2,7 @@
 name = "campus-agent-api"
 version = "0.1.0"
 description = "CampusAgent API - Privacy-first agent-native campus platform"
-authors = ["CampusAgent Team"]
+authors = [{name = "CampusAgent Team"}]
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -53,3 +53,10 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
