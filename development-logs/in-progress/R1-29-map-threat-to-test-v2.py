@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""
+R1-29: 映射威胁到测试 - 修订版
+"""
+
+file_path = '/mnt/f/工作盘/实习经历汇总/星星之火-创业/模型互联网比赛/CampusAgent/docs/security/THREAT_MODEL.md'
+
+with open(file_path, 'r', encoding='utf-8') as f:
+    lines = f.readlines()
+
+# 定义威胁测试覆盖信息
+test_coverage = {
+    'T-01': {
+        'tests': ['PT-001', 'PT-002', 'PT-003', 'PT-004', 'PT-005', 'PT-006'],
+        'note': '6 个测试用例（全部覆盖）'
+    },
+    'T-02': {
+        'tests': ['PT-101', 'PT-102', 'PT-103', 'PT-104', 'PT-105', 'PT-106', 'PT-107'],
+        'note': '7 个测试用例（全部覆盖）'
+    },
+    'T-03': {
+        'tests': ['待补充'],
+        'note': '当前 PRIVACY_TEST_MATRIX.md 中缺少专门的日志泄露测试，建议在 P2 阶段补充'
+    },
+    'T-04': {
+        'tests': ['待补充'],
+        'note': '当前 PRIVACY_TEST_MATRIX.md 中缺少 Prompt 注入测试，建议在 P3 阶段补充'
+    },
+    'T-05': {
+        'tests': ['待补充'],
+        'note': '当前 PRIVACY_TEST_MATRIX.md 中缺少重放攻击测试，建议在 P2 阶段补充'
+    },
+    'T-06': {
+        'tests': ['PT-001', 'PT-002', 'PT-101', 'PT-102', 'PT-103', 'PT-104',
+                  'PT-201', 'PT-202', 'PT-301', 'PT-302', 'PT-303', 'PT-304',
+                  'PT-305', 'PT-306'],
+        'note': '14 个测试用例（覆盖横向访问场景）'
+    },
+    'T-07': {
+        'tests': ['CL-001', 'CL-002', 'CL-003', 'CL-004', 'CL-005'],
+        'note': '5 个清理测试用例'
+    },
+    'T-08': {
+        'tests': ['待补充'],
+        'note': '当前 PRIVACY_TEST_MATRIX.md 中缺少外部模型路由测试，建议在 P2 阶段补充'
+    }
+}
+
+# 查找每个威胁的残余风险行并插入测试覆盖
+insertions = []
+current_threat = None
+line_num = 0
+
+for i, line in enumerate(lines):
+    line_num += 1
+
+    # 查找威胁标题
+    threat_match = None
+    for threat_id in test_coverage.keys():
+        if f'### {threat_id}：' in line:
+            threat_match = threat_id
+            break
+
+    if threat_match:
+        current_threat = threat_match
+
+    # 在"残余风险"行后插入测试覆盖
+    if current_threat and '**残余风险**：' in line:
+        threat_id = current_threat
+        mapping = test_coverage[threat_id]
+        tests_str = ', '.join(mapping['tests'])
+
+        test_section = f"""
+**测试覆盖**：
+- **测试 ID**：{tests_str}
+- **覆盖情况**：{mapping['note']}
+
+"""
+
+        insertions.append((i + 1, test_section))
+        current_threat = None  # 重置，避免重复插入
+
+# 从后向前插入，避免行号偏移
+for line_idx, text in reversed(insertions):
+    lines.insert(line_idx, text)
+
+# 保存
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.writelines(lines)
+
+print(f"✅ 已在 {len(insertions)} 个威胁中添加测试覆盖")
+print("\n插入位置：")
+for line_idx, _ in insertions:
+    print(f"  第 {line_idx} 行")

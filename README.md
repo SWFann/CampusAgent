@@ -4,7 +4,7 @@
 
 CampusAgent 让每名学生拥有一个由本人控制、按场景授权的个人智能体。智能体可以在校园组织与群聊场景中代表用户提交最小化的结构化偏好、参与低风险协商，但平台、管理员和其他成员默认不能读取用户的原始偏好、敏感记忆或智能体内部推理过程。
 
-> 当前状态：项目初始化阶段。本仓库只包含项目边界、Demo 规范、架构约束与目录骨架，尚未包含业务代码或可运行服务。
+> 当前状态：P1 工程骨架已可安装、测试和构建，FastAPI/Next.js 健康基线可运行；业务模块、数据库和 Demo 场景尚未实现。P0 API 契约仍有 27 个端点待补齐，不能进入 P2。
 
 ## Demo 要证明什么
 
@@ -100,10 +100,76 @@ CampusAgent/
 - [隐私工程基线](docs/privacy/PRIVACY_BASELINE.md)
 - [Demo 规范与验收](docs/demo/DEMO_SPEC.md)
 - [详细开发计划表](docs/development/DEVELOPMENT_PLAN.md)
+- [快速开始指南](docs/development/QUICK_START.md)
+- [工具链规范](docs/development/TOOLING.md)
 - [UI 初步设计与自然语言规范](docs/design/UI_DESIGN_GUIDE.md)
 - [仓库协作规范](docs/development/REPOSITORY_CONVENTIONS.md)
 - [架构决策记录](docs/decisions/README.md)
 - [安全策略](SECURITY.md)
+
+## Python 虚拟环境
+
+本项目使用 **Conda 虚拟环境** 管理 Python 依赖，确保环境隔离和一致性。
+
+### 环境信息
+
+- **环境名称**：`CampusAgent`
+- **Python 版本**：3.11.15
+- **Windows 当前环境位置**：`D:\Conda\Soft\envs\CampusAgent`（其他系统以 `conda env list` 为准）
+
+### 使用说明
+
+```bash
+# 激活虚拟环境（后端开发前必须执行）
+conda activate CampusAgent
+
+# 验证环境
+python --version  # 应显示 Python 3.11.15
+
+# 停用环境
+conda deactivate
+```
+
+### 重要说明
+
+⚠️ **所有后端 Python 代码必须在 `CampusAgent` 虚拟环境中运行**：
+
+- 启动 FastAPI 服务前，先激活环境
+- 运行测试前，先激活环境
+- 安装 Python 依赖前，先激活环境
+- 执行数据库迁移前，先激活环境
+
+### 已安装的核心依赖
+
+- fastapi 0.139.0
+- uvicorn 0.51.0
+- pydantic 2.13.4
+- sqlalchemy 2.0.51
+- alembic 1.18.5
+- redis 8.0.1
+
+详细说明请参阅 [Conda 环境文档](docs/development/CONDA_ENV.md)。
+
+## 开发命令
+
+```bash
+# 启动开发环境
+corepack pnpm dev
+
+# 运行测试
+corepack pnpm test
+
+# 代码检查
+corepack pnpm lint
+
+# 类型检查
+corepack pnpm typecheck
+
+# 构建项目
+corepack pnpm build
+```
+
+**注意**：首次使用请阅读 [快速开始指南](docs/development/QUICK_START.md)。
 
 ## 后续实施顺序
 

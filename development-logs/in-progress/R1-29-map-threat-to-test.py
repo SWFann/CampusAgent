@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""
+R1-29: 映射威胁到测试
+为威胁模型的每个威胁添加测试覆盖
+"""
+
+import re
+
+# 定义威胁到测试 ID 的映射
+THREAT_TEST_MAPPING = {
+    'T-01': {
+        'description': '越权读取私有提交',
+        'tests': ['PT-001', 'PT-002', 'PT-003', 'PT-004', 'PT-005', 'PT-006'],
+        'coverage': '6 个测试用例（全部覆盖）'
+    },
+    'T-02': {
+        'description': '越权读取记忆正文',
+        'tests': ['PT-101', 'PT-102', 'PT-103', 'PT-104', 'PT-105', 'PT-106', 'PT-107'],
+        'coverage': '7 个测试用例（全部覆盖）'
+    },
+    'T-03': {
+        'description': '日志泄露敏感内容',
+        'tests': ['待补充'],
+        'coverage': '待补充（建议添加日志扫描测试）',
+        'note': '当前 PRIVACY_TEST_MATRIX.md 中缺少专门的日志泄露测试，建议在 P2 阶段补充'
+    },
+    'T-04': {
+        'description': '模型 Prompt 注入',
+        'tests': ['待补充'],
+        'coverage': '待补充（建议添加注入攻击测试）',
+        'note': '当前 PRIVACY_TEST_MATRIX.md 中缺少 Prompt 注入测试，建议在 P3 阶段补充'
+    },
+    'T-05': {
+        'description': '重放攻击',
+        'tests': ['待补充'],
+        'coverage': '待补充（建议添加重放攻击测试）',
+        'note': '当前 PRIVACY_TEST_MATRIX.md 中缺少重放攻击测试，建议在 P2 阶段补充'
+    },
+    'T-06': {
+        'description': '横向访问（A读B）',
+        'tests': ['PT-001', 'PT-002', 'PT-101', 'PT-102', 'PT-103', 'PT-104', 'PT-201', 'PT-202', 'PT-301', 'PT-302', 'PT-303', 'PT-304', 'PT-305', 'PT-306'],
+        'coverage': '14 个测试用例（覆盖横向访问场景）'
+    },
+    'T-07': {
+        'description': '临时数据残留',
+        'tests': ['CL-001', 'CL-002', 'CL-003', 'CL-004', 'CL-005'],
+        'coverage': '5 个清理测试用例'
+    },
+    'T-08': {
+        'description': '外发敏感数据',
+        'tests': ['待补充'],
+        'coverage': '待补充（建议添加外部模型路由测试）',
+        'note': '当前 PRIVACY_TEST_MATRIX.md 中缺少外部模型路由测试，建议在 P2 阶段补充'
+    }
+}
+
+# 读取威胁模型文档
+file_path = '/mnt/f/工作盘/实习经历汇总/星星之火-创业/模型互联网比赛/CampusAgent/docs/security/THREAT_MODEL.md'
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 为每个威胁添加测试覆盖部分
+for threat_id, mapping in THREAT_TEST_MAPPING.items():
+    # 查找威胁标题（例如 ### T-01：越权读取私有提交 🔴）
+    pattern = rf'(### {threat_id}：[^\n]+🔴\n.*?)(残余风险：[^\n]+\n)(?=---\n)'
+
+    def add_test_coverage(match):
+        before = match.group(1)
+        residual_risk = match.group(2)
+
+        test_ids = ', '.join(mapping['tests'])
+
+        test_section = f"""
+**测试覆盖**：
+- **测试 ID**：{test_ids}
+- **覆盖情况**：{mapping['coverage']}
+"""
+
+        if 'note' in mapping:
+            test_section += f"- **说明**：{mapping['note']}\n"
+
+        return before + test_section + '\n' + residual_risk
+
+    content = re.sub(pattern, add_test_coverage, content, flags=re.DOTALL)
+
+# 保存文档
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("✅ 威胁模型已更新测试覆盖映射")
+print("\n威胁-测试映射汇总：")
+for threat_id, mapping in THREAT_TEST_MAPPING.items():
+    print(f"  {threat_id}（{mapping['description']}）：{mapping['coverage']}")

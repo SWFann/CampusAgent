@@ -74,22 +74,23 @@
 
 | 状态 | ID | 任务 | 具体产物 | 依赖 |
 |---|---|---|---|---|
-| [ ] | P0-01 | 建立领域词汇表 | User、Agent、Organization、Conversation、Scene、Memory、Consent 等定义及中英文枚举 | 无 |
-| [ ] | P0-02 | 冻结 MVP/非 MVP | 页面、接口、场景和管理能力的 In/Out 清单 | P0-01 |
-| [ ] | P0-03 | 绘制用户旅程 | 注册、加入宿舍、群聊、私有提交、候选、投票、确认、清理 | P0-02 |
-| [ ] | P0-04 | 建立角色权限矩阵 | 全局角色、组织角色、资源动作、默认拒绝规则 | P0-01 |
-| [ ] | P0-05 | 建立数据清单 | 每个实体的字段、P0–P4 分类、owner、用途、保留期限 | P0-01 |
-| [ ] | P0-06 | 绘制数据流图 | 浏览器、API、数据库、Redis、模型网关、边缘节点的信任边界 | P0-05 |
-| [ ] | P0-07 | 完成威胁建模 | 越权、提示泄露、日志泄露、重放、横向访问、残留数据、外发风险 | P0-06 |
-| [ ] | P0-08 | 冻结场景状态机 | 合法转换、动作发起者、幂等规则、异常终态、超时行为 | P0-03 |
-| [ ] | P0-09 | 草拟 HTTP 契约 | `/api/v1` 资源、请求响应、分页、错误码、Idempotency-Key | P0-04、P0-08 |
-| [ ] | P0-10 | 草拟实时与事件契约 | WebSocket envelope、领域事件、版本策略、重连语义 | P0-09 |
-| [ ] | P0-11 | 建立隐私测试矩阵 | 主体×资源×动作的允许/拒绝测试，以及清理和日志断言 | P0-04、P0-07 |
-| [ ] | P0-12 | 接受首批 ADR | 模块化单体、技术栈、认证方式、模型路由、数据保留 | P0-07–P0-10 |
+| [x] | P0-01 | 建立领域词汇表 | User、Agent、Organization、Conversation、Scene、Memory、Consent 等定义及中英文枚举 | 无 |
+| [x] | P0-02 | 冻结 MVP/非 MVP | 页面、接口、场景和管理能力的 In/Out 清单 | P0-01 |
+| [x] | P0-03 | 绘制用户旅程 | 注册、加入宿舍、群聊、私有提交、候选、投票、确认、清理 | P0-02 |
+| [x] | P0-04 | 建立角色权限矩阵 | 全局角色、组织角色、资源动作、默认拒绝规则 | P0-01 |
+| [x] | P0-05 | 建立数据清单 | 每个实体的字段、P0–P4 分类、owner、用途、保留期限 | P0-01 |
+| [x] | P0-06 | 绘制数据流图 | 浏览器、API、数据库、Redis、模型网关、边缘节点的信任边界 | P0-05 |
+| [x] | P0-07 | 完成威胁建模 | 越权、提示泄露、日志泄露、重放、横向访问、残留数据、外发风险 | P0-06 |
+| [x] | P0-08 | 冻结场景状态机 | 合法转换、动作发起者、幂等规则、异常终态、超时行为 | P0-03 |
+| [x] | P0-09 | 草拟 HTTP 契约 | `/api/v1` 资源、请求响应、分页、错误码、Idempotency-Key | P0-04、P0-08 |
+| [x] | P0-10 | 草拟实时与事件契约 | WebSocket envelope、领域事件、版本策略、重连语义 | P0-09 |
+| [x] | P0-11 | 建立隐私测试矩阵 | 主体×资源×动作的允许/拒绝测试，以及清理和日志断言 | P0-04、P0-07 |
+| [x] | P0-12 | 接受首批 ADR | 模块化单体、技术栈、认证方式、模型路由、数据保留 | P0-07–P0-10 |
 
-退出条件：范围无歧义；权限矩阵与数据清单可审查；状态机没有未定义跳转；所有高风险威胁都有预防、检测或明确接受措施。
+exit条件：范围无歧义；权限矩阵与数据清单可审查；状态机没有未定义跳转；所有高风险威胁都有预防、检测或明确接受措施。
 
-推荐提交：`docs(domain)`、`docs(api)`、`docs(privacy)`、`docs(adr)` 分开提交。
+**完成日期**：2026-07-14
+**推荐提交**：`docs(domain)`、`docs(api)`、`docs(privacy)`、`docs(adr)` 分开提交。
 
 ## P1：Monorepo 与工程工具链
 
@@ -97,18 +98,19 @@
 
 | 状态 | ID | 任务 | 具体产物 | 依赖 |
 |---|---|---|---|---|
-| [ ] | P1-01 | 确认本机工具版本 | Node、包管理器、Python、Docker、Git 的版本基线 | P0-12 |
-| [ ] | P1-02 | 初始化 Workspace | 根 package/workspace 配置和锁文件 | P1-01 |
-| [ ] | P1-03 | 初始化 Web 工程 | Next.js、TypeScript strict、App Router、基础健康页 | P1-02 |
-| [ ] | P1-04 | 初始化 API 工程 | FastAPI 应用工厂、`/health/live`、`/health/ready` | P1-01 |
-| [ ] | P1-05 | 建立后端模块目录 | core 与所有业务模块空骨架、禁止跨 ORM 约束说明 | P1-04 |
-| [ ] | P1-06 | 配置格式化与静态检查 | ESLint/Prettier、Ruff、mypy 或 pyright、EditorConfig | P1-03–P1-04 |
-| [ ] | P1-07 | 建立测试框架 | pytest、前端单测、Playwright 空运行基线 | P1-03–P1-04 |
-| [ ] | P1-08 | 建立统一命令 | `make dev/test/lint/typecheck/build/seed` 或等价脚本 | P1-06–P1-07 |
-| [ ] | P1-09 | 建立环境变量校验 | `.env.example`、启动时必填校验、测试默认值 | P1-04 |
-| [ ] | P1-10 | 建立 CI | 安装、lint、typecheck、test、build、secret scan | P1-08 |
-| [ ] | P1-11 | 配置依赖更新策略 | Dependabot/Renovate 及锁文件评审规则 | P1-10 |
-| [ ] | P1-12 | 更新启动文档 | 从空机器到健康检查通过的准确步骤 | P1-08–P1-10 |
+| [x] | P1-01 | 确认本机工具版本 | Node、包管理器、Python、Docker、Git 的版本基线 | P0-12 |
+| [x] | P1-02 | 初始化 Workspace | 根 package/workspace 配置和锁文件 | P1-01 |
+| [x] | P1-03 | 初始化 Web 工程 | Next.js、TypeScript strict、App Router、基础健康页 | P1-02 |
+| [x] | P1-04 | 初始化 API 工程 | FastAPI 应用工厂、`/health/live`、`/health/ready` | P1-01 |
+| [x] | P1-05 | 建立后端模块目录 | core 与所有业务模块空骨架、禁止跨 ORM 约束说明 | P1-04 |
+| [x] | P1-06 | 配置格式化与静态检查 | ESLint/Prettier、Ruff、mypy 或 pyright、EditorConfig | P1-03–P1-04 |
+| [x] | P1-07 | 建立测试框架 | pytest、前端单测、Playwright 空运行基线 | P1-03–P1-04 |
+| [x] | P1-08 | 建立统一命令 | `make dev/test/lint/typecheck/build/seed` 或等价脚本 | P1-06–P1-07 |
+| [x] | P1-09 | 建立环境变量校验 | `.env.example`、启动时必填校验、测试默认值 | P1-04 |
+| [x] | P1-10 | 建立 CI | 安装、lint、typecheck、test、build、secret scan | P1-08 |
+| [x] | P1-11 | 配置依赖更新策略 | Dependabot/Renovate 及锁文件评审规则 | P1-10 |
+| [x] | P1-12 | 更新启动文档 | 从空机器到健康检查通过的准确步骤 | P1-08–P1-10 |
+| [x] | P1-13 | 配置 Conda 虚拟环境 | CampusAgent 环境、Makefile 集成、文档更新 | P1-12 |
 
 验收命令：全新检出后可执行安装、lint、typecheck、test、build；Web 和 API 健康页可访问；CI 通过。
 

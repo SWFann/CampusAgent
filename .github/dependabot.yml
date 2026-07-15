@@ -1,0 +1,58 @@
+version: 2
+updates:
+  # npm dependencies (frontend)
+  - package-ecosystem: "npm"
+    directory: "/apps/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    groups:
+      # Group all devDependencies updates
+      dev-dependencies:
+        dependency-type: "development"
+      # Group all production dependencies updates
+      production-dependencies:
+        dependency-type: "production"
+    commit-message:
+      prefix: "chore(web)"
+      prefix-development: "chore(web)"
+      include: "scope"
+
+  # Root package.json (workspace)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(root)"
+
+  # pip dependencies (backend)
+  - package-ecosystem: "pip"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    groups:
+      # Group all dependencies
+      all-dependencies:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(api)"
+      include: "scope"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(docker)"
