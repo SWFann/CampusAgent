@@ -100,10 +100,16 @@ R0 退出条件：当前 P0/P1 产物已进入 Git；工作内容不会因后续
 - ✅ R1-15 已完成统一，建立 9 类错误分类体系、68+ 错误码主表、统一响应结构（含 retryable 字段），所有 R1-08～R1-13 端点已关联错误码
 - ✅ R1-16 已完成统一，建立完整幂等规则（18 必支持 + 3 可选端点）、统一请求规则（分页/排序/过滤/时间/ID/空值）、统一响应模型（6 种）、统一校验规则，所有端点引用 Section 1.3～1.8
 - ✅ R1-17 已完成冻结，`API_CONTRACT.md` v1.0-frozen（71 个端点），发现并修复 1 处端点方法不一致（EP-MODEL-059 embedding），WEBSOCKET_CONTRACT.md 仍为 DRAFT（有安全问题待 R1-22 处理）
+- ✅ R1-14～R1-17 返工整改：MVP_SCOPE.md 路径变量已统一（{org_id}→{organization_id} 等）；MVP_ENDPOINT_TRACEABILITY.md 4 处"未文档化"修正为"已文档化"，统计区一致；错误码总表补入 USER_ALREADY_EXISTS、USER_PERMISSION_DENIED、DIRECTORY_ORG_NOT_FOUND、MESSAGE_NOT_FOUND、MESSAGE_PERMISSION_DENIED；幂等作用域明确为 actor_id + method + path + body_hash + key 复合键
+- ✅ R1-18 已完成统一，Web 浏览器端主认证方式为 HttpOnly Secure SameSite Cookie + JWT，login/refresh/logout/me 端点 Cookie 行为一致，内部服务 Bearer Token 明确范围
+- ✅ R1-19 已完成定义，CSRF 防护方案采用 Double-Submit Cookie 模式（非 HttpOnly `csrf_token` Cookie + `X-CSRF-Token` 请求头），明确 CSRF 仅强制用于 Cookie 已认证的浏览器写请求，login/register 未认证端点豁免，3 个 CSRF 错误码已加入 API_CONTRACT 错误码总表和端点错误码清单
+- ✅ R1-20 已完成修正，登录响应不返回 access_token/refresh_token（仅返回用户元数据 + Set-Cookie），新增 csrf_token Cookie，错误码统一为 AUTH_INVALID_CREDENTIALS（防止账号枚举）
+- ✅ R1-21 已完成修正，Refresh 流程采用 Token 轮换（每次刷新颁发新 refresh_token，旧 token 立即失效），新增 token family 机制和重放检测（重放时撤销整个 family），新增 AUTH_REFRESH_TOKEN_EXPIRED 错误码，Logout 清除 access_token/refresh_token/csrf_token 三个 Cookie 并撤销 token family
+- ✅ R1-18～R1-21 认证链路复审：明确 CSRF bootstrap 流程（login/register 豁免，成功后签发 csrf_token），register 自动登录增加 Set-Cookie: csrf_token，统一 auth 端点 CSRF 豁免范围，CSRF_TOKEN_EXPIRED 降级为可选增强（P2 实现），API_CONTRACT.md 变更记录增加 R1-C 安全修订
 
 | 状态 | ID | 整改内容 | 具体操作 | 完成标准 |
 |---|---|---|---|---|
-| [ ] | R1-06 | 建立 62 端点对照清单 | `MVP_SCOPE.md` vs `API_CONTRACT.md` | 每个 MVP 端点都有契约章节和唯一编号 |
+| [ ] | R1-06 | 建立 68 端点对照清单 | `MVP_SCOPE.md` vs `API_CONTRACT.md` | 每个 MVP 端点都有契约章节和唯一编号 |
 | [ ] | R1-07 | 补全 Directory API | search、tree、recommended | 请求、响应、权限、分页和隐私投影齐全 |
 | [x] | R1-08 | 补全 Conversation API | 更新会话、参与者管理、消息列表和删除 | 成员权限和消息可见范围明确 |
 | [x] | R1-09 | 补全 Agent API | chat、permissions 查询/修改、runs | 授权、代理等级和运行元数据明确 |
@@ -134,10 +140,10 @@ API 契约逐端点最低字段：
 
 | 状态 | ID | 整改内容 | 具体操作 | 完成标准 |
 |---|---|---|---|---|
-| [ ] | R1-18 | 冻结浏览器认证方式 | 依据 ADR-003 统一为 HttpOnly Cookie 或明确替代方案 | HTTP 契约与 ADR 一致 |
-| [ ] | R1-19 | 定义 CSRF 方案 | Token 来源、Header、轮换和失败响应 | 所有 Cookie 写请求具有明确 CSRF 防护 |
-| [ ] | R1-20 | 修正登录响应 | 不再同时声称只用 Cookie又返回持久化 Token | 前端无须把 Token 写入浏览器存储 |
-| [ ] | R1-21 | 修正 Refresh 流程 | Cookie、轮换、重放检测、注销撤销 | ADR 与 API 契约完全一致 |
+| [x] | R1-18 | 冻结浏览器认证方式 | 依据 ADR-003 统一为 HttpOnly Secure SameSite Cookie + JWT；Web 浏览器端主认证方式为 Cookie，不返回 access_token/refresh_token 到响应体；内部服务 Bearer Token 明确范围（Model Gateway/Admin）；login/refresh/logout/me 端点 Cookie 行为一致 | HTTP 契约与 ADR 一致；前端不存储 Token 到 localStorage/sessionStorage |
+| [x] | R1-19 | 定义 CSRF 方案 | Token 来源、Header、轮换和失败响应 | 所有 Cookie 写请求具有明确 CSRF 防护 |
+| [x] | R1-20 | 修正登录响应 | 不再同时声称只用 Cookie又返回持久化 Token | 前端无须把 Token 写入浏览器存储 |
+| [x] | R1-21 | 修正 Refresh 流程 | Cookie、轮换、重放检测、注销撤销 | ADR 与 API 契约完全一致 |
 | [ ] | R1-22 | 修正 WebSocket 鉴权 | 禁止长期 Token 出现在 URL 查询参数 | 采用安全 Cookie/一次性 ticket/连接后认证之一 |
 | [ ] | R1-23 | 定义 WebSocket Token 过期 | 关闭码、刷新、重连和重新订阅 | 客户端行为可确定实现 |
 | [ ] | R1-24 | 冻结事件 Schema | 所有事件字段和版本策略 | 公共事件不包含 P2–P4 数据 |
@@ -174,7 +180,7 @@ docs(security): correct threat model and control states
 docs(project): close P0 remediation findings
 ```
 
-R1 退出条件：P0 没有互相冲突的角色、认证、状态和保留规则；62 个端点全部可追踪；API/WebSocket 不再是待评审草稿；威胁模型与测试矩阵一致。
+R1 退出条件：P0 没有互相冲突的角色、认证、状态和保留规则；68 个端点全部可追踪；API/WebSocket 不再是待评审草稿；威胁模型与测试矩阵一致。
 
 ---
 
@@ -324,7 +330,7 @@ pnpm --filter @campus-agent/web test:e2e
 |---|---|---|---|
 | [ ] | R4-01 | MVP/非 MVP 无歧义 | MVP Scope 评审记录 |
 | [ ] | R4-02 | 角色模型唯一且有 ADR | 角色 ADR + 全仓搜索结果 |
-| [ ] | R4-03 | 62 个 MVP 端点均有完整契约 | 端点对照表 |
+| [ ] | R4-03 | 68 个 MVP 端点均有完整契约 | 端点对照表 |
 | [ ] | R4-04 | HTTP、Cookie、CSRF、WebSocket 认证一致 | ADR + API/WS 契约 |
 | [ ] | R4-05 | 状态机无未定义转换 | 状态转换矩阵评审 |
 | [ ] | R4-06 | 数据分类和保留期限一致 | 数据清单对照结果 |

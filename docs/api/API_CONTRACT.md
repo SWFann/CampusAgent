@@ -1,8 +1,8 @@
 # HTTP API 契约
 
-> **版本**：v1.0-DRAFT  
-> **基线日期**：2026-07-14  
-> **状态**：草稿，待评审  
+> **版本**：v1.0-frozen
+> **冻结日期**：2026-07-14
+> **状态**：已审计冻结，后续变更需 ADR
 > **维护者**：开发团队
 
 ## 1. 基础约定
@@ -308,15 +308,29 @@ crypto.randomUUID()
 
 #### 1.4.4 作用域
 
-**全局唯一**：
-- `Idempotency-Key` 在整个服务端全局唯一
-- 同一 Key 用于不同端点或不同参数被视为不同的幂等请求
-- 同一 Key 用于相同端点和相同参数被视为重复请求
+**幂等记录唯一键**：
 
-**键的组成**：
-- 实际存储键 = `Idempotency-Key` + 请求路径 + 请求体哈希
-- 这意味着同一 Key 用于不同端点不会冲突
-- 同一 Key 用于相同端点但不同参数不会冲突
+```
+composite_key = actor_id + HTTP_method + request_path + request_body_hash + Idempotency-Key
+```
+
+**三条硬规则**：
+
+| 场景 | 处理方式 | 响应 |
+|------|---------|------|
+| 相同 actor + method + path + body_hash + key | 返回首次缓存结果 | 200/201（与首次相同） |
+| 相同 actor + method + path + key，但 body_hash 不同 | 视为冲突 | 409 `IDEMPOTENCY_CONFLICT` |
+| 不同 actor 使用相同 key | 视为新请求（不复用他人记录） | 正常执行 |
+
+**说明**：
+- ✅ `actor_id`：发起请求的用户或服务账号 ID，确保不同用户不互相干扰
+- ✅ `request_path`：完整路径（含路径变量，如 `/api/v1/organizations/{organization_id}/members`）
+- ✅ `request_body_hash`：请求体 JSON 的 SHA-256 哈希（忽略字段顺序），确保参数变更可检测
+- ✅ `Idempotency-Key`：客户端提供的 UUID v4
+- ✅ 同一 actor 对同一端点发送相同 body + 相同 key → 幂等（返回缓存结果）
+- ✅ 同一 actor 对同一端点发送不同 body + 相同 key → 冲突（返回 409）
+- ❌ 不同 actor 即使使用相同 key → 也视为独立请求（不共享幂等记录）
+- ❌ 不以 key 单独作为唯一键（必须结合 actor + path + body_hash）
 
 #### 1.4.5 过期时间
 
@@ -411,11 +425,277 @@ crypto.randomUUID()
 
 ### 1.5 鉴权
 
+#### 1.5.1 Web 浏览器端（主认证方式）
+
+**方案**：JWT + HttpOnly Secure SameSite Cookie
+
+- Access Token 和 Refresh Token 均存储在 HttpOnly Secure SameSite Cookie 中
+- 浏览器自动携带 Cookie，前端代码无法读取（防 XSS）
+- 前端不得将 access_token 存入 `localStorage`、`sessionStorage` 或任何可读存储
+
+**请求头**（浏览器端）：
+
 ```
-Authorization: Bearer <access_token>
+Cookie: access_token=<jwt>; refresh_token=<jwt>
 ```
 
-或使用 HttpOnly Cookie。
+**登录/注册成功后**，服务端通过 `Set-Cookie` 响应头发放 Cookie。
+
+#### 1.5.2 非浏览器内部调用（辅助认证方式）
+
+**方案**：Bearer Token（仅限内部服务）
+
+- `Authorization: Bearer <internal_service_token>`
+- 仅用于服务间调用（如 Agent Service → Model Gateway）
+- 不得用于普通 Web 用户认证
+- Token 通过服务发现或密钥管理系统分发
+
+**适用端点**：
+- `POST /internal/v1/model/chat`
+- `POST /internal/v1/model/embedding`
+- `GET /internal/v1/model/health`
+
+**管理后台**：
+- `Authorization: Bearer <admin_token>`
+- 仅限管理后台调用
+- Token 通过管理员登录流程获取
+
+#### 1.5.3 认证流程
+
+```
+登录 → 验证凭据 → 颁发 Access + Refresh Token
+→ Set-Cookie: access_token（HttpOnly, Secure, SameSite=Lax）
+→ Set-Cookie: refresh_token（HttpOnly, Secure, SameSite=Lax）
+→ 后续请求自动携带 Cookie
+→ 服务端验证 Cookie 中的 access_token
+→ 过期后使用 refresh_token 轮换
+→ 刷新过期后跳转登录
+```
+
+#### 1.5.4 参考
+
+- ADR-003：采用 JWT + HttpOnly Cookie 方案
+- R1-19：CSRF 防护方案（Cookie 写请求需 CSRF Token）
+- R1-20：修正登录响应（不再返回 access_token/refresh_token 到响应体）
+
+#### 1.5.5 Cookie 属性详细定义
+
+**access_token Cookie**：
+
+| 属性 | 值 | 说明 |
+|------|-----|------|
+| `HttpOnly` | true | 禁止 JavaScript 访问（防 XSS 窃取） |
+| `Secure` | true | 仅 HTTPS 传输（生产环境强制） |
+| `SameSite` | Lax | 跨站请求不携带 Cookie（防止 CSRF）；同站导航（如点击链接）携带 |
+| `Path` | `/api/v1` | 仅对 `/api/v1/*` 路径发送 |
+| `Max-Age` | 3600 | 有效期 1 小时 |
+| `Domain` | 配置项 | 根据部署环境设置（如 `.campus-agent.example.edu`） |
+
+**refresh_token Cookie**：
+
+| 属性 | 值 | 说明 |
+|------|-----|------|
+| `HttpOnly` | true | 禁止 JavaScript 访问 |
+| `Secure` | true | 仅 HTTPS 传输 |
+| `SameSite` | Lax | 同 access_token |
+| `Path` | `/api/v1/auth` | 仅对 `/api/v1/auth/*` 路径发送（限制暴露面） |
+| `Max-Age` | 604800 | 有效期 7 天 |
+| `Domain` | 配置项 | 同 access_token |
+
+**SameSite=Lax 选择理由**：
+- 浏览器从外部链接点击进入站点时（如从学校官网点击 CampusAgent 链接），`access_token` Cookie 会被发送，用户保持登录状态
+- 跨站 POST 请求（如恶意网站的 `<form>` 提交）不携带 Cookie，防止 CSRF
+- 如果需要更严格的安全策略，可改为 `SameSite=Strict`（但会影响从外部链接进入时的登录状态保持）
+
+**开发环境例外**：
+- 开发环境（`APP_ENV=development`）允许 `Secure=false`（HTTP 本地开发）
+- 生产环境必须 `Secure=true`（强制 HTTPS）
+
+**Cookie 清理**：
+- 注销时：`Max-Age=0`，立即过期
+- 刷新失败时：保留旧 access_token 直到过期（不主动清除）
+
+#### 1.5.6 CSRF 防护方案
+
+> 本节依据 ADR-003 和 [R1-18 浏览器认证统一方案](development-logs/completed/remediation-r1/R1-18_UNIFY_BROWSER_AUTH.md) 定义 CSRF 防护机制。
+
+**背景**：
+- 浏览器端主认证方式为 HttpOnly Cookie（Section 1.5.1）
+- Cookie 在浏览器同站请求中自动携带（`SameSite=Lax`）
+- **已认证的**浏览器写操作（POST/PATCH/PUT/DELETE）需要额外 CSRF 防护层
+- 未认证端点（login、register）不持有 csrf_token，豁免 CSRF 校验
+
+##### 1.5.6.1 CSRF Token 来源
+
+**Double-Submit Cookie 模式**：
+
+| 组件 | 名称 | HttpOnly | 说明 |
+|------|------|:--------:|------|
+| CSRF Token Cookie | `csrf_token` | **false** | 非 HttpOnly，允许 JavaScript 读取 |
+| 请求头 | `X-CSRF-Token` | - | 客户端将 Cookie 值原样放入请求头 |
+
+**流程**：
+1. 用户登录成功后，服务端设置 `csrf_token` Cookie（非 HttpOnly）
+2. 前端读取 `csrf_token` Cookie 值（通过 `document.cookie` 或辅助函数）
+3. 每次浏览器发送写请求（POST/PATCH/PUT/DELETE）时，在 `X-CSRF-Token` 请求头中携带 `csrf_token` 的值
+4. 服务端校验：`X-CSRF-Token` 请求头值 = `csrf_token` Cookie 值
+5. 校验失败：返回 HTTP 403 + 对应错误码
+
+**前端伪代码**：
+
+```javascript
+// 读取 CSRF Token
+function getCsrfToken() {
+  const match = document.cookie.match(/csrf_token=([^;]+)/)
+  return match ? match[1] : null
+}
+
+// 发起写请求
+async function postData(url, data) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': getCsrfToken(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  })
+  return response
+}
+```
+
+**后端校验伪代码**：
+
+```python
+def validate_csrf(request):
+    # 跳过非浏览器请求（已通过 Bearer 认证）
+    if request.auth and request.auth.type == "bearer":
+        return True
+
+    # 跳过未认证端点（login/register），此时客户端尚无 csrf_token Cookie
+    if request.path in ("/api/v1/auth/login", "/api/v1/auth/register"):
+        return True
+
+    csrf_cookie = request.cookies.get("csrf_token")
+    csrf_header = request.headers.get("X-CSRF-Token")
+
+    if not csrf_cookie or not csrf_header:
+        raise CSRF_TOKEN_MISSING()
+
+    if csrf_cookie != csrf_header:
+        raise CSRF_TOKEN_MISMATCH()
+
+    # Token 有效期检查（可选增强，不进入 MVP）
+    # if is_csrf_token_expired(csrf_cookie):
+    #     raise CSRF_TOKEN_EXPIRED()
+
+    return True
+```
+
+##### 1.5.6.2 强制 CSRF 校验的请求
+
+以下请求**必须**包含有效的 `X-CSRF-Token` 请求头：
+
+| HTTP 方法 | 范围 | 说明 |
+|-----------|------|------|
+| `POST` | Cookie 已认证的浏览器端 POST | 创建资源、执行操作（login/register 除外） |
+| `PATCH` | Cookie 已认证的浏览器端 PATCH | 更新资源 |
+| `PUT` | Cookie 已认证的浏览器端 PUT | 替换资源（MVP 未使用，预留） |
+| `DELETE` | Cookie 已认证的浏览器端 DELETE | 删除资源 |
+
+**判断规则**：
+- 请求通过 Cookie 认证（非 Bearer）且非 login/register 端点 → 必须校验 CSRF
+- 请求通过 Bearer 认证（内部服务）→ 跳过 CSRF 校验
+- 请求为 GET/HEAD/OPTIONS → 跳过 CSRF 校验（只读操作）
+- 请求为未认证端点（`POST /api/v1/auth/login`、`POST /api/v1/auth/register`）→ 跳过 CSRF 校验（此时客户端尚无 csrf_token Cookie）
+
+**CSRF Bootstrap 流程**：
+1. 用户访问站点（未认证）
+2. 用户提交登录/注册表单（无需 CSRF Token，因为尚未持有 csrf_token Cookie）
+3. 服务端验证凭据后，通过 `Set-Cookie` 响应头发放 `access_token`、`refresh_token`、`csrf_token`
+4. 前端从响应中获取 `csrf_token` Cookie（非 HttpOnly，可读取）
+5. 后续所有写请求携带 `X-CSRF-Token` 请求头
+
+##### 1.5.6.3 CSRF 豁免请求
+
+以下请求**豁免** CSRF 校验：
+
+| 请求类型 | 豁免原因 |
+|----------|---------|
+| `GET`、`HEAD`、`OPTIONS` | 只读操作，不改变服务端状态 |
+| `POST /api/v1/auth/login` | 未认证登录请求，客户端尚无 csrf_token Cookie |
+| `POST /api/v1/auth/register` | 未认证注册请求，客户端尚无 csrf_token Cookie |
+| Bearer Token 认证的请求 | 内部服务间调用（`internal_service_token`）及管理后台（`admin_token`），不通过 Cookie 认证 |
+| WebSocket 握手（GET /ws/v1） | WebSocket 使用一次性 ticket，非 Cookie 认证 |
+| 静态资源请求（`/static/*`、`/favicon.ico`） | 不涉及 API 认证 |
+
+**CSRF Bootstrap 流程说明**：
+- login/register 是 CSRF 防护的 bootstrap 端点
+- 登录/注册成功后，服务端通过 `Set-Cookie` 发放 `csrf_token`
+- 前端从 Cookie 中读取 `csrf_token`，用于后续写请求的 `X-CSRF-Token` 请求头
+- 此流程不要求 login/register 本身携带 CSRF Token（Chicken-and-Egg 问题）
+
+**WebSocket 握手特别说明**：
+- 当前：`GET /ws/v1?ticket=<one_time_ticket>`（R1-22 将改为 Cookie）
+- WebSocket 握手通过 ticket 认证，不使用 Cookie
+- SameSite=Lax 已阻止跨站 WebSocket 连接携带 Cookie
+- 豁免 CSRF 校验，但保留 ticket 过期检查（待 R1-23 实现）
+
+##### 1.5.6.4 CSRF 校验失败响应
+
+当 CSRF 校验失败时，返回 HTTP 403 和以下错误码之一：
+
+| 场景 | HTTP 状态码 | 错误码 | message |
+|------|:----------:|--------|---------|
+| 缺少 `X-CSRF-Token` 请求头（写请求） | 403 | `CSRF_TOKEN_MISSING` | 缺少 CSRF Token，请刷新页面后重试 |
+| `X-CSRF-Token` 与 `csrf_token` Cookie 值不匹配 | 403 | `CSRF_TOKEN_MISMATCH` | CSRF Token 不匹配，请刷新页面后重试 |
+| `csrf_token` Cookie 已过期（可选增强，P2 实现） | 403 | `CSRF_TOKEN_EXPIRED` | CSRF Token 已过期，请重新登录 |
+
+**响应格式**：
+
+```json
+{
+  "error": {
+    "code": "CSRF_TOKEN_MISSING",
+    "message": "缺少 CSRF Token，请刷新页面后重试",
+    "details": {},
+    "request_id": "abc-123-def",
+    "retryable": false
+  }
+}
+```
+
+**前端处理**：
+- `CSRF_TOKEN_MISSING` / `CSRF_TOKEN_MISMATCH`：页面刷新（Token 已失效）
+- `CSRF_TOKEN_EXPIRED`：跳转到登录页（重新登录刷新 Token）
+
+##### 1.5.6.5 CSRF Token 生命周期
+
+| 事件 | CSRF Token 行为 |
+|------|----------------|
+| 用户注册（POST /api/v1/auth/register） | 生成新的 `csrf_token` Cookie（注册成功后自动登录） |
+| 用户登录（POST /api/v1/auth/login） | 生成新的 `csrf_token` Cookie |
+| Token 刷新（POST /api/v1/auth/refresh） | 保持 `csrf_token` 不变（或选择刷新） |
+| 用户注销（POST /api/v1/auth/logout） | 清除 `csrf_token` Cookie（Max-Age=0） |
+| Token 过期（access_token 过期） | `csrf_token` 保留但失效（前端应跳转登录） |
+
+**CSRF Bootstrap 流程**：
+- login/register 是未认证端点，不持有 csrf_token Cookie
+- 登录/注册成功后，服务端通过 `Set-Cookie` 一次性发放 `access_token`、`refresh_token`、`csrf_token`
+- 前端从 Cookie 中读取 `csrf_token`（非 HttpOnly），用于后续写请求的 `X-CSRF-Token` 请求头
+- 此流程解决了 Chicken-and-Egg 问题：首次请求无需 CSRF，后续请求需要 CSRF
+
+**开发环境**：
+- 开发环境允许 `Secure=false`（HTTP）
+- CSRF 防护在开发环境同样生效（不豁免）
+- `csrf_token` 有效期在开发环境可适当缩短（如 1 小时），方便测试
+
+##### 1.5.6.6 参考
+
+- ADR-003：认证方式决策
+- [R1-18 浏览器认证统一方案](development-logs/completed/remediation-r1/R1-18_UNIFY_BROWSER_AUTH.md)
+- [R1-22 WebSocket 鉴权修正](docs/project/P0_P1_REMEDIATION_PLAN.md)（WebSocket Cookie 迁移）
 
 ### 1.6 错误码体系
 
@@ -462,7 +742,8 @@ Authorization: Bearer <access_token>
 | **not_found** | `*_NOT_FOUND` | 404 | 资源不存在 |
 | **conflict** | `*_ALREADY_EXISTS`、`*_ALREADY_*`、`*_IN_USE`、`*_CANNOT_LEAVE`、`*_LIMIT_REACHED`、`*_CAPACITY_EXCEEDED`、`PRECONDITION_FAILED` | 409 | 资源状态冲突 |
 | **state_transition_error** | `*_INVALID_STATE`、`*_INVALID_STAGE`、`*_PENDING_*`、`*_NOT_READY` | 422 | 当前状态不允许该操作 |
-| **idempotency_conflict** | `*_IDEMPOTENCY_CONFLICT` | 409 | Idempotency-Key 冲突 |
+| **idempotency_conflict** | `IDEMPOTENCY_CONFLICT`（跨模块通用码，不分模块前缀）、`IDEMPOTENCY_KEY_REQUIRED` | 409/400 | Idempotency-Key 冲突或缺失（跨所有模块，不分前缀） |
+| **csrf** | `CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH`、`CSRF_TOKEN_EXPIRED` | 403 | CSRF Token 缺失、不匹配或过期 |
 | **rate_limit** | `*_RATE_LIMITED` | 429 | 请求频率超限 |
 | **model_gateway_error** | `MODEL_*`、`PRIVACY_CONTEXT_*` | 502/503 | 模型网关错误 |
 | **internal_error** | `INTERNAL_ERROR` | 500 | 服务端未预期错误 |
@@ -476,16 +757,28 @@ Authorization: Bearer <access_token>
 | 错误码 | HTTP | message | retryable | 出现位置 |
 |--------|:----:|---------|:---------:|---------|
 | `AUTH_INVALID_TOKEN` | 401 | 访问令牌无效或已过期 | false | Auth |
-| `AUTH_REFRESH_TOKEN_REVOKED` | 401 | Refresh Token 已被撤销 | false | Auth |
+| `AUTH_REFRESH_TOKEN_REVOKED` | 401 | Refresh Token 已被撤销（包括重放检测触发撤销） | false | Auth |
+| `AUTH_REFRESH_TOKEN_EXPIRED` | 401 | Refresh Token 已过期 | false | Auth |
 | `AUTH_ACCOUNT_DISABLED` | 401 | 账号已被禁用 | false | Auth |
 | `AUTH_EMAIL_NOT_VERIFIED` | 401 | 邮箱未验证 | false | Auth |
 | `AUTH_WEAK_PASSWORD` | 400 | 密码强度不足 | false | Auth |
+| `AUTH_INVALID_CREDENTIALS` | 401 | 邮箱或密码错误 | false | Auth |
+| `USER_ALREADY_EXISTS` | 409 | 邮箱或学号已被注册 | false | Auth / User |
+
+**CSRF**
+
+| 错误码 | HTTP | message | retryable | 出现位置 |
+|--------|:----:|---------|:---------:|---------|
+| `CSRF_TOKEN_MISSING` | 403 | 缺少 CSRF Token | false | 通用 |
+| `CSRF_TOKEN_MISMATCH` | 403 | CSRF Token 不匹配 | false | 通用 |
+| `CSRF_TOKEN_EXPIRED` | 403 | CSRF Token 已过期 | false | 通用 |
 
 **授权（Authorization）**
 
 | 错误码 | HTTP | message | retryable | 出现位置 |
 |--------|:----:|---------|:---------:|---------|
 | `USER_NOT_FOUND` | 404 | 用户不存在 | false | User |
+| `USER_PERMISSION_DENIED` | 403 | 无权限操作此用户 | false | User |
 | `ORG_PERMISSION_DENIED` | 403 | 无权限操作此组织 | false | Organization |
 | `ORG_NOT_FOUND` | 404 | 组织不存在 | false | Organization |
 | `ORG_MEMBER_ALREADY_EXISTS` | 409 | 用户已是组织成员 | false | Organization |
@@ -501,6 +794,8 @@ Authorization: Bearer <access_token>
 | `CONVERSATION_AGENT_NOT_FOUND` | 404 | 智能体不存在 | false | Conversation |
 | `CONVERSATION_USER_NOT_FOUND` | 404 | 用户不存在 | false | Conversation |
 | `CONVERSATION_INVALID_PRIVACY_LEVEL` | 400 | 无效的隐私级别 | false | Conversation |
+| `MESSAGE_NOT_FOUND` | 404 | 消息不存在 | false | Conversation |
+| `MESSAGE_PERMISSION_DENIED` | 403 | 无权限操作此消息 | false | Conversation |
 | `AGENT_NOT_FOUND` | 404 | 智能体不存在 | false | Agent |
 | `AGENT_PERMISSION_DENIED` | 403 | 无权限操作此智能体 | false | Agent |
 | `AGENT_PERMISSION_EXPIRED` | 403 | 智能体授权已过期 | false | Agent |
@@ -547,6 +842,7 @@ Authorization: Bearer <access_token>
 | `DIRECTORY_QUERY_TOO_SHORT` | 400 | 搜索词过短（最少 2 字符） | false | Directory |
 | `DIRECTORY_INVALID_TYPE` | 400 | 无效的搜索类型 | false | Directory |
 | `DIRECTORY_TREE_TOO_DEEP` | 400 | 组织树深度超过限制（最多 10 层） | false | Directory |
+| `DIRECTORY_ORG_NOT_FOUND` | 404 | 组织不存在或无权访问 | false | Directory |
 | `SCENE_LIST_INVALID_TYPE` | 400 | 无效的场景类型过滤值 | false | Scene |
 | `SCENE_INSTANCE_CREATE_INVALID_SCENE_KEY` | 400 | 无效的场景标识符 | false | Scene |
 | `SCENE_INSTANCE_CREATE_NO_PARTICIPANTS` | 400 | 至少需要 1 名参与者 | false | Scene |
@@ -635,8 +931,24 @@ Authorization: Bearer <access_token>
 - `MODULE`：2-8 字符模块缩写（`AUTH`、`CONVERSATION`、`SCENE_INSTANCE`、`MEMORY`、`MODEL`、`ADMIN`、`DIRECTORY`、`AGENT`、`ORG`）
 - `REASON`：描述失败原因，使用动词过去分词或名词短语
 - 同一失败原因在不同模块使用各自前缀，不跨模块复用
+- **例外**：幂等性错误码 `IDEMPOTENCY_CONFLICT`、`IDEMPOTENCY_KEY_REQUIRED` 为跨模块通用码，不分模块前缀（所有模块共用同一错误码）
 
 #### 1.6.6 端点错误码清单
+
+**CSRF 校验规则（适用于所有 Cookie 已认证的浏览器写请求）**：
+
+| 请求类型 | CSRF 校验 | 错误码 |
+|----------|:---------:|--------|
+| Cookie 已认证的浏览器端 POST/PATCH/PUT/DELETE | ✅ 必须 | `CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| 浏览器端 GET/HEAD/OPTIONS | ❌ 豁免 | 无 |
+| 未认证端点（login/register） | ❌ 豁免 | 无 |
+| 内部服务（Bearer Token） | ❌ 豁免 | 无 |
+| WebSocket 握手 | ❌ 豁免 | 无 |
+
+**端点错误码规范**：
+- 写端点（POST/PATCH/PUT/DELETE）必须标注 `CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH`
+- `CSRF_TOKEN_EXPIRED` 为可选增强（P2 实现），MVP 阶段不进入端点错误码清单
+- 豁免端点（GET/HEAD/OPTIONS、login/register、内部端点）不标注 CSRF 错误码
 
 每个端点必须在文档中列出可能返回的错误码。以下为 R1-08～R1-13 端点的错误码关联：
 
@@ -645,9 +957,9 @@ Authorization: Bearer <access_token>
 | 端点 | 错误码 |
 |------|--------|
 | POST /api/v1/auth/register | `AUTH_WEAK_PASSWORD`、`USER_ALREADY_EXISTS` |
-| POST /api/v1/auth/login | `AUTH_INVALID_TOKEN` |
-| POST /api/v1/auth/refresh | `AUTH_REFRESH_TOKEN_REVOKED` |
-| POST /api/v1/auth/logout | （无业务错误） |
+| POST /api/v1/auth/login | `AUTH_INVALID_CREDENTIALS` |
+| POST /api/v1/auth/refresh | `AUTH_REFRESH_TOKEN_REVOKED`、`AUTH_REFRESH_TOKEN_EXPIRED`、`AUTH_INVALID_TOKEN`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/auth/logout | `AUTH_INVALID_TOKEN`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/auth/me | `AUTH_INVALID_TOKEN` |
 
 **User（2.2）**
@@ -655,7 +967,7 @@ Authorization: Bearer <access_token>
 | 端点 | 错误码 |
 |------|--------|
 | GET /api/v1/users/{user_id} | `USER_NOT_FOUND` |
-| PATCH /api/v1/users/{user_id} | `USER_NOT_FOUND`、`PERMISSION_DENIED` |
+| PATCH /api/v1/users/{user_id} | `USER_NOT_FOUND`、`USER_PERMISSION_DENIED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/users/{user_id}/organizations | `USER_NOT_FOUND` |
 | GET /api/v1/users/{user_id}/agent | `USER_NOT_FOUND`、`AGENT_NOT_FOUND` |
 
@@ -663,17 +975,17 @@ Authorization: Bearer <access_token>
 
 | 端点 | 错误码 |
 |------|--------|
-| POST /api/v1/organizations | `ORG_INVALID_JOIN_POLICY`、`ORG_CAPACITY_EXCEEDED` |
+| POST /api/v1/organizations | `ORG_INVALID_JOIN_POLICY`、`ORG_CAPACITY_EXCEEDED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/organizations | （无业务错误） |
 | GET /api/v1/organizations/{organization_id} | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED` |
-| PATCH /api/v1/organizations/{organization_id} | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED` |
-| DELETE /api/v1/organizations/{organization_id} | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`ORG_LAST_OWNER_CANNOT_LEAVE` |
-| POST /api/v1/organizations/{organization_id}/members | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`USER_NOT_FOUND`、`ORG_MEMBER_ALREADY_EXISTS` |
+| PATCH /api/v1/organizations/{organization_id} | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| DELETE /api/v1/organizations/{organization_id} | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`ORG_LAST_OWNER_CANNOT_LEAVE`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/organizations/{organization_id}/members | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`USER_NOT_FOUND`、`ORG_MEMBER_ALREADY_EXISTS`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/organizations/{organization_id}/members | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED` |
-| PATCH /api/v1/organizations/{organization_id}/members/{user_id} | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`USER_NOT_FOUND`、`ORG_LAST_OWNER_CANNOT_LEAVE` |
-| DELETE /api/v1/organizations/{organization_id}/members/{user_id} | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`USER_NOT_FOUND`、`ORG_LAST_OWNER_CANNOT_LEAVE` |
-| POST /api/v1/organizations/{organization_id}/join | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`ORG_MEMBER_ALREADY_EXISTS`、`ORG_INVALID_JOIN_POLICY` |
-| POST /api/v1/organizations/{organization_id}/leave | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`ORG_LAST_OWNER_CANNOT_LEAVE` |
+| PATCH /api/v1/organizations/{organization_id}/members/{user_id} | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`USER_NOT_FOUND`、`ORG_LAST_OWNER_CANNOT_LEAVE`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| DELETE /api/v1/organizations/{organization_id}/members/{user_id} | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`USER_NOT_FOUND`、`ORG_LAST_OWNER_CANNOT_LEAVE`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/organizations/{organization_id}/join | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`ORG_MEMBER_ALREADY_EXISTS`、`ORG_INVALID_JOIN_POLICY`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/organizations/{organization_id}/leave | `ORG_NOT_FOUND`、`ORG_PERMISSION_DENIED`、`ORG_LAST_OWNER_CANNOT_LEAVE`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 
 **Directory（2.4）**
 
@@ -687,15 +999,15 @@ Authorization: Bearer <access_token>
 
 | 端点 | 错误码 |
 |------|--------|
-| POST /api/v1/conversations | `CONVERSATION_INVALID_PRIVACY_LEVEL` |
+| POST /api/v1/conversations | `CONVERSATION_INVALID_PRIVACY_LEVEL`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/conversations | （无业务错误） |
 | GET /api/v1/conversations/{conversation_id} | `CONVERSATION_NOT_FOUND`、`CONVERSATION_NOT_PARTICIPANT` |
-| PATCH /api/v1/conversations/{conversation_id} | `CONVERSATION_NOT_FOUND`、`CONVERSATION_PERMISSION_DENIED`、`CONVERSATION_INVALID_PRIVACY_LEVEL` |
-| POST /api/v1/conversations/{conversation_id}/participants | `CONVERSATION_NOT_FOUND`、`CONVERSATION_PERMISSION_DENIED`、`CONVERSATION_PARTICIPANT_ALREADY_EXISTS`、`CONVERSATION_AGENT_NOT_FOUND`、`CONVERSATION_USER_NOT_FOUND` |
-| DELETE /api/v1/conversations/{conversation_id}/participants/{participant_id} | `CONVERSATION_NOT_FOUND`、`CONVERSATION_PARTICIPANT_NOT_FOUND`、`CONVERSATION_PERMISSION_DENIED`、`CONVERSATION_LAST_OWNER_CANNOT_LEAVE` |
+| PATCH /api/v1/conversations/{conversation_id} | `CONVERSATION_NOT_FOUND`、`CONVERSATION_PERMISSION_DENIED`、`CONVERSATION_INVALID_PRIVACY_LEVEL`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/conversations/{conversation_id}/participants | `CONVERSATION_NOT_FOUND`、`CONVERSATION_PERMISSION_DENIED`、`CONVERSATION_PARTICIPANT_ALREADY_EXISTS`、`CONVERSATION_AGENT_NOT_FOUND`、`CONVERSATION_USER_NOT_FOUND`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| DELETE /api/v1/conversations/{conversation_id}/participants/{participant_id} | `CONVERSATION_NOT_FOUND`、`CONVERSATION_PARTICIPANT_NOT_FOUND`、`CONVERSATION_PERMISSION_DENIED`、`CONVERSATION_LAST_OWNER_CANNOT_LEAVE`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/conversations/{conversation_id}/messages | `CONVERSATION_NOT_FOUND`、`CONVERSATION_NOT_PARTICIPANT`、`MESSAGE_INVALID_SENDER_TYPE` |
-| POST /api/v1/conversations/{conversation_id}/messages | `CONVERSATION_NOT_FOUND`、`CONVERSATION_NOT_PARTICIPANT` |
-| DELETE /api/v1/messages/{message_id} | `MESSAGE_NOT_FOUND`、`MESSAGE_PERMISSION_DENIED`、`MESSAGE_CANNOT_RECALL`、`MESSAGE_HARD_DELETE_DENIED`、`MESSAGE_HARD_DELETE_PRIVATE_SESSION`、`MESSAGE_HARD_DELETE_AGENT_DOMAIN`、`MESSAGE_HARD_DELETE_SCENE_PRIVATE` |
+| POST /api/v1/conversations/{conversation_id}/messages | `CONVERSATION_NOT_FOUND`、`CONVERSATION_NOT_PARTICIPANT`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| DELETE /api/v1/messages/{message_id} | `MESSAGE_NOT_FOUND`、`MESSAGE_PERMISSION_DENIED`、`MESSAGE_CANNOT_RECALL`、`MESSAGE_HARD_DELETE_DENIED`、`MESSAGE_HARD_DELETE_PRIVATE_SESSION`、`MESSAGE_HARD_DELETE_AGENT_DOMAIN`、`MESSAGE_HARD_DELETE_SCENE_PRIVATE`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 
 **Agent（2.6）**
 
@@ -713,12 +1025,12 @@ Authorization: Bearer <access_token>
 | 端点 | 错误码 |
 |------|--------|
 | GET /api/v1/memories | `MEMORY_ACCESS_INVALID_FILTER` |
-| POST /api/v1/memories | `MEMORY_CONSENT_REQUIRED` |
+| POST /api/v1/memories | `MEMORY_CONSENT_REQUIRED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/memories/{memory_id} | `MEMORY_NOT_FOUND`、`MEMORY_PERMISSION_DENIED`、`MEMORY_CONTENT_ENCRYPTED` |
-| PATCH /api/v1/memories/{memory_id} | `MEMORY_NOT_FOUND`、`MEMORY_PERMISSION_DENIED`、`MEMORY_INVALID_FIELD`、`MEMORY_CONSENT_REQUIRED` |
-| DELETE /api/v1/memories/{memory_id} | `MEMORY_NOT_FOUND`、`MEMORY_PERMISSION_DENIED`、`MEMORY_IN_USE` |
+| PATCH /api/v1/memories/{memory_id} | `MEMORY_NOT_FOUND`、`MEMORY_PERMISSION_DENIED`、`MEMORY_INVALID_FIELD`、`MEMORY_CONSENT_REQUIRED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| DELETE /api/v1/memories/{memory_id} | `MEMORY_NOT_FOUND`、`MEMORY_PERMISSION_DENIED`、`MEMORY_IN_USE`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/memories/access-log | `MEMORY_ACCESS_DENIED`、`MEMORY_ACCESS_INVALID_FILTER` |
-| POST /api/v1/memories/export | `MEMORY_NOT_FOUND`、`MEMORY_PERMISSION_DENIED`、`MEMORY_EXPORT_INVALID_FORMAT`、`MEMORY_EXPORT_CONFIRMATION_REQUIRED`、`MEMORY_EXPORT_TOO_LARGE`、`MEMORY_EXPORT_RATE_LIMITED` |
+| POST /api/v1/memories/export | `MEMORY_NOT_FOUND`、`MEMORY_PERMISSION_DENIED`、`MEMORY_EXPORT_INVALID_FORMAT`、`MEMORY_EXPORT_CONFIRMATION_REQUIRED`、`MEMORY_EXPORT_TOO_LARGE`、`MEMORY_EXPORT_RATE_LIMITED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 
 **Scene（2.8）**
 
@@ -726,16 +1038,16 @@ Authorization: Bearer <access_token>
 |------|--------|
 | GET /api/v1/scenes | `SCENE_LIST_INVALID_TYPE` |
 | GET /api/v1/scenes/{scene_key} | `SCENE_NOT_FOUND` |
-| POST /api/v1/scene-instances | `SCENE_INSTANCE_CREATE_INVALID_SCENE_KEY`、`SCENE_INSTANCE_CREATE_NO_PARTICIPANTS`、`SCENE_INSTANCE_CREATE_CONVERSATION_NOT_FOUND` |
+| POST /api/v1/scene-instances | `SCENE_INSTANCE_CREATE_INVALID_SCENE_KEY`、`SCENE_INSTANCE_CREATE_NO_PARTICIPANTS`、`SCENE_INSTANCE_CREATE_CONVERSATION_NOT_FOUND`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/scene-instances/{scene_instance_id} | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_PERMISSION_DENIED` |
-| POST /api/v1/scene-instances/{scene_instance_id}/participants | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_PERMISSION_DENIED`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_INSTANCE_PARTICIPANT_ALREADY_EXISTS`、`SCENE_INSTANCE_PARTICIPANT_LIMIT_REACHED`、`CONVERSATION_USER_NOT_FOUND` |
-| POST /api/v1/scene-instances/{scene_instance_id}/consent | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_NOT_PARTICIPANT`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_INSTANCE_CONSENT_ALREADY_GRANTED`、`SCENE_INSTANCE_CONSENT_EXPIRED`、`PRIVACY_CONSENT_REVOKED` |
-| POST /api/v1/scene-instances/{scene_instance_id}/private-submission | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_NOT_PARTICIPANT`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_INSTANCE_SUBMISSION_ALREADY_EXISTS`、`SCENE_INSTANCE_SUBMISSION_ENCRYPTION_FAILED`、`PRIVACY_CONSENT_REVOKED` |
-| POST /api/v1/scene-instances/{scene_instance_id}/start | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_PERMISSION_DENIED`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_INSTANCE_PENDING_SUBMISSIONS` |
+| POST /api/v1/scene-instances/{scene_instance_id}/participants | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_PERMISSION_DENIED`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_INSTANCE_PARTICIPANT_ALREADY_EXISTS`、`SCENE_INSTANCE_PARTICIPANT_LIMIT_REACHED`、`CONVERSATION_USER_NOT_FOUND`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/scene-instances/{scene_instance_id}/consent | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_NOT_PARTICIPANT`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_INSTANCE_CONSENT_ALREADY_GRANTED`、`SCENE_INSTANCE_CONSENT_EXPIRED`、`PRIVACY_CONSENT_REVOKED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/scene-instances/{scene_instance_id}/private-submission | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_NOT_PARTICIPANT`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_INSTANCE_SUBMISSION_ALREADY_EXISTS`、`SCENE_INSTANCE_SUBMISSION_ENCRYPTION_FAILED`、`PRIVACY_CONSENT_REVOKED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/scene-instances/{scene_instance_id}/start | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_PERMISSION_DENIED`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_INSTANCE_PENDING_SUBMISSIONS`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 | GET /api/v1/scene-instances/{scene_instance_id}/candidates | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_NOT_PARTICIPANT`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_CANDIDATES_NOT_READY` |
-| POST /api/v1/scene-instances/{scene_instance_id}/vote | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_NOT_PARTICIPANT`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_CANDIDATES_NOT_READY`、`SCENE_VOTE_INVALID_CANDIDATE`、`SCENE_VOTE_ALREADY_VOTED` |
-| POST /api/v1/scene-instances/{scene_instance_id}/confirm | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_PERMISSION_DENIED`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_CANDIDATES_NOT_READY`、`SCENE_CONFIRM_INVALID_CANDIDATE`、`SCENE_CONFIRM_MEMORY_WRITE_FAILED` |
-| POST /api/v1/scene-instances/{scene_instance_id}/cancel | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_PERMISSION_DENIED`、`SCENE_INSTANCE_INVALID_STATE` |
+| POST /api/v1/scene-instances/{scene_instance_id}/vote | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_NOT_PARTICIPANT`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_CANDIDATES_NOT_READY`、`SCENE_VOTE_INVALID_CANDIDATE`、`SCENE_VOTE_ALREADY_VOTED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/scene-instances/{scene_instance_id}/confirm | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_PERMISSION_DENIED`、`SCENE_INSTANCE_INVALID_STATE`、`SCENE_CANDIDATES_NOT_READY`、`SCENE_CONFIRM_INVALID_CANDIDATE`、`SCENE_CONFIRM_MEMORY_WRITE_FAILED`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
+| POST /api/v1/scene-instances/{scene_instance_id}/cancel | `SCENE_INSTANCE_NOT_FOUND`、`SCENE_INSTANCE_PERMISSION_DENIED`、`SCENE_INSTANCE_INVALID_STATE`、`CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH` |
 
 **Model Gateway（2.9）**
 
@@ -1133,10 +1445,20 @@ Authorization: Bearer <access_token>
 
 **响应**：201 Created
 
+**响应头**：
+```
+Set-Cookie: access_token=<jwt>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1; Max-Age=3600
+Set-Cookie: refresh_token=<jwt>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth; Max-Age=604800
+Set-Cookie: csrf_token=<random>; Secure; SameSite=Lax; Path=/; Max-Age=604800
+```
+
 **说明**：
 - 邮箱和学号必须唯一
 - 支持幂等性（见 1.4）
 - 发布 `UserRegistered` 事件
+- Token 通过 `Set-Cookie` 响应头发放，注册成功后自动登录
+- `csrf_token` Cookie 用于 CSRF 防护（非 HttpOnly，前端可读取）
+- 注册成功后前端可读取 `csrf_token` Cookie，并用于后续写请求的 `X-CSRF-Token` 请求头
 
 **错误码**：
 - `AUTH_WEAK_PASSWORD` - 密码强度不足
@@ -1150,6 +1472,8 @@ Authorization: Bearer <access_token>
 
 **权限**：公开
 
+**认证方式**：无（公开端点）
+
 **请求体**：
 ```json
 {
@@ -1159,14 +1483,32 @@ Authorization: Bearer <access_token>
 ```
 
 **响应**：200 OK
+
+**响应体**：
 ```json
 {
-  "access_token": "...",
-  "refresh_token": "...",
-  "token_type": "Bearer",
-  "expires_in": 3600
+  "id": "uuid",
+  "email": "student@example.edu",
+  "display_name": "张三",
+  "global_role": "STUDENT"
 }
 ```
+
+**响应头**：
+```
+Set-Cookie: access_token=<jwt>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1; Max-Age=3600
+Set-Cookie: refresh_token=<jwt>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth; Max-Age=604800
+Set-Cookie: csrf_token=<random>; Secure; SameSite=Lax; Path=/; Max-Age=604800
+```
+
+**说明**：
+- Token 通过 `Set-Cookie` 响应头发放，不返回在响应体中
+- `access_token`：有效期 1 小时，`Path=/api/v1`，用于 API 认证
+- `refresh_token`：有效期 7 天，`Path=/api/v1/auth`，仅用于刷新令牌
+- `csrf_token`：有效期 7 天，`Path=/`，用于 CSRF 防护（非 HttpOnly，前端可读取）
+- 前端不得读取 `access_token`/`refresh_token` Cookie（`HttpOnly` 禁止 JavaScript 访问）
+- 浏览器自动在后续请求中携带 Cookie
+- 前端需读取 `csrf_token` Cookie 值，并在写请求中通过 `X-CSRF-Token` 请求头携带
 
 **安全**：
 - 密码错误次数限制
@@ -1174,40 +1516,93 @@ Authorization: Bearer <access_token>
 - 统一响应时间
 
 **错误码**：
-- `AUTH_INVALID_TOKEN` - 邮箱或密码错误（统一响应，不区分具体原因）
+- `AUTH_INVALID_CREDENTIALS` - 邮箱或密码错误（统一响应，不区分具体原因，防止账号枚举）
 
 ---
 
 #### POST /api/v1/auth/refresh
 
-**描述**：刷新令牌
+**描述**：刷新访问令牌（Refresh Token 轮换）
 
-**权限**：已认证
+**权限**：已认证（通过 refresh_token Cookie）
 
-**请求体**：
-```json
-{
-  "refresh_token": "..."
-}
-```
+**认证方式**：Cookie（`refresh_token`）
+
+**请求体**：无（refresh_token 从 Cookie 中读取）
 
 **响应**：200 OK
 
+**响应体**：
+```json
+{
+  "id": "uuid",
+  "email": "student@example.edu",
+  "display_name": "张三",
+  "global_role": "STUDENT",
+  "session_version": 3
+}
+```
+
+**响应头**：
+```
+Set-Cookie: access_token=<new_jwt>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1; Max-Age=3600
+Set-Cookie: refresh_token=<new_jwt>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth; Max-Age=604800
+```
+
+**说明**：
+- `refresh_token` 从 `Cookie` 中读取（不在请求体中传递）
+- **Refresh Token 轮换**：每次刷新成功时，颁发新的 `refresh_token`，旧 `refresh_token` 立即失效（加入黑名单）
+- `access_token` 和 `refresh_token` 都通过 `Set-Cookie` 响应头发放
+- `session_version` 表示当前会话版本号，每次刷新递增（用于前端检测会话状态变化）
+- 如果 `refresh_token` 无效、已撤销、已过期或被检测为重放攻击，返回对应错误码
+- **重放检测**：如果检测到同一 `refresh_token` 被使用两次（重放），立即撤销整个 token family（所有关联的 refresh_token），标记 session compromised
+- 前端需要检测 `session_version` 变化，如果版本号突然变化，提示用户重新登录（安全警告）
+
+**Token Family 机制**：
+- 每次登录/刷新时生成新的 token family ID
+- `refresh_token` 包含 family ID
+- 重放检测：同一 family ID 的 refresh_token 只能使用一次
+- 检测到重放时：撤销整个 family（所有关联的 refresh_token），标记 session compromised
+
 **错误码**：
-- `AUTH_REFRESH_TOKEN_REVOKED` - Refresh Token 已被撤销或已使用
+- `AUTH_REFRESH_TOKEN_REVOKED` - Refresh Token 已被撤销（包括重放检测触发撤销）
+- `AUTH_REFRESH_TOKEN_EXPIRED` - Refresh Token 已过期
+- `AUTH_INVALID_TOKEN` - 未找到 refresh_token（Cookie 缺失）
+- `CSRF_TOKEN_MISSING` - 缺少 CSRF Token
+- `CSRF_TOKEN_MISMATCH` - CSRF Token 不匹配
 
 ---
 
 #### POST /api/v1/auth/logout
 
-**描述**：注销
+**描述**：注销（清除认证 Cookie 并撤销 session）
 
 **权限**：已认证
 
+**认证方式**：Cookie（`access_token`）
+
+**请求体**：无
+
 **响应**：204 No Content
+
+**响应头**：
+```
+Set-Cookie: access_token=; HttpOnly; Secure; SameSite=Lax; Path=/api/v1; Max-Age=0
+Set-Cookie: refresh_token=; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth; Max-Age=0
+Set-Cookie: csrf_token=; Secure; SameSite=Lax; Path=/; Max-Age=0
+```
+
+**说明**：
+- 服务端撤销当前 refresh_token（加入黑名单）
+- 服务端撤销整个 token family（所有关联的 refresh_token）
+- 通过 `Set-Cookie` 清除浏览器中的 access_token、refresh_token 和 csrf_token
+- `Max-Age=0` 表示立即过期
+- 前端应同时清除客户端状态（如 Vuex/Pinia store）
 
 **错误码**：
 - `AUTH_INVALID_TOKEN` - 未认证或令牌无效
+- `CSRF_TOKEN_MISSING` - 缺少 CSRF Token
+- `CSRF_TOKEN_MISMATCH` - CSRF Token 不匹配
 
 ---
 
@@ -1216,6 +1611,13 @@ Authorization: Bearer <access_token>
 **描述**：获取当前用户信息
 
 **权限**：已认证
+
+**认证方式**：Cookie（`access_token`）
+
+**请求头**：
+```
+Cookie: access_token=<jwt>
+```
 
 **响应**：200 OK
 ```json
@@ -1227,6 +1629,10 @@ Authorization: Bearer <access_token>
   "agent": { ... }
 }
 ```
+
+**说明**：
+- 认证信息从 `Cookie` 中读取（不在 `Authorization` 头中传递）
+- 前端通过此接口验证登录状态
 
 **错误码**：
 - `AUTH_INVALID_TOKEN` - 未认证或令牌无效
@@ -1278,7 +1684,7 @@ Authorization: Bearer <access_token>
 
 **错误码**：
 - `USER_NOT_FOUND` - 用户不存在
-- `PERMISSION_DENIED` - 无权限修改（非本人或管理员）
+- `USER_PERMISSION_DENIED` - 无权限修改（非本人或管理员）
 
 ---
 
@@ -2607,7 +3013,7 @@ Authorization: Bearer <access_token>
 | `purpose` | 访问目的 | `meal_planning`/`scene_execution` |
 | `action` | 操作类型 | `read`/`update`/`delete`/`export` |
 | `result` | 结果 | `success`/`denied`/`error` |
-| `failure_reason` | 失败原因（可选） | `PERMISSION_DENIED` |
+| `failure_reason` | 失败原因（可选） | `MEMORY_PERMISSION_DENIED` |
 | `ip_address` | IP 地址（脱敏） | `192.168.xxx.xxx` |
 | `user_agent` | User-Agent（可选） | `Mozilla/5.0...` |
 | `timestamp` | 时间戳 | `2026-07-14T10:30:00Z` |
@@ -4144,6 +4550,11 @@ Authorization: Bearer <admin_token>
 
 **权限**：SCHOOL_ADMIN 或 SYSTEM_ADMIN
 
+**请求头**：
+```
+Authorization: Bearer <admin_token>
+```
+
 **路径参数**：
 | 参数 | 类型 | 说明 |
 |------|------|------|
@@ -4645,3 +5056,11 @@ Authorization: Bearer <admin_token>
 | 日期 | 变更内容 | 变更人 |
 |------|---------|--------|
 | 2026-07-14 | 初始版本 | - |
+| 2026-07-15 | R1-C：认证/CSRF 契约复审修订 | Claude |
+| | - 明确 CSRF bootstrap 流程（login/register 豁免，成功后签发 csrf_token） | |
+| | - register 自动登录增加 Set-Cookie: csrf_token（与 login 一致） | |
+| | - 统一 auth 端点 CSRF 豁免范围（login/register 豁免，refresh/logout 强制） | |
+| | - CSRF_TOKEN_EXPIRED 降级为可选增强（P2 实现），MVP 仅用 MISSING/MISMATCH | |
+| | - 新增 AUTH_REFRESH_TOKEN_EXPIRED、AUTH_INVALID_CREDENTIALS 错误码 | |
+| | - 修正 Refresh 流程：Token 轮换、token family、重放检测 | |
+| | - 移除 Bearer Admin API 的 CSRF 错误码，统一 Bearer 请求豁免规则 | |

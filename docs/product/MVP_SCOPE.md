@@ -98,15 +98,15 @@
 #### Organization（P4阶段）
 - ✅ `POST /api/v1/organizations` - 创建组织
 - ✅ `GET /api/v1/organizations` - 组织列表
-- ✅ `GET /api/v1/organizations/{org_id}` - 组织详情
-- ✅ `PATCH /api/v1/organizations/{org_id}` - 更新组织
-- ✅ `DELETE /api/v1/organizations/{org_id}` - 删除组织
-- ✅ `POST /api/v1/organizations/{org_id}/members` - 添加成员
-- ✅ `GET /api/v1/organizations/{org_id}/members` - 成员列表
-- ✅ `PATCH /api/v1/organizations/{org_id}/members/{user_id}` - 更新成员角色
-- ✅ `DELETE /api/v1/organizations/{org_id}/members/{user_id}` - 移除成员
-- ✅ `POST /api/v1/organizations/{org_id}/join` - 加入组织
-- ✅ `POST /api/v1/organizations/{org_id}/leave` - 退出组织
+- ✅ `GET /api/v1/organizations/{organization_id}` - 组织详情
+- ✅ `PATCH /api/v1/organizations/{organization_id}` - 更新组织
+- ✅ `DELETE /api/v1/organizations/{organization_id}` - 删除组织
+- ✅ `POST /api/v1/organizations/{organization_id}/members` - 添加成员
+- ✅ `GET /api/v1/organizations/{organization_id}/members` - 成员列表
+- ✅ `PATCH /api/v1/organizations/{organization_id}/members/{user_id}` - 更新成员角色
+- ✅ `DELETE /api/v1/organizations/{organization_id}/members/{user_id}` - 移除成员
+- ✅ `POST /api/v1/organizations/{organization_id}/join` - 加入组织
+- ✅ `POST /api/v1/organizations/{organization_id}/leave` - 退出组织
 
 #### Directory（P4阶段）
 - ✅ `GET /api/v1/directory/search` - 搜索用户/组织
@@ -116,12 +116,12 @@
 #### Conversation（P5阶段）
 - ✅ `POST /api/v1/conversations` - 创建会话
 - ✅ `GET /api/v1/conversations` - 会话列表
-- ✅ `GET /api/v1/conversations/{conv_id}` - 会话详情
-- ✅ `PATCH /api/v1/conversations/{conv_id}` - 更新会话
-- ✅ `POST /api/v1/conversations/{conv_id}/participants` - 添加参与者
-- ✅ `DELETE /api/v1/conversations/{conv_id}/participants/{participant_id}` - 移除参与者
-- ✅ `GET /api/v1/conversations/{conv_id}/messages` - 消息列表
-- ✅ `POST /api/v1/conversations/{conv_id}/messages` - 发送消息
+- ✅ `GET /api/v1/conversations/{conversation_id}` - 会话详情
+- ✅ `PATCH /api/v1/conversations/{conversation_id}` - 更新会话
+- ✅ `POST /api/v1/conversations/{conversation_id}/participants` - 添加参与者
+- ✅ `DELETE /api/v1/conversations/{conversation_id}/participants/{participant_id}` - 移除参与者
+- ✅ `GET /api/v1/conversations/{conversation_id}/messages` - 消息列表
+- ✅ `POST /api/v1/conversations/{conversation_id}/messages` - 发送消息
 - ✅ `DELETE /api/v1/messages/{message_id}` - 删除消息
 
 #### Agent（P6阶段）
@@ -145,15 +145,15 @@
 - ✅ `GET /api/v1/scenes` - 场景列表
 - ✅ `GET /api/v1/scenes/{scene_key}` - 场景详情
 - ✅ `POST /api/v1/scene-instances` - 创建场景实例
-- ✅ `GET /api/v1/scene-instances/{instance_id}` - 场景详情
-- ✅ `POST /api/v1/scene-instances/{instance_id}/participants` - 添加参与者
-- ✅ `POST /api/v1/scene-instances/{instance_id}/consent` - 授权
-- ✅ `POST /api/v1/scene-instances/{instance_id}/private-submission` - **私有提交** ⭐
-- ✅ `POST /api/v1/scene-instances/{instance_id}/start` - 开始处理
-- ✅ `GET /api/v1/scene-instances/{instance_id}/candidates` - 候选列表
-- ✅ `POST /api/v1/scene-instances/{instance_id}/vote` - 投票
-- ✅ `POST /api/v1/scene-instances/{instance_id}/confirm` - 确认结果
-- ✅ `POST /api/v1/scene-instances/{instance_id}/cancel` - 取消场景
+- ✅ `GET /api/v1/scene-instances/{scene_instance_id}` - 场景详情
+- ✅ `POST /api/v1/scene-instances/{scene_instance_id}/participants` - 添加参与者
+- ✅ `POST /api/v1/scene-instances/{scene_instance_id}/consent` - 授权
+- ✅ `POST /api/v1/scene-instances/{scene_instance_id}/private-submission` - **私有提交** ⭐
+- ✅ `POST /api/v1/scene-instances/{scene_instance_id}/start` - 开始处理
+- ✅ `GET /api/v1/scene-instances/{scene_instance_id}/candidates` - 候选列表
+- ✅ `POST /api/v1/scene-instances/{scene_instance_id}/vote` - 投票
+- ✅ `POST /api/v1/scene-instances/{scene_instance_id}/confirm` - 确认结果
+- ✅ `POST /api/v1/scene-instances/{scene_instance_id}/cancel` - 取消场景
 
 #### Model Gateway（内部，P7阶段）
 - ✅ `POST /internal/v1/model/chat` - 模型调用（内部）
