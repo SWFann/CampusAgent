@@ -21,7 +21,7 @@
 - **场景结束**：与场景相关的临时数据
 - **24小时**：临时加密数据的最大保留时间
 - **30天**：Agent 执行元数据
-- **90天**：审计日志
+- **180天**：审计日志（R1-31 权威口径，原 90 天已统一修正）
 - **用户控制**：长期记忆由用户主动确认后保留
 
 ---
@@ -449,21 +449,21 @@
 
 | 字段 | 类型 | 分类 | Owner | 用途 | 保留 | 说明 |
 |------|------|------|-------|------|------|------|
-| `id` | UUID | P0 | 系统 | 主键 | 90天 | |
-| `actor_id` | UUID | P1 | 系统 | 操作者 | 90天 | |
-| `action` | VARCHAR | P1 | 系统 | 操作类型 | 90天 | |
-| `resource_type` | VARCHAR | P1 | 系统 | 资源类型 | 90天 | |
-| `resource_id` | UUID | P1 | 系统 | 资源ID | 90天 | 可选 |
-| `purpose` | VARCHAR | P1 | 系统 | 操作目的 | 90天 | 可选 |
-| `result` | VARCHAR | P1 | 系统 | 结果 | 90天 | 成功/失败 |
-| `metadata` | JSONB | P1 | 系统 | 元数据 | 90天 | 脱敏信息 |
-| `request_id` | UUID | P1 | 系统 | 请求ID | 90天 | |
-| `timestamp` | TIMESTAMP | P0 | 系统 | 时间戳 | 90天 | |
+| `id` | UUID | P0 | 系统 | 主键 | 180天 | |
+| `actor_id` | UUID | P1 | 系统 | 操作者 | 180天 | |
+| `action` | VARCHAR | P1 | 系统 | 操作类型 | 180天 | |
+| `resource_type` | VARCHAR | P1 | 系统 | 资源类型 | 180天 | |
+| `resource_id` | UUID | P1 | 系统 | 资源ID | 180天 | 可选 |
+| `purpose` | VARCHAR | P1 | 系统 | 操作目的 | 180天 | 可选 |
+| `result` | VARCHAR | P1 | 系统 | 结果 | 180天 | 成功/失败 |
+| `metadata` | JSONB | P1 | 系统 | 元数据 | 180天 | 脱敏信息 |
+| `request_id` | UUID | P1 | 系统 | 请求ID | 180天 | |
+| `timestamp` | TIMESTAMP | P0 | 系统 | 时间戳 | 180天 | |
 
 **隐私约束**：
 - ❌ 不记录敏感内容本身
 - ✅ 只记录操作元数据
-- ✅ 自动清理90天后
+- ✅ 自动清理180天后（R1-31 权威口径）
 
 ---
 
@@ -517,12 +517,108 @@
 | 私有候选评价 | **立即删除** | 定时任务 | 最长24h兜底 |
 | 场景结果 | 永久 | - | 保留 |
 | Agent Run | 30天 | 定时任务 | 自动清理 |
-| 审计日志 | 90天 | 定时任务 | 自动清理 |
+| 审计日志 | 180天 | 定时任务 | 自动清理（R1-31 权威口径） |
 | 长期记忆 | 用户控制 | 用户删除 | 用户主动管理 |
 
 ---
 
-## 12. 相关文档
+## 12. P2/P3/P4 失败关闭要求（R1-30）
+
+与 THREAT_MODEL.md §4.3 失败关闭场景矩阵对齐，以下为 P2/P3/P4 数据的失败关闭要求：
+
+### 12.1 失败时必须失败关闭的字段
+
+| 数据分类 | 关键字段 | 失败关闭要求 |
+|---------|---------|---------|
+| P2 私有 | `password_hash`、`private_config_encrypted`、`auth_secret_encrypted`、`content_encrypted`、`capsule_payload` | 解密失败时停止处理，不返回密文或部分明文；不用空字符串继续流程 |
+| P3 高敏感 | `content_encrypted`（sensitivity_level=P3）、心理状态相关记忆 | 解密失败时停止处理；不路由到外部模型；不记录日志 |
+| P4 临时秘密 | `encrypted_payload`、`capsule_payload`、`PrivateCandidateEvaluation` | 清理失败时标记失败并阻止后续读取；不把清理失败当作成功 |
+
+### 12.2 不得日志记录的字段
+
+以下字段在任何情况下（包括失败场景）都不得出现在日志中：
+- `encrypted_payload`（P4 原始提交）
+- `capsule_payload`（P2 偏好胶囊）
+- `content_encrypted`（P2/P3 记忆正文）
+- `private_config_encrypted`（P2 智能体私有配置）
+- `auth_secret_encrypted`（P2 节点凭据）
+- `password_hash`（P2 密码哈希）
+- Prompt、模型原始输入、完整模型响应
+
+### 12.3 不得外发的字段
+
+以下字段不得发送到外部模型 Provider：
+- 所有 P3 字段
+- 所有 P4 字段
+- P2 中的 `content_encrypted`、`capsule_payload`、`private_config_encrypted`
+
+### 12.4 清理失败阻止后续读取
+
+以下字段清理失败时，必须阻止后续读取操作：
+- `PrivateSceneSubmission.encrypted_payload`（场景结束后）
+- `PrivateSceneSubmission.capsule_payload`（场景结束后）
+- `PrivateCandidateEvaluation` 全部字段（场景结束后）
+- 已撤销授权的临时授权数据
+
+**注意**：TTL 数值细节已由 R1-31 统一复核，详见 §13 数据保留策略矩阵（R1-31 权威口径）。
+
+---
+
+## 13. 数据保留策略矩阵（R1-31 权威口径）
+
+> **本节为保留策略的唯一权威事实来源**。如其他文档与本节冲突，以本节为准。
+> R1-31 统一了全仓保留期限口径，修正了 AuditLog 在不同文档中 30天/90天/永久 的冲突。
+
+### 13.1 权威保留策略矩阵
+
+| 数据对象 | 数据分类 | 加密 | 默认保留 | 最长保留 | 清理触发 | 删除方式 | 可恢复 | 可导出 | 日志策略 | 备注 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| User 账号 | P0/P1/P2 | password_hash 强哈希 | 账号生命周期 | 账号删除后匿名化 | 用户注销 / 管理员禁用 | 软删除（deleted_at）→ 匿名化 | 软删除期可恢复 | 用户本人可导出资料 | password_hash 不得日志记录 | 注销后保留 30 天用于匿名化处理 |
+| StudentProfile | P0/P1 | 否 | 账号生命周期 | 随 User 删除 | 账号删除 | 软删除 / 匿名化 | 软删除期可恢复 | 用户本人 | 不记录敏感字段 | profile_visibility 用户可控 |
+| Auth Token / Session | P1 | 否 | Access Token 配置化（MVP 短期有效）；Refresh Token 配置化（轮换） | Token TTL 过期 | 过期 / 注销 / 撤销 | 过期自动删除 | 否 | 否 | Token 原文不得日志记录 | TTL 具体数值 P2/P3 实现前配置化，不得出现互相冲突数值 |
+| CSRF Token | P1 | 否 | 浏览器会话 / Refresh 周期 | 会话结束 | 会话结束 / Refresh | 过期自动删除 | 否 | 否 | 不记录 Token 原文 | MVP 可选增强（P2 实现） |
+| Conversation | P0/P1 | 否 | 会话生命周期 | 永久（归档） | 用户删除 / 归档 | 软删除 / 归档 | 软删除期可恢复 | 按权限导出 metadata 和可见消息 | 不记录消息正文 | |
+| Message | P1/P2 | 否 | 会话生命周期 | 会话生命周期 | 用户删除 | 软删除（deleted_at）；公共消息可受控硬删除 | 软删除可恢复；硬删除不可恢复 | 按权限 | 删除审计只记录 metadata，不记录正文 | 私密会话/Agent 私域/Scene 私有提交不支持普通消息硬删除 |
+| MemoryItem（长期记忆） | P2/P3 | content_encrypted 应用层加密 | 用户控制 | 用户控制 | 用户主动删除 | 软删除（deleted_at）→ 用户请求可硬删除 | 软删除可恢复 | 用户本人 | content_encrypted 不得日志记录 | 撤销授权后 Agent 不得继续读取 |
+| MemoryItem（短期/场景记忆） | P2/P3 | content_encrypted 应用层加密 | 场景执行期间 | 场景结束后 24h 兜底 | scene_end | 物理清理 | 否 | 否 | 同上 | |
+| ConsentRecord | P2 | 否 | 90 天 | 90 天 | 过期 / 撤销后 90 天 | 自动清理 | 否 | 否 | 不记录私有正文；只记录可审计元数据 | revoked_at 后不得继续用于访问；撤销不等于删除审计事实 |
+| PrivateSceneSubmission.encrypted_payload | P4 | 加密 | 场景执行期间 | 场景结束后 24h 兜底 | COMPLETED/CANCELLED/FAILED/EXPIRED | 物理清理（不可恢复） | 否 | 否 | 不得日志记录 | 清理失败按 FC-012 失败关闭处理 |
+| capsule_payload | P2 | 加密 | 场景执行期间 | 场景结束后 24h 兜底 | COMPLETED/CANCELLED/FAILED/EXPIRED | 物理清理（不可恢复） | 否 | 否 | 不得日志记录 | 清理失败按 FC-012 失败关闭处理 |
+| PrivateCandidateEvaluation | P2 | 否 | 场景执行期间 | 场景结束后 24h 兜底 | COMPLETED/CANCELLED/FAILED/EXPIRED | 物理清理（不可恢复） | 否 | 否 | 不得日志记录 | 清理失败按 FC-012 失败关闭处理 |
+| 中间候选 / 投票记录 | P2 | 否 | 场景执行期间 | 场景结束后 24h 兜底 | COMPLETED/CANCELLED/FAILED/EXPIRED | 物理清理（不可恢复） | 否 | 否 | 不得日志记录 | |
+| Final Public Result（SceneResult） | P0/P1 | 否 | 会话/场景生命周期 | 永久 | 不清理 | - | - | 参与者可见范围内可导出 | 只记录聚合 metadata | 选中候选、确认时间、参与者 |
+| AgentRun / ModelCall metadata | P1 | 否 | 30 天 | 30 天 | 30 天过期 | 定时任务自动清理 | 否 | 否 | 只记录 call_id、model、tokens、latency、status、hash；不保存 Prompt/原始输入/完整响应 | 可按后续合规要求调整 |
+| AuditLog metadata | P1 | 否 | 180 天 | 180 天 | 180 天过期 | 定时任务自动清理 | 否 | 否 | 只记录最小化元数据；不记录 Prompt/原始输入/完整响应/私有正文/凭据 | R1-31 统一为 180 天（原 90 天已修正） |
+| Export 文件 | P1/P2 | 否 | 1 小时 | 1 小时 | 1h 过期 | 过期物理删除 | 否 | 用户本人导出 | 审计日志记录导出操作 metadata | 下载链接过期后不可访问 |
+| Edge Node metrics | P1 | auth_secret_encrypted 加密 | 30 天 | 30 天 | 30 天过期 | 定时任务自动清理 | 否 | 否 | 仅脱敏指标；不含凭据/Prompt/输入/完整响应 | 节点隔离/删除不删除必要审计事实 |
+| WebSocket reconnect / dedupe buffer | P1 | 否 | 连接生命周期 | 24 小时或 1000 条（以先到为准） | 连接关闭 / 缓存淘汰 | 自动淘汰 | 否 | 否 | 不含 P3/P4；不作为长期业务存储 | 回补以 HTTP API 为事实来源 |
+| Logs / Metrics / Observability | P1 | 否 | 与 AuditLog / AgentRun 区分 | 30 天（运行日志） | 过期自动清理 | 自动清理 | 否 | 否 | 不得包含敏感正文；metrics 不得包含高基数字段或用户私密标签；error 事件不得包含 Prompt/原始输入/完整响应 | request_id、actor_id hash、resource_id hash 可以记录 |
+
+### 13.2 R1-31 修正记录
+
+| 数据对象 | 修正前 | 修正后 | 修正原因 |
+|---|---|---|---|
+| AuditLog | DATA_INVENTORY: 90天；API_CONTRACT: 30天/90天/永久（三处冲突）；ADR-0005: 90天；P0_COMPLETION_SUMMARY: 90天 | 180 天（全仓统一） | 审计日志需要更长保留期以满足合规追踪需求；原 90 天不足以覆盖完整审计周期；API_CONTRACT 中 30天和永久均为错误表述 |
+| Scene 临时数据 | 各文档一致为 24h 兜底 | 24h 兜底（确认无冲突） | 已一致，R1-31 确认 |
+| AgentRun | 各文档一致为 30 天 | 30 天（确认无冲突） | 已一致，R1-31 确认 |
+| Export 文件 | API_CONTRACT: 1 小时 | 1 小时（确认无冲突） | 已一致，R1-31 确认 |
+| WebSocket dedupe buffer | WEBSOCKET_CONTRACT: 1000条/24h | 1000条/24h（确认无冲突） | 已一致，R1-31 确认 |
+| ConsentRecord | DATA_INVENTORY: 90天 | 90天（保持不变） | ConsentRecord 是授权审计记录，与 AuditLog 保留期限不同；90 天足够覆盖授权审计需求 |
+
+### 13.3 清理失败处理
+
+所有清理失败场景按 R1-30 FC-012 失败关闭处理：
+- 不继续公开该场景结果
+- 不把清理失败当作成功
+- 记录最小化审计日志
+- 标记待重试
+- 避免后续读取到应删除数据
+
+**注意**：以上保留期限为文档契约口径，不代表清理任务已经实现或验证。清理任务的实现和验证在 P2/P3/P8/P12 阶段完成。
+
+---
+
+## 14. 相关文档
 
 - [领域词汇表](../domain/DOMAIN_VOCABULARY.md)
 - [角色权限矩阵](../architecture/PERMISSION_MATRIX.md)
@@ -535,3 +631,5 @@
 | 日期 | 变更内容 | 变更人 |
 |------|---------|--------|
 | 2026-07-14 | 初始版本 | - |
+| 2026-07-15 | R1-30 新增 §12 P2/P3/P4 失败关闭要求（4 个子节：失败关闭字段、不得日志记录字段、不得外发字段、清理失败阻止后续读取）；原 §12 相关文档重新编号为 §13；未修改 TTL 数值 | - |
+| 2026-07-15 | R1-31 新增 §13 数据保留策略矩阵（R1-31 权威口径）：14 类数据对象完整保留矩阵、R1-31 修正记录、清理失败处理说明；修正 AuditLog 保留期限 90天→180天（§1、§9.1、§11 同步修正）；§12.4 TTL 引用更新为指向 §13；原 §13 相关文档重新编号为 §14；确认 Scene 临时数据 24h、AgentRun 30天、Export 1h、WebSocket dedupe 1000条/24h 均无冲突 | - |

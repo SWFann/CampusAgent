@@ -455,7 +455,29 @@ services:
 
 ---
 
-## 9. 相关文档
+## 9. 失败关闭点标注（R1-30）
+
+与 THREAT_MODEL.md §4.3 失败关闭场景矩阵对齐，以下为数据流中的关键失败关闭点：
+
+| 失败关闭点 | 数据流位置 | 触发条件 | 系统行为 | 允许降级 | 对应 FC |
+|---------|---------|---------|---------|---------|---------|
+| 浏览器 → API 权限失败 | 浏览器 → API Gateway | 权限检查失败、ConsentRecord 查询失败 | 拒绝执行，返回 `*_PERMISSION_DENIED` | 否 | FC-001 |
+| API → PostgreSQL 解密失败 | API → Database | P2/P3/P4 字段解密失败、KMS 不可用 | 停止处理，不返回密文或部分明文 | 否 | FC-003 |
+| API → Redis session/token 校验失败 | API → Redis | access_token 无效或过期、session 不匹配 | 拒绝执行，返回 `AUTH_INVALID_TOKEN` | 否 | FC-001 |
+| API → Model Gateway privacy_context 失败 | API → Model Gateway | privacy_context 缺失、字段无效、数据分类不符 | 失败关闭，不调用模型或节点 | 否 | FC-005 |
+| Model Gateway → Local Model/Edge Node 失败 | Model Gateway → Edge Node | 本地模型不可用、节点认证失败、endpoint 非法 | P3/P4 不公开降级到外部模型；可降级到 Mock/规则引擎 | 仅 Mock/规则引擎 | FC-006 |
+| Edge Node → Model Gateway 返回结果校验失败 | Edge Node → Model Gateway | 节点返回非法 Schema、额外敏感字段、恶意内容 | 拒绝结果，不进入业务层 | 否 | FC-007、FC-010 |
+| API/Gateway → Audit Log 写入失败 | API/Gateway → Audit Service | 安全关键操作审计写入失败 | 高风险写操作失败关闭；只读拒绝类事件返回拒绝+告警 | 否（高风险） | FC-011 |
+| Scene 结束 → 临时数据清理失败 | Scene Service → Database | 私有提交/胶囊/评价清理失败 | 标记失败，阻止后续读取，标记待重试 | 否 | FC-012 |
+
+**关键约束**：
+- 隐私能力（授权、加密、隔离、privacy_context 校验、输出验证）在任何情况下都不可降级
+- 审计日志不得记录 Prompt、原始输入、完整响应、P2/P3/P4 正文或节点凭据
+- 失败关闭场景矩阵详见 THREAT_MODEL.md §4.3.2
+
+---
+
+## 10. 相关文档
 
 - [数据清单](../architecture/DATA_INVENTORY.md)
 - [角色权限矩阵](../architecture/PERMISSION_MATRIX.md)
@@ -469,3 +491,4 @@ services:
 |------|---------|--------|
 | 2026-07-14 | 初始版本 | - |
 | 2026-07-15 | R1-28 新增"模型网关 → 边缘节点"信任边界；修正边缘节点部署表述，明确真实硬件可选但安全契约属于 MVP | - |
+| 2026-07-15 | R1-30 新增 §9 失败关闭点标注（8 个关键失败关闭点表格，与 THREAT_MODEL.md §4.3 FC 场景对齐）；原 §9 相关文档重新编号为 §10 | - |

@@ -129,7 +129,7 @@
 - **计划阶段**：P2/P3
 - **定义状态**：defined
 - **执行状态**：not_run
-- **权威定义**：PRIVACY_TEST_MATRIX.md §12
+- **权威定义**：PRIVACY_TEST_MATRIX.md §14（威胁—控制—测试追踪矩阵；具体测试定义见对应测试 ID 所在章节）
 - **注意**：已定义不代表已执行或通过
 
 
@@ -175,7 +175,7 @@
 - **计划阶段**：P2
 - **定义状态**：defined
 - **执行状态**：not_run
-- **权威定义**：PRIVACY_TEST_MATRIX.md §12
+- **权威定义**：PRIVACY_TEST_MATRIX.md §14（威胁—控制—测试追踪矩阵；具体测试定义见对应测试 ID 所在章节）
 - **注意**：已定义不代表已执行或通过
 
 
@@ -220,7 +220,7 @@
 - **计划阶段**：P2/P3
 - **定义状态**：defined
 - **执行状态**：not_run
-- **权威定义**：PRIVACY_TEST_MATRIX.md §12
+- **权威定义**：PRIVACY_TEST_MATRIX.md §14（威胁—控制—测试追踪矩阵；具体测试定义见对应测试 ID 所在章节）
 - **注意**：已定义不代表已执行或通过
 
 
@@ -266,7 +266,7 @@
 - **计划阶段**：P3
 - **定义状态**：defined
 - **执行状态**：not_run
-- **权威定义**：PRIVACY_TEST_MATRIX.md §12
+- **权威定义**：PRIVACY_TEST_MATRIX.md §14（威胁—控制—测试追踪矩阵；具体测试定义见对应测试 ID 所在章节）
 - **注意**：已定义不代表已执行或通过
 
 
@@ -311,7 +311,7 @@
 - **计划阶段**：P2
 - **定义状态**：defined
 - **执行状态**：not_run
-- **权威定义**：PRIVACY_TEST_MATRIX.md §12
+- **权威定义**：PRIVACY_TEST_MATRIX.md §14（威胁—控制—测试追踪矩阵；具体测试定义见对应测试 ID 所在章节）
 - **注意**：已定义不代表已执行或通过
 
 
@@ -352,7 +352,7 @@
 - **计划阶段**：P2
 - **定义状态**：defined
 - **执行状态**：not_run
-- **权威定义**：PRIVACY_TEST_MATRIX.md §12
+- **权威定义**：PRIVACY_TEST_MATRIX.md §14（威胁—控制—测试追踪矩阵；具体测试定义见对应测试 ID 所在章节）
 - **注意**：已定义不代表已执行或通过
 
 
@@ -399,7 +399,7 @@
 - **计划阶段**：P3
 - **定义状态**：defined
 - **执行状态**：not_run
-- **权威定义**：PRIVACY_TEST_MATRIX.md §12
+- **权威定义**：PRIVACY_TEST_MATRIX.md §14（威胁—控制—测试追踪矩阵；具体测试定义见对应测试 ID 所在章节）
 - **注意**：已定义不代表已执行或通过
 
 
@@ -447,7 +447,7 @@
 - **计划阶段**：P2/P7
 - **定义状态**：defined
 - **执行状态**：not_run
-- **权威定义**：PRIVACY_TEST_MATRIX.md §12
+- **权威定义**：PRIVACY_TEST_MATRIX.md §14（威胁—控制—测试追踪矩阵；具体测试定义见对应测试 ID 所在章节）
 - **注意**：已定义不代表已执行或通过
 
 
@@ -624,7 +624,7 @@ F. 可用性和错误降级攻击
 - **计划阶段**：P7
 - **定义状态**：defined
 - **执行状态**：not_run
-- **权威定义**：PRIVACY_TEST_MATRIX.md §12
+- **权威定义**：PRIVACY_TEST_MATRIX.md §14（威胁—控制—测试追踪矩阵；具体测试定义见对应测试 ID 所在章节）
 - **注意**：已定义不代表已执行或通过
 
 
@@ -669,64 +669,53 @@ F. 可用性和错误降级攻击
 - 在控制完成实现和验证前，仍按照 §2.1 风险等级管理；
 - `planned` 表示已有缓解计划，不表示缓解已经生效。
 
-### 4.3 隐私失败关闭策略
+### 4.3 隐私失败关闭策略（R1-30 权威口径）
 
 **原则**：隐私依赖故障时场景必须失败关闭（Fail-Closed），绝不公开降级（Fail-Open）。
 
-#### 4.3.1 失败场景定义
+#### 4.3.1 失败关闭原则
 
-| 失败类型 | 触发条件 | 处理策略 |
-|---------|---------|---------|
-| **授权失败** | 权限检查异常、ConsentRecord 查询失败 | ❌ 拒绝执行，返回 500，记录审计日志 |
-| **加密失败** | 加密/解密异常、密钥不可用 | ❌ 拒绝执行，返回 500，不返回明文 |
-| **隔离失败** | 租户隔离检查失败、数据边界冲突 | ❌ 拒绝执行，返回 500，触发告警 |
-| **隐私配置失败** | 隐私级别配置错误、P4 数据处理失败 | ❌ 拒绝执行场景，返回 500 |
+当隐私关键依赖发生故障时，系统契约必须明确以下行为：
 
-#### 4.3.2 禁止行为
+1. 拒绝继续执行；
+2. 不公开降级；
+3. 不绕过权限；
+4. 不泄露 P2/P3/P4 数据；
+5. 不调用不满足隐私要求的模型或节点；
+6. 不把失败状态伪装成成功；
+7. 记录最小化审计日志；
+8. 返回明确错误码或关闭码；
+9. 与 API / WebSocket / Threat Model / Privacy Test Matrix 保持一致。
+
+#### 4.3.2 失败关闭场景矩阵
+
+| 场景 ID | 失败类型 | 触发条件 | 系统行为 | 允许降级 | 审计要求 | 对应威胁 | 对应测试 |
+|---------|---------|---------|---------|---------|---------|---------|---------|
+| FC-001 | 授权失败关闭 | 权限检查失败、ConsentRecord 查询失败、用户访问不属于自己的 Memory/Conversation/Scene、管理员试图读取 P2/P3 正文、Agent 试图读取未授权 Memory、非 SYSTEM_ADMIN 执行 Node 写操作 | 拒绝执行，返回 `*_PERMISSION_DENIED` 或 `AUTH_*` 错误码；不返回资源存在性之外的敏感信息；不返回 P2/P3/P4 正文；不自动降级为管理员可读 | 否 | 记录 actor_id、resource_type、resource_id hash、错误类型；不记录 P2/P3/P4 正文 | T-01、T-02、T-06、T-09 | FC-001 |
+| FC-002 | 授权撤销失败关闭 | consent_scope 缺失、过期或无效；用户撤销授权后仍尝试访问；Agent 使用旧授权；Scene 使用已撤销授权；privacy_context 中授权字段无效 | 拒绝继续处理；不使用缓存授权；不调用模型；不生成候选结果；不把撤销失败伪装成空结果 | 否 | 记录 actor_id、resource_type、consent_scope hash、错误类型；不记录 P2/P3 正文 | T-01、T-02、T-05、T-08 | FC-002 |
+| FC-003 | 数据解密失败关闭 | P2/P3/P4 字段解密失败；KMS 不可用；加密字段损坏；key_id 不匹配；解密结果 Schema 不合法；解密后数据分类不符合当前处理目的 | 停止处理；不返回密文；不返回部分明文；不用空字符串继续流程；不将解密失败当作“无数据” | 否 | 只记录 resource_id hash、key_id hash、错误类型；不记录明文或密文全文 | T-01、T-02、T-03、T-06 | FC-003 |
+| FC-004 | 租户/组织/场景隔离失败关闭 | organization_id 不匹配；conversation_id 与 user_id 不匹配；scene_instance_id 与 participant 不匹配；memory_id 与 owner_user_id 不匹配；agent_id 与 owner_user_id 不匹配；node_id 与允许的学校或部署域不匹配 | 拒绝；不跨租户查询；不尝试“自动修复”到其他 tenant；不返回其他租户数据；不继续模型调用 | 否 | 记录 actor_id、resource_type、tenant/org/scene 标识 hash、错误类型；不记录跨租户数据 | T-01、T-02、T-06、T-09 | FC-004 |
+| FC-005 | privacy_context 缺失失败关闭 | Model Gateway 请求缺少 privacy_context；data_classification/purpose/retention/consent_scope/allowed_outputs 缺失；data_classification 与输入数据不一致；allowed_outputs 不允许当前输出字段 | 拒绝；不调用模型；不调用 Edge Node；不调用外部 Provider；不自动补默认宽松权限；只允许补默认更严格限制 | 否 | 记录 call_id、model、缺失字段名、错误类型；不记录 Prompt 或输入正文 | T-04、T-08、T-09 | FC-005 |
+| FC-006 | 模型路由失败关闭 | 本地模型不可用；Edge Node 不可用；外部模型被禁用；ENABLE_EXTERNAL_MODEL=false；外部 Provider 不满足隐私要求；本地节点失败后尝试降级到外部模型；privacy_context 要求本地处理但路由器选择外部 Provider | 对 P3/P4 数据必须失败关闭；不公开降级到外部模型；只能降级到满足同等隐私约束的 Mock/规则引擎；降级输出不得包含模型推理结果伪装 | 仅允许降级到满足同等隐私约束的 Mock/规则引擎 | 审计日志不得记录 Prompt、原始输入、完整响应；只记录 call_id、model、status、hash | T-03、T-04、T-08、T-09 | FC-006 |
+| FC-007 | Prompt/输出 Schema 校验失败关闭 | Prompt 包含未最小化 P3/P4 原文；Prompt 包含系统提示泄露风险；模型输出包含 P2/P3/P4 私密字段；输出 Schema 缺字段/多字段；输出包含成员指认/恶意 URL/工具调用；Edge Node 返回非法 Schema 或语义敏感内容 | 拒绝或安全重建；不把原始模型输出直接返回；不通过 WebSocket 推送非法输出；不写入长期记忆；不记录完整输出 | 否 | 只记录 schema_error/validation_error/output_policy_violation 等最小化原因 | T-03、T-04、T-08、T-09 | FC-007 |
+| FC-008 | WebSocket 认证/订阅失败关闭 | access_token 缺失或过期；用户被冻结；Origin 不匹配；订阅未授权 conversation/scene；重连后权限已撤销；回补期间发现权限已撤销 | 握手失败返回明确 HTTP 状态码和错误码；订阅失败返回 error 事件；不推送历史事件；不回补未授权消息；重连后不沿用旧订阅权限；WebSocket 不承载业务写操作 | 否 | 记录连接 ID、actor_id、失败原因码；不记录 P3/P4 数据 | T-01、T-06、T-08 | FC-008 |
+| FC-009 | 幂等/重放检测失败关闭 | 相同 Idempotency-Key 请求体不同；并发请求使用同一幂等键；重复私有提交/投票/确认；旧 refresh token 重放；WebSocket 重连重复事件处理 | 冲突必须拒绝；不产生二次副作用；不重复写入私有提交；不重复投票/确认；token family 重放按 Auth 契约处理 | 否 | 记录 actor_id、idempotency_key hash、错误类型；不记录请求体正文 | T-05 | FC-009 |
+| FC-010 | 边缘节点认证/网络/返回结果失败关闭 | 节点凭据无效/过期/撤销；节点 endpoint 为 HTTP；endpoint 指向 loopback/metadata/link-local/multicast；DNS rebinding；节点返回额外敏感字段/非法 Schema；节点尝试访问数据库/Redis/业务 API；节点被隔离后继续请求任务 | 管理端点拒绝非法 endpoint；网关不连接禁止地址；节点认证失败不派发任务；节点返回非法结果不进入业务层；节点隔离后不接收任务 | 否 | 日志不得记录节点凭据、Prompt、输入正文、完整响应 | T-03、T-04、T-08、T-09 | FC-010 |
+| FC-011 | 审计日志写入失败关闭 | 安全关键操作需要审计但审计写入失败；权限拒绝事件审计写入失败；授权撤销事件审计写入失败；Node 写操作审计失败；Model Gateway 隐私路由审计失败 | 对高风险写操作应失败关闭；对只读拒绝类事件可返回拒绝但必须触发监控告警；不为审计成功而记录敏感正文；不把审计失败吞掉；区分 blocking audit 与 best-effort audit | 否（高风险写操作）；只读拒绝类事件返回拒绝+告警 | 审计失败本身需触发告警；不记录敏感正文 | T-03、T-06、T-09 | FC-011 |
+| FC-012 | 清理/保留策略执行失败关闭 | Scene 结束后临时私有数据清理失败；私有胶囊删除失败；导出文件过期删除失败；撤销授权后临时授权删除失败；清理任务部分失败 | 不继续公开该场景结果；不把清理失败当作成功；记录最小化审计日志；标记待重试；避免后续读取到应删除数据 | 否 | 记录 resource_id hash、清理任务 ID、错误类型；不记录被清理数据正文；保留策略权威口径见 DATA_INVENTORY.md §13（R1-31） | T-01、T-07 | FC-012 |
+
+#### 4.3.3 禁止行为
 
 以下场景**绝对禁止**：
 
-1. ❌ **降级为公开数据**：
-   - 授权失败时不能返回其他用户的公开数据
-   - 必须返回空集或错误
-
-2. ❌ **降级跳过加密**：
-   - 加密失败时不能返回明文
-   - 必须拒绝执行
-
-3. ❌ **降级跳过隔离**：
-   - 隔离检查失败时不能继续执行
-   - 必须拒绝并告警
-
-4. ❌ **静默失败**：
-   - 不能静默忽略隐私错误
-   - 必须记录审计日志和告警
-
-#### 4.3.3 执行策略
-
-**授权失败**：
-```python
-if not consent_valid:
-    audit_log.warning("Authorization failed", user_id=user_id, resource=resource_id)
-    raise HTTPException(status_code=500, detail="Privacy authorization failed")
-```
-
-**加密失败**：
-```python
-try:
-    decrypted = decrypt(content_encrypted)
-except DecryptionError:
-    audit_log.error("Decryption failed", resource_id=resource_id)
-    raise HTTPException(status_code=500, detail="Data decryption failed")
-```
-
-**隔离失败**：
-```python
-if not tenant_isolation_check(user_id, org_id):
-    audit_log.critical("Tenant isolation violation", user_id=user_id, org_id=org_id)
-    alert.send("Tenant isolation failure")
-    raise HTTPException(status_code=500, detail="Data isolation check failed")
-```
+1. ❌ **降级为公开数据**：授权失败时不能返回其他用户的公开数据，必须返回空集或错误
+2. ❌ **降级跳过加密**：加密失败时不能返回明文，必须拒绝执行
+3. ❌ **降级跳过隔离**：隔离检查失败时不能继续执行，必须拒绝并告警
+4. ❌ **静默失败**：不能静默忽略隐私错误，必须记录审计日志和告警
+5. ❌ **降级到外部模型**：P3/P4 数据处理失败时不能降级到不满足隐私要求的外部模型
+6. ❌ **伪装失败为成功**：不能把隐私失败状态伪装为空结果或成功响应
+7. ❌ **绕过审计**：不能为了继续执行而跳过审计日志记录
+8. ❌ **日志泄露**：审计日志不得记录 Prompt、原始输入、完整响应、P2/P3/P4 正文或节点凭据
 
 #### 4.3.4 降级允许范围
 
@@ -736,22 +725,45 @@ if not tenant_isolation_check(user_id, org_id):
 - ✅ 缓存不可用时降级到直接查询（**前提**：查询仍然受隐私保护）
 - ✅ 非关键指标缺失时降级展示（**前提**：不涉及 P2/P3/P4 数据）
 
-**关键约束**：隐私能力（授权、加密、隔离）在任何情况下都**不可降级**。
+**关键约束**：隐私能力（授权、加密、隔离、privacy_context 校验、输出验证）在任何情况下都**不可降级**。
 
-#### 4.3.5 失败场景测试要求
+#### 4.3.5 失败场景测试要求（R1-30 正式定义）
 
-必须测试以下失败场景：
+R1-30 定义 FC-001～FC-012 共 12 个隐私失败关闭测试，定义状态 `defined`，执行状态 `not_run`。已定义不代表已执行或通过。
 
-| 测试场景 | 预期结果 |
-|---------|---------|
-| 模拟授权服务故障 | 场景拒绝执行，返回 500 |
-| 模拟加密密钥丢失 | 场景拒绝执行，不返回明文 |
-| 模拟隔离检查失败 | 场景拒绝执行，触发告警 |
-| 模拟隐私配置错误 | 场景拒绝执行，返回 500 |
+| 测试 ID | 场景 | 预期结果 | 阶段 | 定义状态 | 执行状态 |
+|---------|------|---------|------|---------|----------|
+| FC-001 | 权限检查失败 | 拒绝，不返回敏感数据 | P2 | defined | not_run |
+| FC-002 | 授权撤销或 consent_scope 失效 | 拒绝继续处理，不调用模型 | P2 | defined | not_run |
+| FC-003 | P2/P3/P4 解密失败 | 停止处理，不返回密文或部分明文 | P2 | defined | not_run |
+| FC-004 | tenant/org/scene/owner 不一致 | 拒绝跨边界访问 | P2 | defined | not_run |
+| FC-005 | privacy_context 缺失或非法 | 失败关闭，不调用模型或节点 | P3 | defined | not_run |
+| FC-006 | 本地模型或节点不可用 | P3/P4 不公开降级到外部模型 | P7 | defined | not_run |
+| FC-007 | Prompt 或模型输出校验失败 | 拒绝或安全重建，不推送非法输出 | P3/P7 | defined | not_run |
+| FC-008 | WebSocket 认证、Origin 或订阅授权失败 | 握手/订阅失败，不推送事件 | P5 | defined | not_run |
+| FC-009 | 幂等冲突或重放 | 拒绝冲突，不产生重复副作用 | P2 | defined | not_run |
+| FC-010 | Edge Node 凭据、endpoint、Schema 或隔离失败 | 拒绝连接/拒绝结果/隔离节点 | P7 | defined | not_run |
+| FC-011 | 安全关键审计写入失败 | 高风险写操作失败关闭或告警 | P8 | defined | not_run |
+| FC-012 | 临时私有数据清理失败 | 标记失败并阻止后续读取，保留策略见 DATA_INVENTORY.md §13（R1-31） | P8/P12 | defined | not_run |
 
-**专项测试 ID**：将在 R1-30 定义；本节不作为 R1-29 威胁—控制—测试权威追踪矩阵的一部分。
+**FC 测试威胁映射**：
 
-R1-29 的正式测试定义和双向追踪矩阵以 docs/privacy/PRIVACY_TEST_MATRIX.md §12 为唯一权威来源。
+| 测试 ID | 对应威胁 |
+|---------|----------|
+| FC-001 | T-01、T-02、T-06、T-09 |
+| FC-002 | T-01、T-02、T-05、T-08 |
+| FC-003 | T-01、T-02、T-03、T-06 |
+| FC-004 | T-01、T-02、T-06、T-09 |
+| FC-005 | T-04、T-08、T-09 |
+| FC-006 | T-03、T-04、T-08、T-09 |
+| FC-007 | T-03、T-04、T-08、T-09 |
+| FC-008 | T-01、T-06、T-08 |
+| FC-009 | T-05 |
+| FC-010 | T-03、T-04、T-08、T-09 |
+| FC-011 | T-03、T-06、T-09 |
+| FC-012 | T-01、T-07 |
+
+FC 测试的完整定义见 docs/privacy/PRIVACY_TEST_MATRIX.md §12；双向追踪矩阵见 §14。
 
 ---
 
@@ -759,21 +771,24 @@ R1-29 的正式测试定义和双向追踪矩阵以 docs/privacy/PRIVACY_TEST_MA
 
 ### 5.1 必须测试的威胁场景
 
-正式测试 ID 和双向追踪矩阵的权威定义位于 [PRIVACY_TEST_MATRIX.md](../privacy/PRIVACY_TEST_MATRIX.md) §12（R1-29 权威口径）。
+正式测试 ID 和双向追踪矩阵的权威定义位于 [PRIVACY_TEST_MATRIX.md](../privacy/PRIVACY_TEST_MATRIX.md)：
+- §12：FC 测试定义
+- §13：RT 测试定义
+- §14：威胁—控制—测试追踪矩阵
 
 以下按威胁汇总正式测试 ID（范围标记包含首尾全部连续 ID）：
 
 | 威胁 | 风险 | 正式测试 ID | 定义状态 | 执行状态 |
 |------|------|------------|---------|---------|
-| T-01 | 严重 | PT-001～PT-008、ST-004、ST-005、REV-001 | defined | not_run |
-| T-02 | 高 | PT-101～PT-107、REV-002 | defined | not_run |
-| T-03 | 高 | LG-001～LG-005、LG-101～LG-104、PI-003、PI-005、MR-005、EN-009 | defined | not_run |
-| T-04 | 高 | PI-001～PI-005、EN-007、EN-012 | defined | not_run |
-| T-05 | 中 | RP-001～RP-005、REV-004 | defined | not_run |
-| T-06 | 高 | PT-001～PT-006、PT-101～PT-107、PT-201～PT-204、PT-301～PT-306、REV-003、EXP-001～EXP-003 | defined | not_run |
-| T-07 | 中 | PT-007、PT-008、CL-001～CL-005 | defined | not_run |
-| T-08 | 高 | MR-001～MR-005、ST-001～ST-005、EN-006 | defined | not_run |
-| T-09 | 高 | EN-001～EN-012、MR-004、MR-005、PT-305 | defined | not_run |
+| T-01 | 严重 | PT-001～PT-008、ST-004、ST-005、REV-001、FC-001、FC-002、FC-003、FC-004、FC-008、FC-012、RT-001、RT-009 | defined | not_run |
+| T-02 | 高 | PT-101～PT-107、REV-002、FC-001、FC-002、FC-003、FC-004、RT-008 | defined | not_run |
+| T-03 | 高 | LG-001～LG-005、LG-101～LG-104、PI-003、PI-005、MR-005、EN-009、FC-003、FC-006、FC-007、FC-010、FC-011、RT-006、RT-007、RT-010 | defined | not_run |
+| T-04 | 高 | PI-001～PI-005、EN-007、EN-012、FC-005、FC-006、FC-007、FC-010、RT-006 | defined | not_run |
+| T-05 | 中 | RP-001～RP-005、REV-004、FC-002、FC-009、RT-008 | defined | not_run |
+| T-06 | 高 | PT-001～PT-006、PT-101～PT-107、PT-201～PT-204、PT-301～PT-306、REV-003、EXP-001～EXP-003、FC-001、FC-003、FC-004、FC-008、FC-011、RT-005、RT-007、RT-009 | defined | not_run |
+| T-07 | 中 | PT-007、PT-008、CL-001～CL-005、FC-012、RT-001、RT-002、RT-003、RT-004、RT-005 | defined | not_run |
+| T-08 | 高 | MR-001～MR-005、ST-001～ST-005、EN-006、FC-002、FC-005、FC-006、FC-007、FC-008、FC-010、RT-006、RT-009 | defined | not_run |
+| T-09 | 高 | EN-001～EN-012、MR-004、MR-005、PT-305、FC-001、FC-004、FC-005、FC-006、FC-007、FC-010、FC-011、RT-007、RT-010 | defined | not_run |
 
 **注意**：已定义不代表已执行或通过。当前所有测试执行状态为 `not_run`。
 
@@ -815,4 +830,6 @@ R1-29 的正式测试定义和双向追踪矩阵以 docs/privacy/PRIVACY_TEST_MA
 | 2026-07-15 | R1-26 重新核验威胁数量：建立权威统计口径，严重 1、高 5、中 2、低 0，严重/高合计 6；统计来源为当前威胁矩阵风险等级列；未修改威胁定义、风险等级和控制状态 | - |
 | 2026-07-15 | R1-27 区分控制状态：建立 planned/implemented/verified 三级口径和保守聚合规则；威胁矩阵状态列从"已缓解"改为 `planned`；详细分析中✅改为 (planned)；残余风险改为预计残余风险；清除 §4.2 "所有威胁均已缓解"；§6.1 T-04 改为条件性接受标准；未修改威胁编号、风险等级和测试映射 | - |
 | 2026-07-15 | R1-28 新增 T-09（边缘节点被入侵、冒充或返回恶意结果），风险等级高，控制状态 planned；更新威胁总数为 9（严重 1、高 6、中 2、低 0，严重/高合计 7）；补充 §4 控制计划和 §6.2 不可接受残余风险；定义 T-09 测试需求，正式测试 ID 和映射由 R1-29 完成；未修改 T-01～T-08 风险等级和测试映射 | - |
-| 2026-07-15 | R1-29 建立威胁—控制—测试双向追踪：T-01～T-09 每个威胁均映射正式测试 ID；新增 27 个测试定义（PI-001～005、RP-001～005、MR-001～005、EN-001～012）；总定义 78；定义状态 defined、执行状态 not_run；删除 §5.1 中旧版两位数 ST 测试编号（01 至 08，不恢复 09），改为引用 PRIVACY_TEST_MATRIX.md §12 权威追踪矩阵；更新 T-01～T-09 详细分析测试覆盖章节；未执行测试；未升级控制状态（planned=9、implemented=0、verified=0）；R1-30、R1-31 未执行 | - |
+| 2026-07-15 | R1-29 建立威胁—控制—测试双向追踪：T-01～T-09 每个威胁均映射正式测试 ID；新增 27 个测试定义（PI-001～005、RP-001～005、MR-001～005、EN-001～012）；总定义 78；定义状态 defined、执行状态 not_run；删除 §5.1 中旧版两位数 ST 测试编号（01 至 08，不恢复 09），改为引用 PRIVACY_TEST_MATRIX.md §13 权威追踪矩阵；更新 T-01～T-09 详细分析测试覆盖章节；未执行测试；未升级控制状态（planned=9、implemented=0、verified=0）；R1-30、R1-31 未执行 | - |
+| 2026-07-15 | R1-30 检查隐私失败关闭：重构 §4.3 为 R1-30 权威口径；新增 FC-001～FC-012 失败关闭场景矩阵（12 类场景：授权失败、授权撤销、解密失败、租户隔离、privacy_context 缺失、模型路由、Prompt/输出校验、WebSocket 认证订阅、幂等重放、边缘节点、审计日志、清理保留）；§4.3.5 从“将在 R1-30 定义”改为正式测试定义；新增 12 个 FC 测试定义（总定义 90）；更新 §5.1 威胁覆盖表加入 FC 测试；更新所有 §12 引用为 §13（追踪矩阵重新编号）；未修改 T-01～T-09 风险等级；未升级控制状态（planned=9、implemented=0、verified=0）；R1-31 未执行 | - |
+| 2026-07-15 | R1-31 复核保留策略：更新 FC-012 引用为指向 DATA_INVENTORY.md §13 R1-31 权威口径；确认 T-07 数据残留风险控制（立即清理、TTL 兜底 24h）与 R1-31 保留矩阵一致；未修改威胁编号；未修改风险等级；未修改控制状态（planned=9、implemented=0、verified=0）；保留策略权威口径见 DATA_INVENTORY.md §13 | - |

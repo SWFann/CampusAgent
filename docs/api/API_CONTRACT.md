@@ -942,6 +942,13 @@ def validate_csrf(request):
 4. **前端处理差异**：
    - `authorization`：显示"无权访问"
    - `privacy_violation`：显示"此操作受隐私保护限制"，不得提示如何绕过
+5. **R1-30 隐私失败关闭规则**（与 THREAT_MODEL.md §4.3 对齐）：
+   - privacy_context 缺失或非法时必须失败关闭（`PRIVACY_CONTEXT_MISSING`、`PRIVACY_CONTEXT_INVALID`），不调用模型、不调用 Edge Node、不调用外部 Provider
+   - 模型路由失败时对 P3/P4 数据必须失败关闭（`PRIVACY_CONTEXT_SENSITIVE_EXTERNAL_BLOCKED`、`MODEL_ROUTING_FAILED`），不公开降级到外部模型
+   - Edge Node 凭据、endpoint 或返回结果校验失败时不绕过隐私（`INVALID_ENDPOINT`、`SERVICE_UNAVAILABLE`、`MODEL_ROUTING_FAILED`），节点返回非法结果不进入业务层
+   - 审计日志最小化：不记录 Prompt、原始输入、完整响应、P2/P3/P4 正文或节点凭据
+   - 高风险写操作审计写入失败时失败关闭；只读拒绝类事件可返回拒绝但必须触发监控告警
+   - 失败关闭场景矩阵和测试定义见 THREAT_MODEL.md §4.3.2 和 PRIVACY_TEST_MATRIX.md §12
 
 #### 1.6.5 错误码命名规范
 
@@ -2777,7 +2784,7 @@ Cookie: access_token=<jwt>
 - ❌ **不返回完整 trace**
 - ✅ **仅返回脱敏后的 run_summary**：状态、时长、工具使用数
 - ✅ **完整 trace 仅进入受控审计日志**，用户和管理员默认不可见
-- ✅ **审计日志保留 30 天**（PRIVACY_BASELINE.md）
+- ✅ **审计日志保留 180 天**（R1-31 权威口径，详见 DATA_INVENTORY.md §13）
 
 **运行状态**：
 | 状态 | 说明 |
@@ -3108,7 +3115,7 @@ Cookie: access_token=<jwt>
 **隐私约束**：
 - 仅返回当前用户的所有记忆访问记录
 - 不返回其他用户的访问记录
-- 保留 90 天后自动清理（ADR-005）
+- 作为 AuditLog metadata 保留 180 天后自动清理；权威口径见 DATA_INVENTORY.md §13
 
 **错误码**：
 - `MEMORY_ACCESS_INVALID_FILTER` - 无效的过滤参数
@@ -3270,7 +3277,7 @@ Cookie: access_token=<jwt>
 | **偏好胶囊** | COMPLETED/CANCELLED/FAILED/EXPIRED 后立即 | 物理删除 | 无 |
 | **候选方案** | COMPLETED/CANCELLED/FAILED/EXPIRED 后立即 | 物理删除 | 仅保留选中结果（脱敏） |
 | **投票记录** | COMPLETED/CANCELLED/FAILED/EXPIRED 后立即 | 物理删除 | 无 |
-| **审计日志** | 永久 | 不清理 | 完整保留（结构化元数据） |
+| **审计日志** | 180天 | 定时任务 | 结构化元数据（R1-31 权威口径） |
 | **最终结果** | 永久 | 不清理 | 选中候选、确认时间、参与者 |
 
 **长期记忆写入二次确认**：
@@ -4186,7 +4193,7 @@ X-Service-Name: agent-service  # 或 scene-service
 - ✅ `data_classification = P3` → 禁止路由到外部模型，必须本地加密
 - ✅ `retention = none` → 不存储输入/输出
 - ✅ `consent_scope` 必须与用户授权一致
-- ❌ 缺少 `privacy_context` → 拒绝请求（`MISSING_PRIVACY_CONTEXT`）
+- ❌ 缺少 `privacy_context` → 拒绝请求（`PRIVACY_CONTEXT_MISSING`）
 
 **请求体**：
 ```json
@@ -4308,7 +4315,7 @@ X-Service-Name: agent-service  # 或 scene-service
 - ❌ **P4 原始私密数据不得直接进入模型消息体**：必须使用去标识化的 preference capsule 或 structured constraints
 - ✅ **P4 数据隔离**：原始偏好不进入 `messages.content`，仅通过 `preference_capsule` 传递去标识化摘要
 - ✅ **审计元数据**：记录调用 ID、模型名、Token、延迟、状态
-- ✅ **90 天保留**：审计日志保留 90 天（ADR-005）
+- ✅ **180 天保留**：审计日志保留 180 天（R1-31 权威口径，详见 DATA_INVENTORY.md §13）
 
 **错误码**：
 - `PRIVACY_CONTEXT_MISSING` - 缺少 privacy_context
@@ -5101,6 +5108,8 @@ Authorization: Bearer <admin_token>
 | 日期 | 变更内容 | 变更人 |
 |------|---------|--------|
 | 2026-07-14 | 初始版本 | - |
+| 2026-07-15 | R1-30 补充隐私失败关闭规则（§1.6.4 point 5）；修正 `MISSING_PRIVACY_CONTEXT` 为 `PRIVACY_CONTEXT_MISSING`；未新增错误码；未新增端点 | - |
+| 2026-07-15 | R1-31 同步保留策略口径：修正 AuditLog 保留期限 3 处冲突（§Agent 区域 30天→180天、§Scene 清理表 永久→180天、§Model Gateway 区域 90天→180天）；统一引用 DATA_INVENTORY.md §13 R1-31 权威口径；未新增端点；未修改错误码 | - |
 | 2026-07-15 | R1-C：认证/CSRF 契约复审修订 | Claude |
 | | - 明确 CSRF bootstrap 流程（login/register 豁免，成功后签发 csrf_token） | |
 | | - register 自动登录增加 Set-Cookie: csrf_token（与 login 一致） | |

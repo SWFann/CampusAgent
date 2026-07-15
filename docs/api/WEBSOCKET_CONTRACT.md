@@ -1692,6 +1692,22 @@ class EventDedupCache:
 | `scene.result.generated` | P0/P1 最小结果可用通知 | `state` 固定 `CANDIDATES_READY`；只通知结果可用，不推送结果详情 |
 | `notification.created` | 当前用户授权投影 | 只发送给通知所有者对应的连接 |
 
+### 9.3 WebSocket 失败关闭规则（R1-30）
+
+与 THREAT_MODEL.md §4.3 FC-008 对齐，以下规则强制实施：
+
+1. **握手失败不建立连接**：access_token 缺失、过期或无效时返回 HTTP 401/403，不建立 WebSocket 连接
+2. **Origin 失败不建立连接**：Origin 不在白名单时返回 HTTP 403（`WS_ORIGIN_NOT_ALLOWED`），不建立连接
+3. **用户被冻结不建立连接**：账号被禁用时返回 HTTP 401（`AUTH_ACCOUNT_DISABLED`），不建立连接
+4. **token 过期后停止推送**：access_token 过期后发送 `connection.expired` 事件并使用 4401 关闭，不继续推送业务事件
+5. **订阅资源授权失败返回 error**：订阅未授权 conversation/scene 时返回 `error` 事件（`WS_FORBIDDEN`），不推送该资源事件
+6. **回补期间权限撤销停止回补**：HTTP 回补时发现权限已撤销，停止回补该资源，不回补未授权消息
+7. **断线重连后重新做资源级授权**：重连后服务端重新校验每个订阅权限，无权限的订阅从本地集合移除，不沿用旧订阅权限
+8. **不得通过 WebSocket 执行业务写操作**：WebSocket 只用于事件推送和订阅管理，不承载创建、更新、删除等业务写操作
+9. **不得推送 P3/P4 数据**：所有 WebSocket 事件禁止包含 P3/P4 数据（见 §9.1 第 6-7 条）
+10. **不得推送非法模型输出**：模型输出校验失败时不通过 WebSocket 推送（与 FC-007 对齐）
+11. **不得把订阅失败解释为空数据**：订阅失败返回 `error` 事件，不返回 `success=false` 或空结果
+
 ---
 
 ## 10. 事件清单
@@ -1750,3 +1766,5 @@ class EventDedupCache:
 | 2026-07-15 | R1-23 复审整改：修正 connection.expiring 字段（删除 grace_seconds，统一为 expires_at/refresh_required/reconnect_required）、新增 connection.expired 事件（§4.1）、新增 RESTORING 状态并修复状态转换（§7.5）、区分 4401 两个 reason（§7.6）、定义 4429 retry_after_ms 来源和默认值（§7.6） | - |
 | 2026-07-15 | R1-24 冻结：统一客户端/服务端事件信封（§2.1-2.2）、冻结 sequence 单连接语义（§2.3）、统一 UTC Z 时间格式（§2.4）、冻结全部事件 Schema（§3-§4）、删除 original_event 并冻结 error 事件（§4.7）、冻结版本兼容策略（§8）、新增事件级隐私投影规则（§9）、重构事件清单（§10）、删除 scene.completed 并由 scene.updated 表达完成状态、文档状态从 DRAFT 改为 frozen | - |
 | 2026-07-15 | R1-24-C Codex 审计整改：scene.updated 字段名从 `stage` 改为 `state` 并补全 12 状态封闭枚举（§4.5.1）；scene.result.generated 从 `status=COMPLETED` 修正为 `state=CANDIDATES_READY`（§4.5.2）；message.created 从嵌套 `sender` 改为扁平 `sender_type`/`sender_user_id`/`sender_agent_id`，删除 `display_name`，补全 `message_type` 10 值枚举，新增 HTTP 字段映射表（§4.3.1）；`request_id` 统一为 UUID v4，替换所有 `req_*` 示例（§2-§4）；notification.created `type` 改为 WebSocket v1 开放枚举，删除不存在的 HTTP Notification 模型引用和 `MESSAGE_MENTION`（§4.6.1）；删除虚假 P3 metadata 描述（§9.2）；修正 `WS_RATE_LIMITED` 分类重叠和错误事件章节引用 §5→§4.7 | - |
+| 2026-07-15 | R1-30 新增 §9.3 WebSocket 失败关闭规则（11 条规则，与 THREAT_MODEL.md §4.3 FC-008 对齐）；未修改事件 Schema；未修改关闭码总表 | - |
+| 2026-07-15 | R1-31 确认 WebSocket dedupe buffer 口径（1000条/24h，§6.4）与 DATA_INVENTORY.md §13 R1-31 权威口径一致；确认回补以 HTTP API 为事实来源；未修改事件 Schema；未修改关闭码总表；未新增端点 | - |
