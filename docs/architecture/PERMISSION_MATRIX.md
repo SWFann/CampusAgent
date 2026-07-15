@@ -193,7 +193,7 @@
 |------|---------|------|
 | organization | manage | 可管理全校组织 |
 | user | list, search, manage | 可管理所有用户账号 |
-| node | manage | 可管理边缘节点 |
+| node | read, list, health-check | 可查看脱敏节点指标；不可创建、修改或删除节点（具体权限以 API_CONTRACT 端点声明为准） |
 | model | manage | 可管理模型配置 |
 | audit | read | 可查看系统审计日志（脱敏） |
 
@@ -501,9 +501,11 @@ def check_write_permission(
 | 动作 | SCHOOL_ADMIN | SYSTEM_ADMIN | 说明 |
 |------|-------------|-------------|------|
 | 查看节点列表 | ✅ | ✅ | |
-| 查看节点指标 | ✅ | ✅ | |
-| 修改节点配置 | ✅ | ✅ | |
-| 删除节点 | ✅ | ✅ | |
+| 查看节点指标 | ✅（脱敏） | ✅（脱敏） | 不返回凭据、Prompt、模型输入或完整响应 |
+| 健康检查 | ✅ | ✅ | |
+| 创建节点 | ❌ | ✅ | 仅 SYSTEM_ADMIN |
+| 修改节点配置 | ❌ | ✅ | 仅 SYSTEM_ADMIN |
+| 删除节点 | ❌ | ✅ | 仅 SYSTEM_ADMIN |
 | 查看模型配置 | ✅ | ✅ | |
 | 查看调用详情 | ❌ | ❌ | 即使是管理员也不能查看 |
 

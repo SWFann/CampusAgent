@@ -4147,6 +4147,12 @@ Cookie: access_token=<jwt>
 - ❌ **不能直接接收未经授权的原始私密数据**
 - ✅ **所有请求必须携带 `privacy_context`**
 - ✅ **敏感数据不路由到外部模型**
+
+**节点路由安全规则（R1-28 新增）**：
+- 节点连接失败或证书验证失败时不得降级为 HTTP
+- 只能降级到满足相同隐私约束的 Mock 或规则引擎
+- 不能绕过 privacy_context
+- 节点不可用时的降级路径必须保持相同隐私约束
 - ✅ **隐私失败时关闭执行，不降级公开处理**
 - ✅ **降级策略不会绕过隐私限制**
 
@@ -4483,7 +4489,7 @@ Idempotency-Key: <uuid>  # 见 1.4
 ```json
 {
   "name": "edge-node-01",
-  "endpoint": "http://192.168.1.100:8000",
+  "endpoint": "https://edge-node-01.campus.internal",
   "capabilities": ["model_inference", "embedding"],
   "models_supported": ["local-llama-7b", "local-embedding-model"],
   "max_concurrent_requests": 50,
@@ -4500,7 +4506,7 @@ Idempotency-Key: <uuid>  # 见 1.4
 {
   "node_id": "uuid",
   "name": "edge-node-01",
-  "endpoint": "http://192.168.1.100:8000",
+  "endpoint": "https://edge-node-01.campus.internal",
   "status": "registering",
   "capabilities": ["model_inference", "embedding"],
   "created_at": "2026-07-14T12:00:00Z"
@@ -4516,6 +4522,19 @@ Idempotency-Key: <uuid>  # 见 1.4
 - `NODE_ALREADY_EXISTS` - 节点已存在（Idempotency-Key 冲突）
 - `INVALID_ENDPOINT` - 端点格式无效
 - `INVALID_CAPABILITIES` - 能力列表无效
+
+**endpoint 安全校验规则（R1-28 新增）**：
+- 生产环境必须为 HTTPS
+- 本地开发仅允许显式配置的 localhost/127.0.0.1 Mock 使用 HTTP
+- URL 不得包含 userinfo（用户名和密码）
+- URL 不得包含 query 和 fragment
+- 生产节点必须通过主机或 CIDR allowlist
+- 禁止 loopback、link-local、multicast、unspecified 和云元数据地址
+- 私网地址必须属于明确配置的校园 CIDR
+- DNS 解析结果必须校验
+- 禁止自动跟随到未授权地址的重定向
+- endpoint 不得包含凭据
+- 校验失败使用现有 `INVALID_ENDPOINT` 错误码，不新增错误码
 
 ---
 #### GET /api/v1/admin/nodes
@@ -4592,7 +4611,7 @@ Authorization: Bearer <admin_token>
 {
   "node_id": "uuid",
   "name": "edge-node-01",
-  "endpoint": "http://192.168.1.100:8000",
+  "endpoint": "https://edge-node-01.campus.internal",
   "status": "healthy",
   "capabilities": ["model_inference", "embedding"],
   "models_supported": ["local-llama-7b", "local-embedding-model"],
@@ -4847,7 +4866,7 @@ Idempotency-Key: <uuid>  # 见 1.4
   "version": "1.0.0",
   "provider": "local",
   "model_type": "chat",
-  "endpoint": "http://edge-node-01:8000/v1/chat",
+  "endpoint": "https://edge-node-01.campus.internal/v1/chat",
   "capabilities": ["chat", "structured_output"],
   "max_tokens": 2048,
   "default_temperature": 0.7,
@@ -5090,3 +5109,4 @@ Authorization: Bearer <admin_token>
 | | - 新增 AUTH_REFRESH_TOKEN_EXPIRED、AUTH_INVALID_CREDENTIALS 错误码 | |
 | | - 修正 Refresh 流程：Token 轮换、token family、重放检测 | |
 | | - 移除 Bearer Admin API 的 CSRF 错误码，统一 Bearer 请求豁免规则 | |
+| 2026-07-15 | R1-28 安全修订：边缘节点生产 endpoint 强制 HTTPS；增加 SSRF 防护和地址校验规则；模型网关节点路由明确不得降级为 HTTP；不新增 HTTP 端点；MVP HTTP 端点仍为 68，内部端点仍为 3，总文档化端点仍为 71；API_CONTRACT 继续保持 v1.0-frozen | - |

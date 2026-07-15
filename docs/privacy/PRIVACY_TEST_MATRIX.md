@@ -15,6 +15,22 @@
 - **清理测试**：验证临时数据被正确清理
 - **日志测试**：验证日志中无敏感内容
 
+### 1.1 正式测试 ID 注册规则（R1-29 建立）
+
+1. 本文件是正式测试 ID 唯一注册表。
+2. 一个 ID 只能正式定义一次。
+3. 原有 51 个 ID 不得删除、重编号或改变语义。
+4. ST-001～ST-005 保留。
+5. THREAT_MODEL 中 ST-01～ST-08 已删除，不得恢复 ST-09。
+6. 新增前缀：
+   - **PI**：Prompt Injection
+   - **RP**：Replay/Idempotency
+   - **MR**：Model Routing
+   - **EN**：Edge Node
+7. 定义状态 `defined`：测试场景和预期已文档化。
+8. 执行状态 `not_run`：无执行证据。
+9. 范围标记（如 `PT-001～PT-008`）包含首尾全部连续 ID；自动检查必须展开范围，不得按字符串匹配统计。
+
 ---
 
 ## 2. 主体×资源×动作矩阵
@@ -107,7 +123,7 @@
 |--------|------|------|------|---------|------|
 | **PT-201** | S-04 | R-06 | A-01 | **允许** | 参与者可读取群聊消息 |
 | **PT-202** | S-04 | R-05 | A-05 | **允许** | 可列出参与的群聊 |
-| **PT-203** | S-07 | R-06 | A-01 | **拒绝** | GUEST不能读取群聊消息 |
+| **PT-203** | S-07 | R-06 | A-01 | **拒绝** | ORG_ADMIN 尝试读取会话聊天明文 → 拒绝；ORG_ADMIN 可管理会话元数据，但不能读取聊天正文 |
 | **PT-204** | S-04 | R-03 | A-05 | **拒绝** | 普通消息接口查不到私有提交 |
 
 ---
@@ -120,7 +136,7 @@
 | **PT-302** | S-08 | R-02 | A-01 | **拒绝** | 无记忆正文读取入口 |
 | **PT-303** | S-08 | R-06 | A-01 | **拒绝** | 无聊天明文读取入口 |
 | **PT-304** | S-08 | 用户列表 | A-05 | **允许** | 可查看用户列表 |
-| **PT-305** | S-08 | 节点指标 | A-01 | **允许** | 可查看脱敏指标 |
+| **PT-305** | S-08 | 节点指标 | A-01 | **允许** | SCHOOL_ADMIN 可查看脱敏节点指标；不返回节点凭据；不返回 Prompt、模型输入或完整响应；不代表可以创建、修改、删除节点 |
 | **PT-306** | S-09 | R-03 | A-01 | **拒绝** | 系统管理员同样无权限 |
 
 ---
@@ -173,13 +189,13 @@ WHERE scene_instance_id = 'xxx';
 
 ### 5.1 敏感内容扫描
 
-| 测试ID | 扫描目标 | 期望发现 | 实际发现 |
-|--------|---------|---------|---------|
-| **LG-001** | 所有日志文件 | 无 "budget_max: 100" 等 | 0 |
-| **LG-002** | 所有日志文件 | 无 "不吃香菜" 等禁忌 | 0 |
-| **LG-003** | 所有日志文件 | 无完整 Prompt | 0 |
-| **LG-004** | 所有日志文件 | 无完整模型响应 | 0 |
-| **LG-005** | 所有日志文件 | 无思维链 | 0 |
+| 测试ID | 扫描目标 | 期望发现 | 定义状态 | 执行状态 | 实际结果 |
+|--------|---------|---------|---------|---------|---------|
+| **LG-001** | 所有日志文件 | 无 "budget_max: 100" 等 | defined | not_run | — |
+| **LG-002** | 所有日志文件 | 无 "不吃香菜" 等禁忌 | defined | not_run | — |
+| **LG-003** | 所有日志文件 | 无完整 Prompt | defined | not_run | — |
+| **LG-004** | 所有日志文件 | 无完整模型响应 | defined | not_run | — |
+| **LG-005** | 所有日志文件 | 无思维链 | defined | not_run | — |
 
 **扫描方式**：
 - 自动扫描脚本
@@ -218,9 +234,193 @@ WHERE scene_instance_id = 'xxx';
 
 ---
 
-## 8. 执行要求
+## 8. Prompt 注入测试（R1-29 新增）
 
-### 8.1 测试时机
+| ID | 威胁 | 场景 | 预期结果 | 验证控制 | 阶段 | 定义状态 | 执行状态 |
+|---|---|---|---|---|---|---|---|
+| **PI-001** | T-04 | 原始自由文本直接进入模型 | 拒绝或先最小化、结构化 | Prompt 最小化、结构化胶囊 | P3 | defined | not_run |
+| **PI-002** | T-04 | 偏好胶囊包含注入指令 | 只作为数据，不改变系统规则 | 结构化输出、系统提示隔离 | P3 | defined | not_run |
+| **PI-003** | T-04、T-03 | 响应包含系统提示、记忆正文或私有提交 | Schema/敏感字段检查拒绝 | 输出验证、Schema 校验 | P3 | defined | not_run |
+| **PI-004** | T-04 | Schema 合法但包含成员指认、敏感语义或恶意 URL | 拒绝或安全重建 | 输出验证、字段白名单 | P3 | defined | not_run |
+| **PI-005** | T-04、T-03 | 扫描注入请求和响应日志 | 无 Prompt、私有偏好、系统指令和完整响应 | 日志脱敏、敏感字段过滤 | P3 | defined | not_run |
+
+---
+
+## 9. 重放与幂等性测试（R1-29 新增）
+
+| ID | 威胁 | 场景 | 预期结果 | 验证控制 | 阶段 | 定义状态 | 执行状态 |
+|---|---|---|---|---|---|---|---|
+| **RP-001** | T-05 | 相同幂等键+相同请求体 | 同一结果，不重复副作用 | Idempotency-Key | P2 | defined | not_run |
+| **RP-002** | T-05 | 相同幂等键+不同请求体 | IDEMPOTENCY_CONFLICT | 幂等冲突检测 | P2 | defined | not_run |
+| **RP-003** | T-05 | 重复投票、确认或私有提交 | 无重复记录和非法状态转换 | 场景状态机 | P2 | defined | not_run |
+| **RP-004** | T-05 | 轮换后旧 Refresh Token 重放 | 拒绝并按契约处理 token family | Token 轮换、重放检测 | P2 | defined | not_run |
+| **RP-005** | T-05 | 并发使用同一幂等键 | 只产生一次副作用 | 幂等作用域锁定 | P2 | defined | not_run |
+
+---
+
+## 10. 模型路由测试（R1-29 新增）
+
+| ID | 威胁 | 场景 | 预期结果 | 验证控制 | 阶段 | 定义状态 | 执行状态 |
+|---|---|---|---|---|---|---|---|
+| **MR-001** | T-08 | P3/P4 原始正文路由外部模型 | 拒绝，不调用外部 Provider | 隐私上下文路由策略 | P2 | defined | not_run |
+| **MR-002** | T-08 | ENABLE_EXTERNAL_MODEL=false | 不调用外部 Provider | 默认禁用外部模型 | P2 | defined | not_run |
+| **MR-003** | T-08 | privacy_context 缺失、无效或授权撤销 | 失败关闭，不发送模型请求 | 隐私上下文校验、失败关闭 | P2 | defined | not_run |
+| **MR-004** | T-08、T-09 | 本地节点失败 | 只降级到同等隐私能力的 Mock/规则引擎，不得降级外部模型或 HTTP | 安全降级策略 | P7 | defined | not_run |
+| **MR-005** | T-08、T-03、T-09 | 模型网关日志扫描 | 无原始输入、Prompt、完整响应和节点凭据 | 日志脱敏、元数据记录 | P2 | defined | not_run |
+
+---
+
+## 11. 边缘节点测试（R1-29 新增）
+
+| ID | 威胁 | 场景 | 预期结果 | 验证控制 | 阶段 | 定义状态 | 执行状态 |
+|---|---|---|---|---|---|---|---|
+| **EN-001** | T-09 | 非 SYSTEM_ADMIN 执行 Node POST/PATCH/DELETE | ADMIN_PERMISSION_DENIED，无写入 | 节点管理权限 | P7 | defined | not_run |
+| **EN-002** | T-09 | 生产提交 HTTP endpoint | INVALID_ENDPOINT，不连接 | 安全传输、HTTPS 强制 | P7 | defined | not_run |
+| **EN-003** | T-09 | loopback、link-local、metadata、multicast、unspecified 地址 | INVALID_ENDPOINT | SSRF 防护、地址校验 | P7 | defined | not_run |
+| **EN-004** | T-09 | DNS 解析或重定向指向禁止地址 | 拒绝，防 DNS rebinding | DNS 重新校验、重定向禁止 | P7 | defined | not_run |
+| **EN-005** | T-09 | 缺失、无效、过期、撤销或错误作用域凭据 | 节点认证失败 | 节点身份认证 | P7 | defined | not_run |
+| **EN-006** | T-09、T-08 | 发给节点的请求包含非最小化数据或 P3/P4 原文 | 拒绝 | 数据最小化、隐私上下文 | P7 | defined | not_run |
+| **EN-007** | T-09、T-04 | 节点返回缺字段、错误类型、未知字段或非法枚举 | Schema 检查拒绝或安全降级 | 输出验证、Schema 校验 | P7 | defined | not_run |
+| **EN-008** | T-09 | 节点访问 PostgreSQL、Redis、业务 API 或未授权外部地址 | 网络策略拒绝 | 网络隔离 | P7 | defined | not_run |
+| **EN-009** | T-09、T-03 | 扫描数据库、API、日志、错误、指标和备份 | 凭据加密存储且不泄露；无 Prompt、输入正文和完整响应 | 凭据保护、日志脱敏 | P7 | defined | not_run |
+| **EN-010** | T-09 | 隔离、禁用或熔断节点继续领取任务 | 不再接收任务 | 健康和异常处理、隔离 | P7 | defined | not_run |
+| **EN-011** | T-09 | 凭据轮换后使用旧凭据 | 拒绝 | 凭据轮换、撤销 | P7 | defined | not_run |
+| **EN-012** | T-09、T-04 | 节点返回恶意 URL、工具调用、成员指认、私有偏好或操纵内容 | 输出验证拒绝 | 输出验证、字段白名单 | P7 | defined | not_run |
+
+---
+
+## 12. 威胁—控制—测试追踪矩阵（R1-29 权威口径）
+
+### 12.1 正向映射：威胁 → 测试
+
+| 威胁 | 风险 | 计划控制 | 测试 ID | 阶段 | 定义状态 | 执行状态 |
+|---|---|---|---|---|---|---|
+| T-01 | 严重 | 权限矩阵、所有权验证、API 层检查、Repository 过滤 | PT-001、PT-002、PT-003、PT-004、PT-005、PT-006、PT-007、PT-008、ST-004、ST-005、REV-001 | P2/P3 | defined | not_run |
+| T-02 | 高 | MemoryService 四重检查、模块边界、加密存储 | PT-101、PT-102、PT-103、PT-104、PT-105、PT-106、PT-107、REV-002 | P2 | defined | not_run |
+| T-03 | 高 | 敏感日志过滤、禁止记录、只记录元数据、配置 | LG-001、LG-002、LG-003、LG-004、LG-005、LG-101、LG-102、LG-103、LG-104、PI-003、PI-005、MR-005、EN-009 | P2/P3 | defined | not_run |
+| T-04 | 高 | 最小化胶囊、Prompt 模板、输出验证、路由策略 | PI-001、PI-002、PI-003、PI-004、PI-005、EN-007、EN-012 | P3 | defined | not_run |
+| T-05 | 中 | 幂等性、Token 轮换、场景状态机、限流 | RP-001、RP-002、RP-003、RP-004、RP-005、REV-004 | P2 | defined | not_run |
+| T-06 | 高 | 权限矩阵、所有权检查、Repository 过滤 | PT-001、PT-002、PT-003、PT-004、PT-005、PT-006、PT-101、PT-102、PT-103、PT-104、PT-105、PT-106、PT-107、PT-201、PT-202、PT-203、PT-204、PT-301、PT-302、PT-303、PT-304、PT-305、PT-306、REV-003、EXP-001、EXP-002、EXP-003 | P2 | defined | not_run |
+| T-07 | 中 | 立即清理、TTL 兜底、数据库加密、备份策略 | PT-007、PT-008、CL-001、CL-002、CL-003、CL-004、CL-005 | P3 | defined | not_run |
+| T-08 | 高 | 默认禁用外部模型、路由策略、统一网关、隐私上下文 | MR-001、MR-002、MR-003、MR-004、MR-005、ST-001、ST-002、ST-003、ST-004、ST-005、EN-006 | P2/P7 | defined | not_run |
+| T-09 | 高 | 节点管理权限、身份认证、凭据保护、安全传输、SSRF 防护、网络隔离、数据最小化、输出验证、健康异常处理、供应链 | EN-001、EN-002、EN-003、EN-004、EN-005、EN-006、EN-007、EN-008、EN-009、EN-010、EN-011、EN-012、MR-004、MR-005、PT-305 | P7 | defined | not_run |
+
+### 12.2 反向映射：测试 → 威胁
+
+| 测试 ID/范围 | 威胁 | 验证控制 | 定义章节 | 定义状态 | 执行状态 |
+|---|---|---|---|---|---|
+| PT-001 | T-01、T-06 | 权限矩阵、所有权验证 | §3.1 | defined | not_run |
+| PT-002 | T-01、T-06 | 权限矩阵、所有权验证 | §3.1 | defined | not_run |
+| PT-003 | T-01、T-06 | 权限矩阵、所有权验证 | §3.1 | defined | not_run |
+| PT-004 | T-01、T-06 | 权限矩阵、所有权验证 | §3.1 | defined | not_run |
+| PT-005 | T-01、T-06 | 权限矩阵、所有权验证 | §3.1 | defined | not_run |
+| PT-006 | T-01、T-06 | 所有权验证 | §3.1 | defined | not_run |
+| PT-007 | T-01、T-07 | 系统清理 | §3.1 | defined | not_run |
+| PT-008 | T-01、T-07 | 系统清理 | §3.1 | defined | not_run |
+| PT-101 | T-02、T-06 | MemoryService 四重检查 | §3.2 | defined | not_run |
+| PT-102 | T-02、T-06 | MemoryService 四重检查 | §3.2 | defined | not_run |
+| PT-103 | T-02、T-06 | MemoryService 四重检查 | §3.2 | defined | not_run |
+| PT-104 | T-02、T-06 | MemoryService 四重检查 | §3.2 | defined | not_run |
+| PT-105 | T-02、T-06 | 所有权验证 | §3.2 | defined | not_run |
+| PT-106 | T-02、T-06 | 所有权验证 | §3.2 | defined | not_run |
+| PT-107 | T-02、T-06 | 所有权验证 | §3.2 | defined | not_run |
+| PT-201 | T-06 | 群聊权限 | §3.3 | defined | not_run |
+| PT-202 | T-06 | 群聊权限 | §3.3 | defined | not_run |
+| PT-203 | T-06 | 群聊权限、ORG_ADMIN 边界 | §3.3 | defined | not_run |
+| PT-204 | T-06 | 私有提交隔离 | §3.3 | defined | not_run |
+| PT-301 | T-06 | 管理后台权限 | §3.4 | defined | not_run |
+| PT-302 | T-06 | 管理后台权限 | §3.4 | defined | not_run |
+| PT-303 | T-06 | 管理后台权限 | §3.4 | defined | not_run |
+| PT-304 | T-06 | 管理后台权限 | §3.4 | defined | not_run |
+| PT-305 | T-06、T-09 | SCHOOL_ADMIN 脱敏指标边界 | §3.4 | defined | not_run |
+| PT-306 | T-06 | 管理后台权限 | §3.4 | defined | not_run |
+| ST-001 | T-08 | 场景事件隐私 | §4.1 | defined | not_run |
+| ST-002 | T-08 | 场景事件隐私 | §4.1 | defined | not_run |
+| ST-003 | T-08 | 场景事件隐私 | §4.1 | defined | not_run |
+| ST-004 | T-01、T-08 | 场景事件隐私、私有提交隔离 | §4.1 | defined | not_run |
+| ST-005 | T-01、T-08 | 场景事件隐私、私有提交隔离 | §4.1 | defined | not_run |
+| CL-001 | T-07 | 清理测试 | §4.2 | defined | not_run |
+| CL-002 | T-07 | 清理测试 | §4.2 | defined | not_run |
+| CL-003 | T-07 | 清理测试 | §4.2 | defined | not_run |
+| CL-004 | T-07 | 清理测试 | §4.2 | defined | not_run |
+| CL-005 | T-07 | 清理测试 | §4.2 | defined | not_run |
+| LG-001 | T-03 | 日志隐私 | §5.1 | defined | not_run |
+| LG-002 | T-03 | 日志隐私 | §5.1 | defined | not_run |
+| LG-003 | T-03 | 日志隐私 | §5.1 | defined | not_run |
+| LG-004 | T-03 | 日志隐私 | §5.1 | defined | not_run |
+| LG-005 | T-03 | 日志隐私 | §5.1 | defined | not_run |
+| LG-101 | T-03 | 允许记录的元数据 | §5.2 | defined | not_run |
+| LG-102 | T-03 | 允许记录的元数据 | §5.2 | defined | not_run |
+| LG-103 | T-03 | 允许记录的元数据 | §5.2 | defined | not_run |
+| LG-104 | T-03 | 允许记录的元数据 | §5.2 | defined | not_run |
+| REV-001 | T-01 | 授权撤销 | §6 | defined | not_run |
+| REV-002 | T-02 | 授权撤销 | §6 | defined | not_run |
+| REV-003 | T-06 | 授权撤销 | §6 | defined | not_run |
+| REV-004 | T-05 | 授权撤销、Token 轮换 | §6 | defined | not_run |
+| EXP-001 | T-06 | 数据导出 | §7 | defined | not_run |
+| EXP-002 | T-06 | 数据导出 | §7 | defined | not_run |
+| EXP-003 | T-06 | 数据导出 | §7 | defined | not_run |
+| PI-001 | T-04 | Prompt 最小化 | §8 | defined | not_run |
+| PI-002 | T-04 | 系统提示隔离 | §8 | defined | not_run |
+| PI-003 | T-04、T-03 | 输出验证、日志脱敏 | §8 | defined | not_run |
+| PI-004 | T-04 | 输出验证 | §8 | defined | not_run |
+| PI-005 | T-04、T-03 | 日志脱敏 | §8 | defined | not_run |
+| RP-001 | T-05 | 幂等性 | §9 | defined | not_run |
+| RP-002 | T-05 | 幂等冲突检测 | §9 | defined | not_run |
+| RP-003 | T-05 | 场景状态机 | §9 | defined | not_run |
+| RP-004 | T-05 | Token 轮换、重放检测 | §9 | defined | not_run |
+| RP-005 | T-05 | 幂等作用域锁定 | §9 | defined | not_run |
+| MR-001 | T-08 | 隐私上下文路由策略 | §10 | defined | not_run |
+| MR-002 | T-08 | 默认禁用外部模型 | §10 | defined | not_run |
+| MR-003 | T-08 | 隐私上下文校验、失败关闭 | §10 | defined | not_run |
+| MR-004 | T-08、T-09 | 安全降级策略 | §10 | defined | not_run |
+| MR-005 | T-08、T-03、T-09 | 日志脱敏 | §10 | defined | not_run |
+| EN-001 | T-09 | 节点管理权限 | §11 | defined | not_run |
+| EN-002 | T-09 | 安全传输 | §11 | defined | not_run |
+| EN-003 | T-09 | SSRF 防护 | §11 | defined | not_run |
+| EN-004 | T-09 | DNS 重新校验 | §11 | defined | not_run |
+| EN-005 | T-09 | 节点身份认证 | §11 | defined | not_run |
+| EN-006 | T-09、T-08 | 数据最小化 | §11 | defined | not_run |
+| EN-007 | T-09、T-04 | 输出验证 | §11 | defined | not_run |
+| EN-008 | T-09 | 网络隔离 | §11 | defined | not_run |
+| EN-009 | T-09、T-03 | 凭据保护、日志脱敏 | §11 | defined | not_run |
+| EN-010 | T-09 | 健康和异常处理 | §11 | defined | not_run |
+| EN-011 | T-09 | 凭据轮换 | §11 | defined | not_run |
+| EN-012 | T-09、T-04 | 输出验证 | §11 | defined | not_run |
+
+### 12.3 统计汇总
+
+| 指标 | 值 |
+|---|---|
+| 威胁总数 | 9（T-01～T-09） |
+| 有测试的威胁 | 9 |
+| 无测试的威胁 | 0 |
+| 严重/高风险有测试 | 7/7 |
+| 正式测试定义总数 | 78 |
+| 有映射的测试 | 78 |
+| 无映射的测试 | 0 |
+| 未定义测试引用 | 0 |
+| 重复定义 | 0 |
+| 定义状态 | defined=78 |
+| 执行状态 | not_run=78 |
+
+### 12.4 严重/高风险拒绝/失败关闭/泄露检测覆盖
+
+| 威胁 | 风险 | 覆盖类型 |
+|---|---|---|
+| T-01 | 严重 | 拒绝测试（PT-001～PT-005）、隔离测试（ST-004、ST-005） |
+| T-02 | 高 | 拒绝测试（PT-101～PT-104） |
+| T-03 | 高 | 泄露检测测试（LG-001～LG-005、PI-005、MR-005、EN-009） |
+| T-04 | 高 | 拒绝测试（PI-001～PI-005、EN-007、EN-012） |
+| T-06 | 高 | 拒绝测试（PT-001～PT-006、PT-101～PT-107、PT-201～PT-204、PT-301～PT-306） |
+| T-08 | 高 | 拒绝/失败关闭测试（MR-001～MR-005、EN-006） |
+| T-09 | 高 | 拒绝/失败关闭/泄露检测测试（EN-001～EN-012、MR-004、MR-005） |
+
+---
+
+## 13. 执行要求
+
+### 13.1 测试时机
 
 | 测试类型 | 执行时机 |
 |---------|---------|
@@ -230,13 +430,13 @@ WHERE scene_instance_id = 'xxx';
 | WebSocket测试 | P5后必跑 |
 | E2E隐私测试 | P11后必跑，P12前三次 |
 
-### 8.2 测试数据
+### 13.2 测试数据
 
 - 使用固定虚构数据
 - 不得使用真实个人信息
 - 每次测试前重置数据库
 
-### 8.3 失败标准
+### 13.3 失败标准
 
 以下情况必须阻止发布：
 - ❌ PT-001 到 PT-005 任意一个失败（可读取他人私有提交）
@@ -247,7 +447,7 @@ WHERE scene_instance_id = 'xxx';
 
 ---
 
-## 9. 相关文档
+## 14. 相关文档
 
 - [角色权限矩阵](../architecture/PERMISSION_MATRIX.md)
 - [威胁模型](../security/THREAT_MODEL.md)
@@ -255,8 +455,9 @@ WHERE scene_instance_id = 'xxx';
 
 ---
 
-**下一步**：P0-12（接受首批ADR）
+**下一步**：P2 阶段执行测试
 **变更记录**：
 | 日期 | 变更内容 | 变更人 |
 |------|---------|--------|
 | 2026-07-14 | 初始版本 | - |
+| 2026-07-15 | R1-29 新增 27 个正式测试定义（PI/RP/MR/EN），建立威胁—控制—测试双向追踪矩阵；修正 PT-203、PT-305、LG 表；定义状态 defined、执行状态 not_run；总计 78 个唯一测试定义 | - |

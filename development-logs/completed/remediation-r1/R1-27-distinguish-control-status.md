@@ -229,3 +229,10 @@ Codex 审计发现两处问题，已做最小范围整改：
 - `P0_REVIEW_RECORD.md` 已取消虚假的 R1-A～R1-D 全部完成声明；
 - R1-28～R1-31 仍未执行；
 - `git diff HEAD --check` 通过。
+
+## 后续状态更新
+
+- R1-27 完成时 planned 为 8
+- R1-28 新增 T-09 后 planned 为 9
+- implemented 和 verified 仍为 0
+- 控制状态定义不变
