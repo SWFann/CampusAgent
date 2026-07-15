@@ -52,7 +52,7 @@
 
 #### ✅ 威胁模型（P0-07）
 - **文件**：`docs/security/THREAT_MODEL.md`
-- **内容**：8 个威胁识别，6 个 critical/high 级别，8 个缓解策略
+- **内容**：8 个威胁：严重（Critical）1 个、高（High）5 个、中（Medium）2 个、低（Low）0 个；严重/高风险合计 6 个；8 个计划缓解策略，当前控制状态均为 `planned`，尚无 `implemented` 或 `verified` 控制
 - **规模**：3,800+ 字
 
 #### ✅ 隐私测试矩阵（P0-11）
