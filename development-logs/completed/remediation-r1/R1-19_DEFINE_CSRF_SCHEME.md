@@ -303,3 +303,15 @@ R1-19 初版定义 CSRF 方案时，存在以下问题：
 
 - R1-20：登录响应已包含 csrf_token Cookie（保持一致）
 - R1-21：Refresh/Logout 端点已包含 CSRF 错误码（保持一致）
+
+## R1-22 WebSocket 鉴权说明（历史状态标注）
+
+本日志中提到的 `GET /ws/v1?ticket=<one_time_ticket>` 和 WebSocket 使用一次性 ticket 为 R1-19 完成时的历史状态。
+
+R1-22 已修正 WebSocket 鉴权：
+- 路径改为 `/api/v1/ws`
+- 认证方式改为 `access_token` HttpOnly Cookie
+- 禁止 URL Token 和 ticket
+- 强制 Origin 白名单校验
+
+当前有效契约以 `WEBSOCKET_CONTRACT.md` 和 `API_CONTRACT.md` 为准。

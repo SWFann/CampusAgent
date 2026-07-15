@@ -106,6 +106,7 @@ R0 退出条件：当前 P0/P1 产物已进入 Git；工作内容不会因后续
 - ✅ R1-20 已完成修正，登录响应不返回 access_token/refresh_token（仅返回用户元数据 + Set-Cookie），新增 csrf_token Cookie，错误码统一为 AUTH_INVALID_CREDENTIALS（防止账号枚举）
 - ✅ R1-21 已完成修正，Refresh 流程采用 Token 轮换（每次刷新颁发新 refresh_token，旧 token 立即失效），新增 token family 机制和重放检测（重放时撤销整个 family），新增 AUTH_REFRESH_TOKEN_EXPIRED 错误码，Logout 清除 access_token/refresh_token/csrf_token 三个 Cookie 并撤销 token family
 - ✅ R1-18～R1-21 认证链路复审：明确 CSRF bootstrap 流程（login/register 豁免，成功后签发 csrf_token），register 自动登录增加 Set-Cookie: csrf_token，统一 auth 端点 CSRF 豁免范围，CSRF_TOKEN_EXPIRED 降级为可选增强（P2 实现），API_CONTRACT.md 变更记录增加 R1-C 安全修订
+- ✅ R1-22 已完成修正，WebSocket 鉴权从 URL Token 改为 HttpOnly access_token Cookie，路径为 /api/v1/ws，强制 Origin 白名单校验，禁止 URL Token/ticket/连接后发送 Token，不新增 HTTP 端点，MVP HTTP 端点仍为 68 个
 
 | 状态 | ID | 整改内容 | 具体操作 | 完成标准 |
 |---|---|---|---|---|
@@ -144,9 +145,47 @@ API 契约逐端点最低字段：
 | [x] | R1-19 | 定义 CSRF 方案 | Token 来源、Header、轮换和失败响应 | 所有 Cookie 写请求具有明确 CSRF 防护 |
 | [x] | R1-20 | 修正登录响应 | 不再同时声称只用 Cookie又返回持久化 Token | 前端无须把 Token 写入浏览器存储 |
 | [x] | R1-21 | 修正 Refresh 流程 | Cookie、轮换、重放检测、注销撤销 | ADR 与 API 契约完全一致 |
-| [ ] | R1-22 | 修正 WebSocket 鉴权 | 禁止长期 Token 出现在 URL 查询参数 | 采用安全 Cookie/一次性 ticket/连接后认证之一 |
-| [ ] | R1-23 | 定义 WebSocket Token 过期 | 关闭码、刷新、重连和重新订阅 | 客户端行为可确定实现 |
-| [ ] | R1-24 | 冻结事件 Schema | 所有事件字段和版本策略 | 公共事件不包含 P2–P4 数据 |
+| [x] | R1-22 | 修正 WebSocket 鉴权 | 禁止长期 Token 出现在 URL 查询参数 | 采用 HttpOnly access_token Cookie，路径 /api/v1/ws，强制 Origin 白名单 |
+| [x] | R1-23 | 定义 WebSocket Token 过期 | 关闭码、刷新、重连和重新订阅 | 客户端行为可确定实现 |
+| [x] | R1-24 | 冻结事件 Schema | 所有事件字段和版本策略 | 公共事件不包含 P2–P4 数据 |
+
+**R1-23 完成摘要（2026-07-15）**：
+
+- ✅ 浏览器握手失败恢复流程（WEBSOCKET_CONTRACT.md §1.8）：明确浏览器 WebSocket API 不暴露 401/403 详情，应用启动先调 `/me`，握手前 `onerror` 调 `/me` 检查认证状态，禁止无限 refresh 循环
+- ✅ 事件信封 `sequence` 字段（§2.1）：单连接/单订阅流内递增，不保证跨连接全局连续，跳号触发 HTTP 回补
+- ✅ 连接事件定义（§4.1）：`connection.established`（含 `connection_id`、`server_time`、`access_token_expires_at`）和 `connection.expiring`
+- ✅ 网络重连退避（§6.1）：第 1 次立即，后续 1/2/4/8/16/30 秒，最大 30 秒，±20% jitter，连续 10 次进入 PAUSED，offline→online 重置计数并立即重试
+- ✅ 自动重连白名单与禁止清单（§6.2）：允许 1001/1011/1012/4408/4429/网络异常；禁止 1000/1008/4403/4406/用户注销/Refresh 失败/Origin 配置错误
+- ✅ HTTP 回补完整规则（§6.3）：路径 `GET /api/v1/conversations/{conversation_id}/messages?page=1&page_size=50`，记录最后确认 `message_id`，分页去重，安全页数上限 20 页，会话元数据和场景状态回源，sequence 跳号触发回补，HTTP API 为最终事实来源，不新增 since/cursor/last_event_id 参数
+- ✅ 事件去重有界缓存（§6.4）：最多 1000 个 event_id 或 24 小时，先到者触发淘汰，删除无限增长 `set()`，区分传输去重/业务幂等/序列检测三层
+- ✅ Refresh 连接迁移 10 步（§7.4.3）：POST refresh 携带 X-CSRF-Token，创建新 WebSocket，等待 connection.established，逐项恢复订阅，等待 subscribed 确认，服务端重新鉴权，全部恢复后切换活动连接，关闭旧连接，清理旧连接计时器/监听器，Refresh 失败进入 AUTH_FAILED
+- ✅ 连接状态机 10 状态（§7.5）：DISCONNECTED/CONNECTING/OPEN/REFRESHING/RESTORING/RECONNECTING/AUTH_FAILED/FORBIDDEN/PAUSED/CLOSED，状态转换表覆盖初次连接、握手失败、Token 临期、4401、4403、网络断开、心跳超时、服务重启、Refresh 成功/失败、用户注销；RESTORING 为恢复订阅和 HTTP 回补的必经中间状态
+- ✅ 关闭码补全（§7.6）：4401=Token过期/认证上下文失效（两个 reason：access_token_expired / authentication_context_invalid）、4403=权限拒绝/账号禁用、4406=协议主版本不支持、4408=心跳超时、4429=遵守 retry_after_ms（来源为 error 事件，默认 30000ms，范围 1000-300000ms），所有 close reason 为固定机器可读字符串，用户注销不重连
+- ✅ 心跳计时器清理规则（§7.7）：断线、Refresh、旧连接替换、页面销毁、终态转换时清理
+- ✅ 重新订阅 8 条规则（§7.8）：只保存 conversation_id、收到 connection.established 后重订阅、按顺序发送、等待 subscribed 确认、服务端重新鉴权、无权限项移除、单项失败不关闭连接、全部完成后切换活动连接
+- ✅ 删除编辑器备份文件 `docs/api/WEBSOCKET_CONTRACT.md.backup`
+- ✅ connection.expiring 字段修正：删除 grace_seconds，统一为 expires_at/refresh_required/reconnect_required（§4.1）
+- ✅ connection.expired 事件定义（§4.1）：access_token 过期后发送，发送后立即 4401 关闭，客户端不能依赖收到该事件
+- ✅ RESTORING 状态（§7.5）：新连接建立后恢复订阅和 HTTP 回补的中间状态，完成后才进入 OPEN
+- ✅ 4401 两个 reason（§7.6）：access_token_expired（自然过期）/ authentication_context_invalid（撤销或失效）
+- ✅ 4429 retry_after_ms 来源（§7.6）：error 事件传递，默认 30000ms，范围 1000-300000ms
+**R1-24 完成摘要（2026-07-15，R1-24-C 审计整改后）**：
+
+- ✅ WEBSOCKET_CONTRACT.md 版本为 `v1.0-frozen`，状态标记为「已评审/已冻结」
+- ✅ 统一事件信封（§2）：客户端命令信封含 `event`/`data`/`version`/`request_id`/`timestamp`，服务端事件信封含 `event`/`data`/`version`/`event_id`/`sequence`/`timestamp`/`request_id`
+- ✅ `request_id` 统一为 UUID v4（§2-§4）：客户端命令必填 UUID v4，直接响应回显同一 UUID v4，主动推送为 `null`，无法解析请求的 `error` 为 `null`
+- ✅ 时间字段标准化（§2.4）：所有 `timestamp` 使用 UTC RFC 3339 秒精度（如 `2026-07-15T10:30:00Z`），`expires_at` 同格式
+- ✅ 全部事件 Schema 冻结（§3–§4）：每个事件含方向、触发条件、JSON 示例、data 字段表、隐私分级、授权要求、客户端处理、request_id 关联
+- ✅ message.created 使用授权会话投影（§4.3.1）：字段与 HTTP Message 模型建立明确映射（`message_id`→`Message.id` 等），使用扁平 `sender_type`/`sender_user_id`/`sender_agent_id`，删除嵌套 `sender` 和 `display_name`，`message_type` 使用 `DOMAIN_VOCABULARY.md` 完整 v1 枚举（10 值）
+- ✅ scene.updated 使用 `state` 字段名（§4.5.1）：与 `SCENE_STATE_MACHINE.md` 生命周期状态一致，12 个封闭枚举（含 `CANDIDATES_READY`/`FAILED`/`EXPIRED`）
+- ✅ scene.result.generated 使用 `state=CANDIDATES_READY`（§4.5.2）：触发时机为 `PROCESSING`→`CANDIDATES_READY`，不等于 `COMPLETED`
+- ✅ notification.created `type` 为 WebSocket v1 开放枚举（§4.6.1）：当前已知值 `SCENE_INVITE`，不引用不存在的 HTTP Notification 模型，不无依据声明 `MESSAGE_MENTION`
+- ✅ 错误事件冻结（§4.7）：`error.data` 含 `code`/`message`/`details`/`retryable`/`retry_after_ms`，定义 7 个应用层 WS 错误码
+- ✅ 错误码同步到 API_CONTRACT.md §1.6：分类表和总表均包含全部 8 个 WS_* 错误码，`WS_RATE_LIMITED` 只属于 websocket 分类不映射 HTTP 429，`rate_limit` 分类明确排除 `WS_RATE_LIMITED`
+- ✅ 版本兼容策略冻结（§8）：`version` 字段固定为 `v1`，同版本向后兼容，破坏性变更须升版本号
+- ✅ 隐私投影规则冻结（§9）：`visibility=PRIVATE`/`HIDDEN`、Agent 私域消息、P3/P4 数据、记忆正文和智能体内部推理均不得通过 WebSocket 推送；`content` 可以是 P1/P2 的授权会话可见内容但不能是 P3/P4；WebSocket Schema 中不存在 `metadata` 字段
+- ✅ 事件清单冻结（§10）：按方向（C→S / S→C）分类列出全部事件，含版本和简述
+- ✅ README.md 更新：标记 API 和 WebSocket 合约均为 `v1.0-frozen`
 
 ### R1-D：修正威胁模型和隐私测试
 

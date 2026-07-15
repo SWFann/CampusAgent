@@ -1,6 +1,15 @@
-# API 契约（设计基线）
+# API 契约
 
-当前目录暂不包含可执行 API 定义。实现前应把计划书中的契约整理为版本化 OpenAPI 和 WebSocket 事件说明。
+## 契约状态
+
+| 契约 | 版本 | 状态 | 文件 |
+|------|------|------|------|
+| HTTP API 契约 | v1.0-frozen | ✅ 已冻结 | [API_CONTRACT.md](API_CONTRACT.md) |
+| WebSocket 与事件契约 | v1.0-frozen | ✅ 已冻结 | [WEBSOCKET_CONTRACT.md](WEBSOCKET_CONTRACT.md) |
+
+> **冻结日期**：2026-07-15
+> **冻结范围**：所有 REST 端点、错误码体系、WebSocket 连接协议、事件信封、全部事件 Schema、错误事件、版本策略、隐私投影规则
+> 破坏性变更须经 ADR 评审并同步更新文档、客户端与 Mock Server。
 
 ## 通用规则
 

@@ -627,7 +627,7 @@ def validate_csrf(request):
 | `POST /api/v1/auth/login` | 未认证登录请求，客户端尚无 csrf_token Cookie |
 | `POST /api/v1/auth/register` | 未认证注册请求，客户端尚无 csrf_token Cookie |
 | Bearer Token 认证的请求 | 内部服务间调用（`internal_service_token`）及管理后台（`admin_token`），不通过 Cookie 认证 |
-| WebSocket 握手（GET /ws/v1） | WebSocket 使用一次性 ticket，非 Cookie 认证 |
+| WebSocket 握手（`GET /api/v1/ws`） | WebSocket 使用 access_token HttpOnly Cookie 认证，豁免 CSRF |
 | 静态资源请求（`/static/*`、`/favicon.ico`） | 不涉及 API 认证 |
 
 **CSRF Bootstrap 流程说明**：
@@ -637,10 +637,12 @@ def validate_csrf(request):
 - 此流程不要求 login/register 本身携带 CSRF Token（Chicken-and-Egg 问题）
 
 **WebSocket 握手特别说明**：
-- 当前：`GET /ws/v1?ticket=<one_time_ticket>`（R1-22 将改为 Cookie）
-- WebSocket 握手通过 ticket 认证，不使用 Cookie
-- SameSite=Lax 已阻止跨站 WebSocket 连接携带 Cookie
-- 豁免 CSRF 校验，但保留 ticket 过期检查（待 R1-23 实现）
+- WebSocket 握手：`GET /api/v1/ws`（R1-22 已修正为 Cookie）
+- WebSocket 握手通过 `access_token` Cookie 认证，不使用 URL Token、不使用 ticket
+- `access_token` Cookie 的 `Path=/api/v1` 覆盖 `/api/v1/ws`，浏览器自动携带 Cookie
+- 豁免 CSRF 校验（GET Upgrade 请求，不使用 X-CSRF-Token）
+- WebSocket 依靠 SameSite Cookie、严格 Origin 白名单和服务端身份校验防护
+- Token 过期处理待 R1-23 定义
 
 ##### 1.5.6.4 CSRF 校验失败响应
 
@@ -744,7 +746,8 @@ def validate_csrf(request):
 | **state_transition_error** | `*_INVALID_STATE`、`*_INVALID_STAGE`、`*_PENDING_*`、`*_NOT_READY` | 422 | 当前状态不允许该操作 |
 | **idempotency_conflict** | `IDEMPOTENCY_CONFLICT`（跨模块通用码，不分模块前缀）、`IDEMPOTENCY_KEY_REQUIRED` | 409/400 | Idempotency-Key 冲突或缺失（跨所有模块，不分前缀） |
 | **csrf** | `CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH`、`CSRF_TOKEN_EXPIRED` | 403 | CSRF Token 缺失、不匹配或过期 |
-| **rate_limit** | `*_RATE_LIMITED` | 429 | 请求频率超限 |
+| **websocket** | `WS_ORIGIN_NOT_ALLOWED`（握手拒绝，HTTP 403）、`WS_INVALID_MESSAGE`、`WS_UNSUPPORTED_EVENT`、`WS_UNAUTHORIZED`、`WS_FORBIDDEN`、`WS_SUBSCRIPTION_NOT_FOUND`、`WS_RATE_LIMITED`、`WS_INTERNAL_ERROR`（后七者为应用层错误，通过 `error` 事件推送，无 HTTP 状态码） | 403 / — | WebSocket 握手拒绝或应用层错误 |
+| **rate_limit** | `*_RATE_LIMITED`（仅适用于 HTTP API 的限流错误，明确排除 `WS_RATE_LIMITED`） | 429 | 请求频率超限（HTTP API） |
 | **model_gateway_error** | `MODEL_*`、`PRIVACY_CONTEXT_*` | 502/503 | 模型网关错误 |
 | **internal_error** | `INTERNAL_ERROR` | 500 | 服务端未预期错误 |
 
@@ -756,10 +759,10 @@ def validate_csrf(request):
 
 | 错误码 | HTTP | message | retryable | 出现位置 |
 |--------|:----:|---------|:---------:|---------|
-| `AUTH_INVALID_TOKEN` | 401 | 访问令牌无效或已过期 | false | Auth |
+| `AUTH_INVALID_TOKEN` | 401 | 访问令牌无效或已过期 | false | Auth / WebSocket |
 | `AUTH_REFRESH_TOKEN_REVOKED` | 401 | Refresh Token 已被撤销（包括重放检测触发撤销） | false | Auth |
 | `AUTH_REFRESH_TOKEN_EXPIRED` | 401 | Refresh Token 已过期 | false | Auth |
-| `AUTH_ACCOUNT_DISABLED` | 401 | 账号已被禁用 | false | Auth |
+| `AUTH_ACCOUNT_DISABLED` | 401 | 账号已被禁用 | false | Auth / WebSocket |
 | `AUTH_EMAIL_NOT_VERIFIED` | 401 | 邮箱未验证 | false | Auth |
 | `AUTH_WEAK_PASSWORD` | 400 | 密码强度不足 | false | Auth |
 | `AUTH_INVALID_CREDENTIALS` | 401 | 邮箱或密码错误 | false | Auth |
@@ -772,6 +775,21 @@ def validate_csrf(request):
 | `CSRF_TOKEN_MISSING` | 403 | 缺少 CSRF Token | false | 通用 |
 | `CSRF_TOKEN_MISMATCH` | 403 | CSRF Token 不匹配 | false | 通用 |
 | `CSRF_TOKEN_EXPIRED` | 403 | CSRF Token 已过期 | false | 通用 |
+
+**WebSocket（WS）**
+
+> 握手阶段（HTTP Upgrade）错误通过 HTTP 状态码返回；连接建立后的应用层错误通过 `error` 事件推送（HTTP 列记为 `—`）。详见 [WEBSOCKET_CONTRACT.md](WEBSOCKET_CONTRACT.md) §4.7 错误事件。
+
+| 错误码 | HTTP | message | retryable | 出现位置 |
+|--------|:----:|---------|:---------:|---------|
+| `WS_ORIGIN_NOT_ALLOWED` | 403 | WebSocket Origin 不在允许列表中 | false | WebSocket 握手 |
+| `WS_INVALID_MESSAGE` | — | WebSocket 消息格式无效 | false | WebSocket `error` 事件 |
+| `WS_UNSUPPORTED_EVENT` | — | 不支持的事件类型 | false | WebSocket `error` 事件 |
+| `WS_UNAUTHORIZED` | — | WebSocket 未授权操作 | false | WebSocket `error` 事件 |
+| `WS_FORBIDDEN` | — | WebSocket 权限拒绝 | false | WebSocket `error` 事件 |
+| `WS_SUBSCRIPTION_NOT_FOUND` | — | 订阅不存在 | false | WebSocket `error` 事件 |
+| `WS_RATE_LIMITED` | — | WebSocket 频率受限 | true | WebSocket `error` 事件 |
+| `WS_INTERNAL_ERROR` | — | WebSocket 内部错误 | false | WebSocket `error` 事件 |
 
 **授权（Authorization）**
 
@@ -903,7 +921,7 @@ def validate_csrf(request):
 | 错误码 | HTTP | message | retryable | 出现位置 |
 |--------|:----:|---------|:---------:|---------|
 | `INTERNAL_ERROR` | 500 | 服务端内部错误 | false | 通用 |
-| `SERVICE_UNAVAILABLE` | 503 | 服务暂不可用 | true | Admin / Model Gateway |
+| `SERVICE_UNAVAILABLE` | 503 | 服务暂不可用 | true | Admin / Model Gateway / WebSocket |
 | `HEALTH_CHECK_FAILED` | 503 | 节点健康检查失败 | true | Admin |
 
 #### 1.6.4 隐私失败显式化规则
@@ -943,7 +961,15 @@ def validate_csrf(request):
 | 浏览器端 GET/HEAD/OPTIONS | ❌ 豁免 | 无 |
 | 未认证端点（login/register） | ❌ 豁免 | 无 |
 | 内部服务（Bearer Token） | ❌ 豁免 | 无 |
-| WebSocket 握手 | ❌ 豁免 | 无 |
+| WebSocket 握手 | ❌ 豁免 | 无（握手失败返回 HTTP 错误码，见本节下方 WebSocket 端点） |
+
+**WebSocket 端点错误码**：
+
+| 端点 | 错误码 |
+|:----------|--------|
+| `GET /api/v1/ws`（Upgrade） | `AUTH_INVALID_TOKEN`、`AUTH_ACCOUNT_DISABLED`、`WS_ORIGIN_NOT_ALLOWED`、`SERVICE_UNAVAILABLE` |
+
+> WebSocket 连接建立后的应用层错误（`WS_INVALID_MESSAGE`、`WS_UNSUPPORTED_EVENT`、`WS_UNAUTHORIZED`、`WS_FORBIDDEN`、`WS_SUBSCRIPTION_NOT_FOUND`、`WS_RATE_LIMITED`、`WS_INTERNAL_ERROR`）通过 `error` 事件推送，不产生 HTTP 响应。详见 [WEBSOCKET_CONTRACT.md](WEBSOCKET_CONTRACT.md) §4.7 错误事件。
 
 **端点错误码规范**：
 - 写端点（POST/PATCH/PUT/DELETE）必须标注 `CSRF_TOKEN_MISSING`、`CSRF_TOKEN_MISMATCH`

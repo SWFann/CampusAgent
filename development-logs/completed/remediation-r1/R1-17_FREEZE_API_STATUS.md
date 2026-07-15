@@ -407,3 +407,14 @@ R1-17 已完成，R1 批次剩余任务：
 - R1-06：端点对照清单已建立（68 个端点）
 - R1-07～R1-13：所有端点补全任务已完成
 - R1-18：Admin API 认证方式冻结
+
+## R1-22 WebSocket 鉴权说明（历史状态标注）
+
+本日志中提到的 `ws://localhost:8000/ws/v1?token=<access_token>` 为 R1-17 完成时的历史状态。
+
+R1-22 已修正 WebSocket 鉴权：
+- 路径改为 `/api/v1/ws`
+- 认证方式改为 `access_token` HttpOnly Cookie
+- 禁止 URL Token
+
+当前有效契约以 `WEBSOCKET_CONTRACT.md` 和 `API_CONTRACT.md` 为准。

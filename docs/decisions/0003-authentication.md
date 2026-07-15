@@ -93,7 +93,37 @@
 - 适合前后端分离架构
 - 便于移动端扩展
 
-## 相关文档
+## 补充：WebSocket 认证（R1-22）
+
+### 决策
+
+WebSocket 复用既有 JWT + HttpOnly Cookie 体系，不引入新的认证机制。
+
+### 实现细节
+
+- **路径**：`GET /api/v1/ws`
+- **认证凭据**：`access_token` HttpOnly Cookie（`Path=/api/v1`）
+- **浏览器行为**：原生 WebSocket API 自动携带 Cookie，JavaScript 不读取 access_token
+- **不使用**：`Authorization` 请求头（浏览器原生 WebSocket API 无法稳定设置自定义头）
+- **不使用**：URL 查询参数（`?token=`、`?ticket=`）
+- **不使用**：连接建立后发送 Token
+- **不使用**：一次性 ticket 端点
+
+### 安全控制
+
+1. **Origin 校验**：服务端维护 Origin 白名单，协议升级前完成校验
+2. **JWT 校验**：签名、exp、用户状态和撤销状态
+3. **SameSite Cookie**：`SameSite=Lax` 阻止跨站请求携带 Cookie
+4. **订阅授权**：每次订阅重新校验资源级权限
+
+### 禁止记录
+
+- Cookie 原文
+- JWT 原文
+- WebSocket URL 认证凭据
+
+### 相关文档
 
 - [角色权限矩阵](../architecture/PERMISSION_MATRIX.md)
-- [API 契约](../api/API_CONTRACT.md)
+- [HTTP API 契约](../api/API_CONTRACT.md)
+- [WebSocket 契约](../api/WEBSOCKET_CONTRACT.md)
