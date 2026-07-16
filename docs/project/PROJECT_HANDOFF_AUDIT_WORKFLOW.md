@@ -16,7 +16,7 @@
 - 测试定义与测试执行分离：`defined` 不等于 `passed`，`not_run` 不等于已验证。
 - 控制状态保守：P0/P1 阶段控制状态保持 `planned`，不得误称为 `implemented` 或 `verified`。
 
-**本地路径（Windows）**：
+**历史源路径（Windows / `/mnt/f` 对应目录，仅作迁移来源参考）**：
 
 ```text
 F:\工作盘\实习经历汇总\星星之火-创业\模型互联网比赛\CampusAgent
@@ -107,9 +107,9 @@ R1-E 本地收口状态：
 
 远端边界：
 
-- 本地冻结提交不等于已推送。
-- `R3-25` / `R4-19` 的远端 GitHub Actions 观察必须在用户授权 `git push` 后完成。
-- 后续 P2 交给 Claude 执行前，应先确认 `git log -1 --oneline`、`git status --short` 和是否已推送。
+- 用户已授权推送，R1-E 收口提交已推送至 `origin/main`。
+- `R3-25` / `R4-19` 的远端 GitHub Actions 观察已完成，成功 run：`https://github.com/SWFann/CampusAgent/actions/runs/29479748669`。
+- 后续 P2 交给 Claude 执行前，应先确认 `git log -1 --oneline`、`git status --short` 和最新远端 CI 状态。
 
 ### 2.1 已完成任务总览
 
@@ -136,7 +136,7 @@ R1-E 本地收口状态：
 | R1-E | R1-33 | 已完成 | P0 完成总结对齐 71 端点、9 威胁、planned 控制状态 |
 | R1-E | R1-34 | 已完成 | 开发计划进度表对齐当前状态 |
 | R1-E | R1-35 | 已完成 | P0 本地复审通过，准许进入冻结提交 |
-| R1-E | R1-36 | 已完成 | 本地冻结提交由 Codex 形成；未推送 |
+| R1-E | R1-36 | 已完成 | 冻结提交由 Codex 形成并推送；远端 CI 已通过 |
 
 ### 2.2 最近提交记录
 
@@ -286,9 +286,9 @@ git status --short
 
 本项目当前阶段建议：
 
-- R1-32～R1-36 已由 2026-07-16 本地收口完成；
-- 之后若进入 P2，应先确认本地冻结提交是否已推送、远端 CI 是否绿色；
-- 未经用户明确授权，不主动推送。
+- R1-32～R1-36 已由 2026-07-16 收口完成并推送；
+- R3-25/R4-19 已通过远端 GitHub Actions 观察；
+- 进入 P2 前，应以 `/root/CampusAgent` 为基准确认最新提交、工作树和 CI 状态。
 
 ### 4.2 执行工具选择建议
 
@@ -318,13 +318,13 @@ docs/project/PROJECT_HANDOFF_AUDIT_WORKFLOW.md
 docs/project/P0_P1_REMEDIATION_PLAN.md
 
 当前项目路径：
-F:\工作盘\实习经历汇总\星星之火-创业\模型互联网比赛\CampusAgent
+/root/CampusAgent
 
 当前远程仓库：
 git@github.com:SWFann/CampusAgent.git
 
-请先确认当前 git 状态、最新提交、R1-36 本地冻结提交是否存在，以及是否已推送观察 CI。
-如果准备进入 P2，请先给出 P2 执行计划；不要自动推送。
+请先确认当前 git 状态、最新提交、远端 main 是否同步，以及最新 GitHub Actions 是否绿色。
+如果准备进入 P2，请先给出 P2 执行计划；不要自动推送，除非用户明确授权。
 ```
 
 如果是让执行工具继续任务，可以发送：
@@ -353,7 +353,7 @@ git@github.com:SWFann/CampusAgent.git
 你现在接手 CampusAgent 项目。
 
 项目路径：
-F:\工作盘\实习经历汇总\星星之火-创业\模型互联网比赛\CampusAgent
+/root/CampusAgent
 
 远程仓库：
 git@github.com:SWFann/CampusAgent.git
@@ -363,13 +363,13 @@ git@github.com:SWFann/CampusAgent.git
 2. docs/project/P0_P1_REMEDIATION_PLAN.md
 3. docs/project/P0_REVIEW_RECORD.md
 
-当前已完成并推送到 main 的最新任务是 R1-31；R1-32～R1-36 已在本地由 Codex 收口并形成冻结提交，是否已推送需通过 git 状态确认。
+当前 R1-32～R1-36 已由 Codex 收口并推送到 main；R3-25/R4-19 已观察到远端 GitHub Actions 绿色。后续 P2 任务以 `/root/CampusAgent` 为基准继续。
 
 请先执行：
 git status --short
 git log -1 --oneline
 
-然后根据 PROJECT_HANDOFF_AUDIT_WORKFLOW.md 确认是否可以进入 P2，或是否需要先推送并观察 CI。
+然后根据 PROJECT_HANDOFF_AUDIT_WORKFLOW.md 确认是否可以进入 P2，并确认最新远端 CI 状态。
 不要自动推送。
 ```
 
@@ -381,7 +381,7 @@ git log -1 --oneline
 你现在负责 CampusAgent 项目的 P2：基础设施与后端公共内核。
 
 项目路径：
-F:\工作盘\实习经历汇总\星星之火-创业\模型互联网比赛\CampusAgent
+/root/CampusAgent
 
 必须先阅读：
 1. docs/project/PROJECT_HANDOFF_AUDIT_WORKFLOW.md
@@ -389,9 +389,9 @@ F:\工作盘\实习经历汇总\星星之火-创业\模型互联网比赛\Campus
 3. docs/project/README.md
 
 当前状态：
-- R1-32～R1-36 已由 Codex 在本地完成收口并形成冻结提交；
-- 最新已推送提交可能仍是 3f2ee03，是否已推送 R1-36 需先执行 git status / git log 确认；
-- 远端 CI 是否绿色需在用户授权推送后观察；
+- R1-32～R1-36 已由 Codex 完成收口并推送至 `origin/main`；
+- R3-25/R4-19 已观察到远端 GitHub Actions 绿色；
+- 后续以 `/root/CampusAgent` 为基准继续；
 - P2 执行前不得修改 P0/P1 冻结口径，除非先记录新审计问题。
 
 任务目标：
@@ -418,7 +418,7 @@ F:\工作盘\实习经历汇总\星星之火-创业\模型互联网比赛\Campus
 R1-XX：<任务名称>
 
 项目目录：
-F:\工作盘\实习经历汇总\星星之火-创业\模型互联网比赛\CampusAgent
+/root/CampusAgent
 
 前置条件：
 1. <上一任务> 已通过 Codex 审计；
@@ -1005,17 +1005,13 @@ rg -n "v1.0-frozen" docs/api/WEBSOCKET_CONTRACT.md
 
 ### 11.1 进入项目
 
-Windows PowerShell：
-
-```powershell
-cd "F:\工作盘\实习经历汇总\星星之火-创业\模型互联网比赛\CampusAgent"
-```
-
-WSL：
+WSL / root 用户主工作区：
 
 ```bash
 cd /root/CampusAgent
 ```
+
+历史 Windows 源路径仍保留在 `/mnt/f/.../CampusAgent`，后续开发和验证不再以该路径为基准。
 
 ### 11.2 Git 状态
 

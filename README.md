@@ -4,7 +4,7 @@
 
 CampusAgent 让每名学生拥有一个由本人控制、按场景授权的个人智能体。智能体可以在校园组织与群聊场景中代表用户提交最小化的结构化偏好、参与低风险协商，但平台、管理员和其他成员默认不能读取用户的原始偏好、敏感记忆或智能体内部推理过程。
 
-> 当前状态：P0 契约已冻结（API `v1.0-frozen`，68 个 MVP HTTP 端点 + 3 个 internal 端点 = 71 个总文档化端点；WebSocket `v1.0-frozen`），P1 工程骨架已可安装、测试和构建，FastAPI/Next.js 健康基线可运行；业务模块、数据库和 Demo 场景尚未实现。R1-E 已完成本地冻结提交，远端 CI 观察需推送后确认。
+> 当前状态：P0 契约已冻结（API `v1.0-frozen`，68 个 MVP HTTP 端点 + 3 个 internal 端点 = 71 个总文档化端点；WebSocket `v1.0-frozen`），P1 工程骨架已可安装、测试和构建，FastAPI/Next.js 健康基线可运行；业务模块、数据库和 Demo 场景尚未实现。R1-E 已完成、已推送至 `origin/main`，远端 GitHub Actions 已通过。
 
 ## Demo 要证明什么
 

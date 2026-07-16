@@ -350,7 +350,7 @@ API 契约逐端点最低字段：
 - **复审结论**：P0 通过本地文档一致性复核，准许进入 R1-36 本地冻结提交
 - **当前权威口径**：API 71 个总文档化端点；WebSocket `v1.0-frozen`；威胁 9 个；控制 `planned=9 / implemented=0 / verified=0`；测试 `defined=100 / not_run=100`
 - **历史日志处理**：旧版 R1-33～R1-36 completed 日志已标记为 `historical`
-- **远端边界**：未推送，远端 CI 绿色状态需用户授权推送后观察
+- **远端结果**：用户已授权推送；远端 GitHub Actions 已观察到绿色，见 run `29479748669`
 - **当前 R1-35 日志路径**：`development-logs/completed/remediation-r1/R1-35-conduct-p0-review.md`
 
 ### R1-36 完成摘要
@@ -358,7 +358,7 @@ API 契约逐端点最低字段：
 - **修改文件**：`docs/project/P0_P1_REMEDIATION_PLAN.md`、`docs/project/PROJECT_HANDOFF_AUDIT_WORKFLOW.md`、`docs/project/README.md`、`README.md`、相关 R1 日志
 - **冻结范围**：R1-32～R1-36 的当前权威日志和项目状态文档
 - **本地验证**：`git diff HEAD --check`、内部链接检查、Conda/Python 基线、API import、pnpm frozen install、seed no-op、lint、typecheck、test、build、Playwright E2E
-- **未执行事项**：未执行 `git push`；未观察远端 GitHub Actions；不将 R3-25/R4-19 写成已完成
+- **远端结果**：已推送至 `origin/main`；GitHub Actions run `29479748669` 已通过；R3-25/R4-19 已具备远端证据
 - **验证路径**：`/root/CampusAgent`
 - **提交方式**：由 Codex 在本地形成聚焦提交并在最终回复报告提交哈希
 - **当前 R1-36 日志路径**：`development-logs/completed/remediation-r1/R1-36-form-p0-freeze-commit.md`
@@ -488,7 +488,7 @@ conda run -n CampusAgent mypy apps/api/src apps/api/tests
 | [x] | R3-22 | 修复 E2E 服务 | 启动 E2E 实际依赖的服务 | 不只启动 Web 却声称全系统 E2E |
 | [x] | R3-23 | 强制 Secret Scan | 移除无理由的 continue-on-error | 检测到密钥时 CI 失败 |
 | [x] | R3-24 | 检查 CI YAML 和 Actions | workflow | 语法正确、权限最小、版本明确 |
-| [ ] | R3-25 | 推送并观察 CI | GitHub | 所有 required jobs 为绿色 |
+| [x] | R3-25 | 推送并观察 CI | GitHub | 所有 required jobs 为绿色：`https://github.com/SWFann/CampusAgent/actions/runs/29479748669` |
 
 ### R3-D：文档和法律一致性
 
@@ -544,7 +544,7 @@ pnpm --filter @campus-agent/web test:e2e
 | [x] | R4-16 | 前端 lint/typecheck/test/build 通过 | 命令日志 |
 | [x] | R4-17 | Playwright 基线通过 | 报告 |
 | [x] | R4-18 | 统一命令在 Windows 可运行 | PowerShell 验证记录 |
-| [ ] | R4-19 | CI 全部 required jobs 通过 | GitHub Actions 链接 |
+| [x] | R4-19 | CI 全部 required jobs 通过 | `https://github.com/SWFann/CampusAgent/actions/runs/29479748669` |
 | [x] | R4-20 | Secret Scan 为强制门禁 | CI 配置和运行结果 |
 | [x] | R4-21 | 快速开始从干净环境验证 | 操作记录 |
 | [x] | R4-22 | 所有 P0/P1 文件已提交 | `git status` 干净 |
