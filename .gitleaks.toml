@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation-only placeholder JWT examples"
+regexes = [
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.\.\.''',
+  '''eyJhbGciOiJIUzI1NiIs\.\.\.''',
+]
