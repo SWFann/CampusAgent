@@ -150,6 +150,7 @@ Codex 全量审计发现并修正 2 类问题：
 |---|---|---|
 | `JsonFormatter` 使用 `time.strftime` 处理 `%f`，日志时间戳输出为 `2026-...%fZ` | 结构化日志时间戳不是合法 ISO-8601 毫秒 UTC | 改为 `datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds")`，并新增回归测试 |
 | `DEVELOPMENT_PLAN.md` 与 `P2_FULL_IMPLEMENTATION_GUIDE.md` 残留 P2-02/P2-03 旧状态 | 新对话可能误判 P2-03 尚未通过、P2 仍只完成到 P2-02 | 更新为 P2-01～P2-14 完成、等待 Codex 全量审计和提交 |
+| 健康检查测试默认使用 `redis://localhost:6379/1` | GitHub Actions 启动真实 Redis service 时，原本期望 `redis=unavailable` 或 `degraded` 的测试会变成 `ok` 或 `ready` | 将需要不可用场景的测试显式改用 `redis://localhost:1/1`，避免依赖宿主环境是否运行 Redis |
 
 ## 7. 未执行项及原因
 

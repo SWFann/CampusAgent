@@ -127,7 +127,7 @@ class TestErrorCodeMapping:
 
 
 class TestAppErrorHandler:
-    def _make_settings(self):
+    def _make_settings(self, **overrides: str):
         import os
 
         from src.config import Settings
@@ -139,6 +139,7 @@ class TestAppErrorHandler:
             "DATABASE_URL": "sqlite:///:memory:",
             "REDIS_URL": "redis://localhost:6379/1",
         }
+        env_vars.update(overrides)
         old_values: dict[str, str | None] = {}
         for key, val in env_vars.items():
             old_values[key] = os.environ.get(key)
@@ -251,7 +252,7 @@ class TestAppErrorHandler:
         """Health endpoints should NOT use the error envelope format."""
         from src.main import create_app
 
-        s = self._make_settings()
+        s = self._make_settings(REDIS_URL="redis://localhost:1/1")
         app = create_app(s)
         with TestClient(app) as client:
             live = client.get("/health/live")

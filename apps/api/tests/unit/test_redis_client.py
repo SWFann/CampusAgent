@@ -209,7 +209,8 @@ class TestHealthReadyRedis:
         """/health/ready should return redis=unavailable when Redis is down."""
         from src.main import create_app
 
-        app = create_app(self.settings)
+        settings = _make_settings(REDIS_URL="redis://localhost:1/1")
+        app = create_app(settings)
         with TestClient(app) as client:
             resp = client.get("/health/ready")
             assert resp.status_code == 200
