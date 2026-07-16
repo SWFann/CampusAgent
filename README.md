@@ -171,6 +171,37 @@ corepack pnpm build
 
 **注意**：首次使用请阅读 [快速开始指南](docs/development/QUICK_START.md)。
 
+## Docker Compose 开发
+
+项目根目录的 `compose.yaml` 提供完整的本地开发编排：
+
+```bash
+# 启动核心依赖（PostgreSQL、Redis、Mock Model）
+make docker-up
+
+# 或直接使用 docker compose
+docker compose up -d postgres redis mock-model
+
+# 启动全部服务（包括 web 和 api）
+docker compose up -d
+
+# 查看服务状态
+docker compose ps
+
+# 停止服务
+docker compose down
+```
+
+服务端口：
+- Web: http://localhost:3000
+- API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+- PostgreSQL: localhost:5432
+- Redis: localhost:6379
+- Mock Model: http://localhost:8001
+
+详见 [infra/docker/README.md](infra/docker/README.md)。
+
 ## 后续实施顺序
 
 1. 冻结核心领域模型、OpenAPI、WebSocket 事件和隐私威胁模型；

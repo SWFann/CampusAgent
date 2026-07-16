@@ -1,7 +1,17 @@
 """
-Environment variable validation middleware
+Environment variable validation middleware.
 
-Validates required environment variables on application startup.
+Provides a lightweight startup-time guard that complements the fail-closed
+validation already performed by ``Settings`` (see ``config.py``).
+
+The ``Settings`` model_validator handles:
+- APP_SECRET / FIELD_ENCRYPTION_KEY must not be dev defaults in production
+- Secret strength (>= 32 chars) in production
+- LOG_PROMPT_CONTENT must be False in production
+- MODEL_GATEWAY_API_KEY required when ENABLE_EXTERNAL_MODEL is True
+
+This module's ``validate_production_env`` serves as defence-in-depth: it
+verifies that critical variables are non-empty at application startup.
 """
 
 from __future__ import annotations
@@ -43,8 +53,11 @@ def validate_production_env(environment: Mapping[str, str] | None = None) -> Non
     """
     Validate environment variables for production deployment.
 
-    In production, these variables MUST be set:
-    - APP_SECRET (must be strong)
+    This is a lightweight startup guard. The primary production security
+    validation is performed by ``Settings._validate_production_security``.
+
+    In production, these variables MUST be set and non-empty:
+    - APP_SECRET
     - DATABASE_URL
     - REDIS_URL
     - FIELD_ENCRYPTION_KEY
@@ -68,16 +81,6 @@ def validate_production_env(environment: Mapping[str, str] | None = None) -> Non
 
         if missing:
             raise EnvValidationError(missing)
-
-        # Validate APP_SECRET strength
-        secret = values.get("APP_SECRET", "")
-        if len(secret) < 32:
-            raise ValueError("APP_SECRET must be at least 32 characters in production")
-
-        # Validate ENCRYPTION_KEY strength
-        encryption_key = values.get("FIELD_ENCRYPTION_KEY", "")
-        if len(encryption_key) < 32:
-            raise ValueError("FIELD_ENCRYPTION_KEY must be at least 32 characters in production")
 
 
 def check_env() -> None:

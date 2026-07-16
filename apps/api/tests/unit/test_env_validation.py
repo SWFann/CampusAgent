@@ -35,10 +35,12 @@ def test_production_environment_reports_all_missing_values() -> None:
     }
 
 
-@pytest.mark.parametrize("field", ["APP_SECRET", "FIELD_ENCRYPTION_KEY"])
-def test_production_environment_rejects_weak_keys(field: str) -> None:
-    with pytest.raises(ValueError, match=field):
-        validate_production_env(production_env(**{field: "too-short"}))
+def test_production_environment_rejects_empty_keys() -> None:
+    """Empty (but not necessarily short) values should be caught as missing."""
+    with pytest.raises(EnvValidationError) as error:
+        validate_production_env(production_env(APP_SECRET="   "))
+
+    assert "APP_SECRET" in error.value.missing_vars
 
 
 def test_valid_production_environment_passes() -> None:

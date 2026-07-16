@@ -1,0 +1,78 @@
+# ============================================
+# CampusAgent .dockerignore
+# ============================================
+# Prevents sensitive files, build artifacts,
+# and unnecessary directories from entering
+# Docker build context.
+
+# --- Version control ---
+.git
+.gitignore
+
+# --- Environment files (MUST NOT enter images) ---
+.env
+**/.env
+.env.local
+.env.*.local
+
+# --- Node.js ---
+node_modules
+**/node_modules
+.next
+**/.next
+out
+dist
+build
+
+# --- Python ---
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.pytest_cache
+**/.pytest_cache
+.mypy_cache
+**/.mypy_cache
+.ruff_cache
+**/.ruff_cache
+
+# --- Test artifacts ---
+playwright-report
+**/playwright-report
+test-results
+**/test-results
+coverage
+**/coverage
+.coverage
+htmlcov
+
+# --- Docker ---
+Dockerfile
+**/Dockerfile
+docker-compose*.yml
+compose*.yaml
+
+# --- IDE / OS ---
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Documentation (not needed in runtime images) ---
+docs/
+development-logs/
+
+# --- CI / Scripts ---
+.github/
+infra/prometheus/
+infra/scripts/
+
+# --- Logs ---
+*.log
+logs/

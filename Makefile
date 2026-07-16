@@ -1,4 +1,4 @@
-.PHONY: help dev test lint typecheck build clean install
+.PHONY: help dev test lint typecheck build clean install docker-up docker-down docker-logs docker-build docker-ps docker-health db-migrate db-downgrade db-revision
 
 # Default target
 .DEFAULT_GOAL := help
@@ -85,25 +85,60 @@ setup: install ## Initial project setup
 	@echo "  3. Run database migrations"
 	@echo "$(GREEN)Setup complete!$(NC)"
 
-# Docker (when Docker is available)
-docker-up: ## Start Docker services (PostgreSQL, Redis)
-	@echo "$(GREEN)Starting Docker services...$(NC)"
-	@docker compose up -d postgres redis
-	@echo "$(GREEN)Docker services started$(NC)"
+# Docker (requires Docker installed)
+docker-up: ## Start core Docker services (postgres, redis, mock-model)
+	@echo "$(GREEN)Starting core Docker services...$(NC)"
+	docker compose up -d postgres redis mock-model
+	@echo "$(GREEN)Core services started$(NC)"
+	@echo "  - PostgreSQL: http://localhost:5432"
+	@echo "  - Redis:      http://localhost:6379"
+	@echo "  - Mock Model: http://localhost:8001"
 
-docker-down: ## Stop Docker services
+docker-up-all: ## Start ALL Docker services (web, api, postgres, redis, mock-model)
+	@echo "$(GREEN)Starting all Docker services...$(NC)"
+	docker compose up -d
+	@echo "$(GREEN)All services started$(NC)"
+	@echo "  - Web:        http://localhost:3000"
+	@echo "  - API:        http://localhost:8000"
+	@echo "  - PostgreSQL: http://localhost:5432"
+	@echo "  - Redis:      http://localhost:6379"
+	@echo "  - Mock Model: http://localhost:8001"
+
+docker-down: ## Stop all Docker services
 	@echo "$(YELLOW)Stopping Docker services...$(NC)"
-	@docker compose down
+	docker compose down
 	@echo "$(GREEN)Docker services stopped$(NC)"
 
-docker-logs: ## Show Docker logs
-	@docker compose logs -f
+docker-logs: ## Show Docker logs (follow mode)
+	docker compose logs -f
+
+docker-build: ## Build all Docker images
+	@echo "$(GREEN)Building Docker images...$(NC)"
+	docker compose build
+	@echo "$(GREEN)Build complete$(NC)"
+
+docker-ps: ## Show running Docker containers
+	docker compose ps
+
+docker-health: ## Check health of all Docker services
+	@echo "$(GREEN)Checking service health...$(NC)"
+	docker compose ps --format "table {{.Name}}\t{{.Status}}"
 
 # Database
-db-migrate: ## Run database migrations
+db-migrate: ## Run database migrations (upgrade head)
 	@echo "$(GREEN)Running migrations...$(NC)"
-	@cd apps/api && conda run -n CampusAgent alembic upgrade head
+	@cd apps/api && conda run -n CampusAgent alembic -c alembic.ini upgrade head
 	@echo "$(GREEN)Migrations complete$(NC)"
+
+db-downgrade: ## Downgrade database to base
+	@echo "$(YELLOW)Downgrading database to base...$(NC)"
+	@cd apps/api && conda run -n CampusAgent alembic -c alembic.ini downgrade base
+	@echo "$(GREEN)Downgrade complete$(NC)"
+
+db-revision: ## Create a new migration revision (usage: make db-revision m="description")
+	@echo "$(GREEN)Creating new migration...$(NC)"
+	@cd apps/api && conda run -n CampusAgent alembic -c alembic.ini revision -m "$(m)"
+	@echo "$(GREEN)Migration created$(NC)"
 
 # Code formatting
 format: ## Format all code
