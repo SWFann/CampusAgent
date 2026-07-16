@@ -61,7 +61,7 @@ def test_app_has_required_routes():
     app = create_app()
 
     # Check health routes exist
-    routes = [route.path for route in app.routes]
+    routes = [route.path for route in app.routes if hasattr(route, "path")]
 
     assert "/health/live" in routes
     assert "/health/ready" in routes

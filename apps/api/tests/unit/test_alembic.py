@@ -146,10 +146,11 @@ class TestMigrationUpgradeDowngrade:
         engine.dispose()
 
     def test_downgrade_base_clears_version(self) -> None:
-        """``downgrade base`` must clear the version stamp.
+        """``downgrade base`` must clear the version stamp and drop business tables.
 
         Alembic keeps the ``alembic_version`` table after downgrade to
-        base, but it should contain 0 rows (no current revision).
+        base, but it should contain 0 rows.  All business tables created
+        by migrations should be dropped.
         """
         command.upgrade(self.cfg, "head")
         command.downgrade(self.cfg, "base")
@@ -164,9 +165,12 @@ class TestMigrationUpgradeDowngrade:
             if "alembic_version" in table_names:
                 result = conn.execute(text("SELECT COUNT(*) FROM alembic_version"))
                 assert result.scalar() == 0
-            # No business tables should exist regardless.
+            # No business tables should exist after downgrade to base.
             business_tables = {
                 "users",
+                "student_profiles",
+                "auth_sessions",
+                "refresh_tokens",
                 "organizations",
                 "conversations",
                 "messages",
@@ -178,8 +182,8 @@ class TestMigrationUpgradeDowngrade:
             assert not business_tables.intersection(set(table_names))
         engine.dispose()
 
-    def test_no_business_tables_after_upgrade(self) -> None:
-        """After ``upgrade head``, no business tables should exist."""
+    def test_business_tables_exist_after_upgrade(self) -> None:
+        """After ``upgrade head``, the P3 business tables should exist."""
         command.upgrade(self.cfg, "head")
 
         from sqlalchemy import create_engine
@@ -189,19 +193,14 @@ class TestMigrationUpgradeDowngrade:
             inspector = inspect(conn)
             table_names = inspector.get_table_names()
             assert "alembic_version" in table_names
-            business_tables = {
+            expected_p3_tables = {
                 "users",
-                "organizations",
-                "conversations",
-                "messages",
-                "agents",
-                "memories",
-                "scenes",
-                "audit_logs",
+                "student_profiles",
+                "auth_sessions",
+                "refresh_tokens",
             }
-            assert not business_tables.intersection(set(table_names)), (
-                f"Unexpected business tables: {business_tables.intersection(set(table_names))}"
-            )
+            missing = expected_p3_tables - set(table_names)
+            assert not missing, f"Missing P3 tables: {missing}"
         engine.dispose()
 
     def test_upgrade_then_downgrade_then_upgrade(self) -> None:
@@ -215,10 +214,16 @@ class TestMigrationUpgradeDowngrade:
         engine = create_engine(self.db_url)
         with engine.connect() as conn:
             inspector = inspect(conn)
-            assert "alembic_version" in inspector.get_table_names()
+            table_names = inspector.get_table_names()
+            assert "alembic_version" in table_names
             # Verify a version row exists
             result = conn.execute(text("SELECT COUNT(*) FROM alembic_version"))
             assert result.scalar() == 1
+            # Business tables should exist after re-upgrade
+            assert "users" in table_names
+            assert "student_profiles" in table_names
+            assert "auth_sessions" in table_names
+            assert "refresh_tokens" in table_names
         engine.dispose()
 
 

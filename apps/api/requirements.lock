@@ -1,13 +1,16 @@
-# Generated and verified with Python 3.11.15 on 2026-07-14.
+# Generated and verified with Python 3.11.15 on 2026-07-16.
 # Regenerate deliberately when dependencies are upgraded.
 alembic==1.18.5
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.14.2
 ast_serialize==0.6.0
+bcrypt==5.0.0
 certifi==2026.6.17
 click==8.4.2
 colorama==0.4.6
+dnspython==2.8.0
+email-validator==2.3.0
 fastapi==0.139.0
 greenlet==3.5.3
 h11==0.16.0
@@ -29,6 +32,7 @@ pydantic==2.13.4
 pydantic-settings==2.14.2
 pydantic_core==2.46.4
 Pygments==2.20.0
+PyJWT==2.13.0
 pytest==9.1.1
 pytest-asyncio==1.4.0
 python-dotenv==1.2.2

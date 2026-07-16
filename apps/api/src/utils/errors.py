@@ -4,6 +4,8 @@ Custom error types
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class AppError(Exception):
     """Base application error"""
@@ -13,7 +15,7 @@ class AppError(Exception):
         code: str,
         message: str,
         status_code: int = 500,
-        details: dict | None = None,
+        details: dict[str, Any] | None = None,
     ):
         self.code = code
         self.message = message
@@ -25,7 +27,7 @@ class AppError(Exception):
 class AuthenticationError(AppError):
     """Authentication failed"""
 
-    def __init__(self, message: str = "Authentication failed", details: dict | None = None):
+    def __init__(self, message: str = "Authentication failed", details: dict[str, Any] | None = None):
         super().__init__(
             code="AUTH_FAILED",
             message=message,
@@ -37,7 +39,7 @@ class AuthenticationError(AppError):
 class AuthorizationError(AppError):
     """Authorization failed"""
 
-    def __init__(self, message: str = "Permission denied", details: dict | None = None):
+    def __init__(self, message: str = "Permission denied", details: dict[str, Any] | None = None):
         super().__init__(
             code="PERMISSION_DENIED",
             message=message,
@@ -49,7 +51,7 @@ class AuthorizationError(AppError):
 class NotFoundError(AppError):
     """Resource not found"""
 
-    def __init__(self, resource: str, details: dict | None = None):
+    def __init__(self, resource: str, details: dict[str, Any] | None = None):
         super().__init__(
             code="NOT_FOUND",
             message=f"{resource} not found",

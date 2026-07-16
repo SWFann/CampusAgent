@@ -96,3 +96,6 @@ class EventBus:
         if event_type is not None:
             return len(self._handlers.get(event_type, []))
         return sum(len(handlers) for handlers in self._handlers.values())
+
+
+default_event_bus = EventBus()
