@@ -342,7 +342,7 @@ R1 批次剩余任务：
    - 服务异常 → 503 + `SERVICE_UNAVAILABLE`
 2. **注册 WS_ORIGIN_NOT_ALLOWED**：API_CONTRACT.md 新增 `websocket` 错误分类，`WS_ORIGIN_NOT_ALLOWED` 已加入统一错误码总表（Section 1.6.3），HTTP 403，message：WebSocket Origin 不在允许列表中，retryable：false，出现位置：WebSocket
 3. **完善 SameSite 说明**：WEBSOCKET_CONTRACT.md 中 SameSite 描述从"SameSite=Lax 阻止跨站请求携带 Cookie"调整为"SameSite=Lax 提供纵深防护，但 WebSocket 安全不能只依赖 SameSite；严格 Origin 白名单校验是防止 Cross-Site WebSocket Hijacking 的强制控制"
-4. **恢复 ADR 链接**：docs/decisions/0003-authentication.md 相关文档中恢复 `[角色权限矩阵](../architecture/PERMISSION_MATRIX.md)` 链接
+4. **恢复 ADR 链接**：docs/decisions/0003-authentication.md 相关文档中恢复 `[角色权限矩阵](../../../docs/architecture/PERMISSION_MATRIX.md)` 链接
 
 ### 变更内容
 

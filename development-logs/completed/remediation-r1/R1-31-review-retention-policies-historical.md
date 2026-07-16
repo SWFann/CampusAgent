@@ -1,11 +1,12 @@
 ---
 task_id: R1-31
-status: completed
+status: historical
 stage: R1
-title: 复核保留策略
+title: 复核保留策略（历史版本，不作为当前权威记录）
 completed_at: 2026-07-14T13:40:00+09:00
 estimated_hours: 1
 actual_hours: 0.5
+note: 此为 2026-07-14 初版，当前权威日志见 R1-31-review-retention-policy.md
 ---
 
 # R1-31：复核保留策略

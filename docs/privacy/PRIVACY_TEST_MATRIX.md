@@ -317,8 +317,8 @@ WHERE scene_instance_id = 'xxx';
 |---------|---------|---------|-----------|------|---------|---------|
 | **RT-001** | Scene 结束后临时私有数据（私有提交内容、Agent 中间记忆、WebSocket 临时缓冲）是否在规定时间内被删除 | Scene 终止后立即删除，TTL 兜底 24h | T-01、T-07 | P8 | defined | not_run |
 | **RT-002** | 私有胶囊删除是否真正删除且不可恢复 | 物理删除，删除后 404，不可恢复 | T-07 | P8 | defined | not_run |
-| **RT-003** | 导出文件过期删除是否生效 | 生成后 24h 自动删除，过期后 404 | T-07 | P8 | defined | not_run |
-| **RT-004** | AgentRun 记录保留 180 天后是否自动删除 | 180 天后自动删除，删除前不影响查询 | T-07 | P12 | defined | not_run |
+| **RT-003** | 导出文件过期删除是否生效 | 生成后 1 小时自动删除，过期后 404 | T-07 | P8 | defined | not_run |
+| **RT-004** | AgentRun / ModelCall metadata 保留 30 天后是否自动删除 | 30 天后自动删除，删除前不影响查询 | T-07 | P12 | defined | not_run |
 | **RT-005** | AuditLog 保留 180 天后是否自动删除 | 180 天后自动删除，删除前可查询 | T-07 | P12 | defined | not_run |
 | **RT-006** | Memory 记录在用户/组织删除后是否级联删除 | 用户删除触发 Memory 级联删除，组织删除触发组织 Memory 级联删除 | T-03、T-04、T-08 | P12 | defined | not_run |
 | **RT-007** | 评价数据在评价关闭后是否按策略归档/删除 | 关闭后归档 180 天，到期删除 | T-03、T-06、T-09 | P12 | defined | not_run |

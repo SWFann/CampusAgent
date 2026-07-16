@@ -72,7 +72,8 @@ clean: ## Clean build artifacts
 # Installation
 install: ## Install all dependencies
 	@echo "$(GREEN)Installing dependencies...$(NC)"
-	@pnpm install
+	@corepack pnpm install --frozen-lockfile
+	@conda run -n CampusAgent python -m pip install -r apps/api/requirements.lock
 	@echo "$(GREEN)Installation complete$(NC)"
 
 # Setup (first time)

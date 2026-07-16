@@ -1,11 +1,12 @@
 ---
 task_id: R1-30
-status: completed
+status: historical
 stage: R1
-title: 检查隐私失败关闭
+title: 检查隐私失败关闭（历史版本，不作为当前权威记录）
 completed_at: 2026-07-14T13:35:00+09:00
 estimated_hours: 1
 actual_hours: 0.5
+note: 此为 2026-07-14 初版，当前权威日志见 R1-30-check-privacy-fail-closed.md
 ---
 
 # R1-30：检查隐私失败关闭

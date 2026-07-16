@@ -4,7 +4,7 @@
 
 CampusAgent 让每名学生拥有一个由本人控制、按场景授权的个人智能体。智能体可以在校园组织与群聊场景中代表用户提交最小化的结构化偏好、参与低风险协商，但平台、管理员和其他成员默认不能读取用户的原始偏好、敏感记忆或智能体内部推理过程。
 
-> 当前状态：P1 工程骨架已可安装、测试和构建，FastAPI/Next.js 健康基线可运行；业务模块、数据库和 Demo 场景尚未实现。P0 API 契约仍有 27 个端点待补齐，不能进入 P2。
+> 当前状态：P0 契约已冻结（API `v1.0-frozen`，68 个 MVP HTTP 端点 + 3 个 internal 端点 = 71 个总文档化端点；WebSocket `v1.0-frozen`），P1 工程骨架已可安装、测试和构建，FastAPI/Next.js 健康基线可运行；业务模块、数据库和 Demo 场景尚未实现。R1-E 已完成本地冻结提交，远端 CI 观察需推送后确认。
 
 ## Demo 要证明什么
 
@@ -181,7 +181,7 @@ corepack pnpm build
 6. 完成 Scene Core、聚餐插件、Mock 模型与数据清理；
 7. 完成模型/节点管理、演示数据、E2E 与一键启动。
 
-业务实现开始后，目标命令为 `make dev`、`make test` 和 `make seed`；当前文档初始化阶段尚未提供这些命令，避免给出不可运行的占位实现。
+当前工程底座已提供 `corepack pnpm dev`、`corepack pnpm test`、`corepack pnpm lint`、`corepack pnpm typecheck`、`corepack pnpm build` 和 `corepack pnpm seed`。数据库、迁移和 Demo 业务流程将在 P2 之后逐步实现。
 
 ## 贡献与许可
 

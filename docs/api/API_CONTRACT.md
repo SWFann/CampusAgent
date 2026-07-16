@@ -517,7 +517,7 @@ Cookie: access_token=<jwt>; refresh_token=<jwt>
 
 #### 1.5.6 CSRF 防护方案
 
-> 本节依据 ADR-003 和 [R1-18 浏览器认证统一方案](development-logs/completed/remediation-r1/R1-18_UNIFY_BROWSER_AUTH.md) 定义 CSRF 防护机制。
+> 本节依据 ADR-003 和 [R1-18 浏览器认证统一方案](../../development-logs/completed/remediation-r1/R1-18_UNIFY_BROWSER_AUTH.md) 定义 CSRF 防护机制。
 
 **背景**：
 - 浏览器端主认证方式为 HttpOnly Cookie（Section 1.5.1）
@@ -696,8 +696,8 @@ def validate_csrf(request):
 ##### 1.5.6.6 参考
 
 - ADR-003：认证方式决策
-- [R1-18 浏览器认证统一方案](development-logs/completed/remediation-r1/R1-18_UNIFY_BROWSER_AUTH.md)
-- [R1-22 WebSocket 鉴权修正](docs/project/P0_P1_REMEDIATION_PLAN.md)（WebSocket Cookie 迁移）
+- [R1-18 浏览器认证统一方案](../../development-logs/completed/remediation-r1/R1-18_UNIFY_BROWSER_AUTH.md)
+- [R1-22 WebSocket 鉴权修正](../project/P0_P1_REMEDIATION_PLAN.md)（WebSocket Cookie 迁移）
 
 ### 1.6 错误码体系
 

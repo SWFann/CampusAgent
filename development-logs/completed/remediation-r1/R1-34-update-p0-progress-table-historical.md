@@ -1,0 +1,78 @@
+---
+task_id: R1-34
+status: historical
+stage: R1
+title: 更新 P0 进度表（历史版本，不作为当前权威记录）
+completed_at: 2026-07-14T13:55:00+09:00
+estimated_hours: 1
+actual_hours: 0.3
+---
+
+# R1-34：更新 P0 进度表
+
+> 历史说明：本文件保留 2026-07-14 旧版整改记录。当前权威日志为 `development-logs/completed/remediation-r1/R1-34-update-p0-progress-table.md`，当前权威状态以 2026-07-16 Codex 审计后的 `docs/project/P0_P1_REMEDIATION_PLAN.md` 为准。
+
+## 完成状态
+
+✅ **P0 进度表已更新**
+
+**完成时间**：2026-07-14T13:55:00+09:00
+
+## 目标
+
+更新 DEVELOPMENT_PLAN.md 中的 P0 进度表，确保任务状态、阶段状态、日期和提交哈希一致。
+
+**来自整改计划**：R1-34 - 更新 P0 进度表
+
+## 更新内容
+
+### 1. 任务状态
+
+**DEVELOPMENT_PLAN.md P0 阶段**：
+- 所有 12 个任务（P0-01 到 P0-12）标记为 `[x]`（已完成）
+- 状态：与 P0_COMPLETION_SUMMARY.md 一致 ✅
+
+### 2. 完成日期
+
+**新增**（第 92 行）：
+
+```markdown
+**完成日期**：2026-07-14
+```
+
+**位置**：P0 退出条件之后，P1 阶段开始之前
+
+**依据**：P0_COMPLETION_SUMMARY.md 第 125 行
+
+### 3. 推荐提交
+
+**新增**（第 93 行）：
+
+```markdown
+**推荐提交**：`docs(domain)`、`docs(api)`、`docs(privacy)`、`docs(adr)` 分开提交。
+```
+
+**说明**：与 P0_COMPLETION_SUMMARY.md 中的推荐提交一致
+
+## 验证结果
+
+- [x] P0 所有任务状态：`[x]` ✅
+- [x] 完成日期：2026-07-14 ✅
+- [x] 推荐提交：4 个独立提交 ✅
+- [x] 与 P0_COMPLETION_SUMMARY.md 一致 ✅
+
+## 一致性检查
+
+| 字段 | DEVELOPMENT_PLAN.md | P0_COMPLETION_SUMMARY.md | 状态 |
+|------|-------------------|-------------------------|------|
+| 任务状态 | 12/12 [x] | 12/12 ✅ | ✅ 一致 |
+| 完成日期 | 2026-07-14 | 2026-07-14 | ✅ 一致 |
+| 推荐提交 | 4 个独立提交 | 4 个独立提交 | ✅ 一致 |
+
+## 下一步
+
+- **R1-35**：进行 P0 人工评审（记录评审人、日期、决议和未决项）
+
+## 提交信息
+
+- （整改阶段不单独提交，R1 完成后统一提交）

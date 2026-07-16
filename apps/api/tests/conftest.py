@@ -12,9 +12,11 @@ from httpx import ASGITransport, AsyncClient
 
 # Set test environment
 os.environ["APP_ENV"] = "test"
+os.environ["DEBUG"] = "false"
 os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 os.environ["REDIS_URL"] = "redis://localhost:6379/1"
 os.environ["APP_SECRET"] = "test-secret-key"
+os.environ["FIELD_ENCRYPTION_KEY"] = "test-encryption-key"
 
 
 @pytest.fixture(scope="session")
@@ -34,4 +36,3 @@ async def client():
     transport = ASGITransport(app=application)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-

@@ -1,12 +1,12 @@
 ---
 task_id: R1-31
-status: in_progress
+status: completed
 stage: R1
 title: 复核保留策略
 started_at: 2026-07-15T14:00:00+09:00
-completed_at:
+completed_at: 2026-07-16T10:00:00+08:00
 estimated_hours: 2
-actual_hours:
+actual_hours: 3
 ---
 
 # R1-31：复核保留策略
@@ -105,5 +105,5 @@ actual_hours:
 |------|---------|
 | `docs/security/THREAT_MODEL.md` | 修正 9 处"权威定义"§13→§14；修正 §4.3.5 和 §5.1 章节引用 |
 | `docs/api/API_CONTRACT.md` | Memory 访问记录保留期限 90天 ADR-005 → AuditLog metadata 180天 |
-| `development-logs/in-progress/R1-31-review-retention-policy.md` | 追加 Codex 审计整改记录 |
-| `development-logs/in-progress/R1-30-check-privacy-fail-closed.md` | 追加 FC-012 TTL 补齐说明 |
+| `development-logs/completed/remediation-r1/R1-31-review-retention-policy.md` | 追加 Codex 审计整改记录 |
+| `development-logs/completed/remediation-r1/R1-30-check-privacy-fail-closed.md` | 追加 FC-012 TTL 补齐说明 |

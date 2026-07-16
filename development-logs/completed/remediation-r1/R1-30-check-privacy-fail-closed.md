@@ -1,12 +1,12 @@
 ---
 task_id: R1-30
-status: in_progress
+status: completed
 stage: R1
 title: 检查隐私失败关闭
 started_at: 2026-07-15T10:00:00+09:00
-completed_at:
+completed_at: 2026-07-16T10:00:00+08:00
 estimated_hours: 1
-actual_hours:
+actual_hours: 2
 ---
 
 # R1-30：检查隐私失败关闭
@@ -136,7 +136,7 @@ actual_hours:
 
 ### 新增文件
 
-- `development-logs/in-progress/R1-30-check-privacy-fail-closed.md` - 本任务日志
+- `development-logs/completed/remediation-r1/R1-30-check-privacy-fail-closed.md` - 本任务日志
 
 ### 删除文件
 

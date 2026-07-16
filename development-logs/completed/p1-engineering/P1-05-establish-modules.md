@@ -113,7 +113,7 @@ from modules.agents.service import AgentService
 
 ## 相关文档
 
-- [MODULE_BOUNDARIES.md](../architecture/MODULE_BOUNDARIES.md) - 详细的模块边界约束
+- [MODULE_BOUNDARIES.md](../../../docs/architecture/MODULE_BOUNDARIES.md) - 详细的模块边界约束
 
 ## 修改的文件
 
