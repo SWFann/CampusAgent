@@ -172,8 +172,8 @@ class TestRefreshTokenCreation:
         session = _make_session(test_db_session, user)
         test_db_session.flush()
 
-        # Simulate a raw JWT token
-        raw_token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.signature"
+        # Simulate an un-hashed credential-like value without using a JWT-shaped string.
+        un_hashed_value = "not-a-stored-hash"
         # The jti_hash is a SHA-256 of the jti claim, not the full token
         import hashlib
 
@@ -191,7 +191,7 @@ class TestRefreshTokenCreation:
         test_db_session.flush()
 
         # The stored hash must NOT be the raw token
-        assert token.jti_hash != raw_token
+        assert token.jti_hash != un_hashed_value
         assert "eyJ" not in token.jti_hash
         assert len(token.jti_hash) == 64  # SHA-256 hex length
 

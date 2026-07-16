@@ -4,3 +4,4 @@ faaa562d798681ed58554b2fd75609096b4b8945:development-logs/completed/R1-20-fix-lo
 faaa562d798681ed58554b2fd75609096b4b8945:development-logs/completed/R1-21-fix-refresh-flow.md:generic-api-key:37
 faaa562d798681ed58554b2fd75609096b4b8945:development-logs/completed/R1-24-freeze-event-schema.md:generic-api-key:49
 31360e11d1822e9beee152f7820b59145126a730:docs/api/WEBSOCKET_CONTRACT.md:generic-api-key:23
+3c423e5b36a28ea4094ed9a712b606230d6f191b:apps/api/tests/unit/test_auth_models.py:generic-api-key:176
