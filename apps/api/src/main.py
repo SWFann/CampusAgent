@@ -186,10 +186,14 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
 
     # API routes
     from .modules.auth.api import router as auth_router
+    from .modules.directory.api import router as directory_router
+    from .modules.organizations.api import router as organizations_router
     from .modules.users.api import router as users_router
 
     application.include_router(auth_router)
     application.include_router(users_router)
+    application.include_router(organizations_router)
+    application.include_router(directory_router)
 
     # Register metrics endpoint
     register_metrics_endpoint(application, metrics)

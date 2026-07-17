@@ -172,6 +172,7 @@ class TestMigrationUpgradeDowngrade:
                 "auth_sessions",
                 "refresh_tokens",
                 "organizations",
+                "organization_memberships",
                 "conversations",
                 "messages",
                 "agents",
@@ -183,7 +184,7 @@ class TestMigrationUpgradeDowngrade:
         engine.dispose()
 
     def test_business_tables_exist_after_upgrade(self) -> None:
-        """After ``upgrade head``, the P3 business tables should exist."""
+        """After ``upgrade head``, the P3+P4 business tables should exist."""
         command.upgrade(self.cfg, "head")
 
         from sqlalchemy import create_engine
@@ -193,14 +194,16 @@ class TestMigrationUpgradeDowngrade:
             inspector = inspect(conn)
             table_names = inspector.get_table_names()
             assert "alembic_version" in table_names
-            expected_p3_tables = {
+            expected_tables = {
                 "users",
                 "student_profiles",
                 "auth_sessions",
                 "refresh_tokens",
+                "organizations",
+                "organization_memberships",
             }
-            missing = expected_p3_tables - set(table_names)
-            assert not missing, f"Missing P3 tables: {missing}"
+            missing = expected_tables - set(table_names)
+            assert not missing, f"Missing tables: {missing}"
         engine.dispose()
 
     def test_upgrade_then_downgrade_then_upgrade(self) -> None:
@@ -224,6 +227,8 @@ class TestMigrationUpgradeDowngrade:
             assert "student_profiles" in table_names
             assert "auth_sessions" in table_names
             assert "refresh_tokens" in table_names
+            assert "organizations" in table_names
+            assert "organization_memberships" in table_names
         engine.dispose()
 
 
@@ -241,3 +246,95 @@ class TestOfflineMode:
         # In offline mode, no actual database operations happen.
         command.upgrade(cfg, "head", sql=True)
         # If this doesn't raise, offline mode works.
+
+
+# ---------------------------------------------------------------------------
+# 5. P4 organization table structure
+# ---------------------------------------------------------------------------
+
+
+class TestP4OrganizationTables:
+    """Test that the 0003 migration creates the P4 tables correctly."""
+
+    @pytest.fixture(autouse=True)
+    def _temp_db(self, tmp_path: Path) -> Iterator[None]:
+        self.db_file = tmp_path / "test_p4_migrations.db"
+        self.db_url = _temp_sqlite_url(str(self.db_file))
+        self.cfg = _make_alembic_config(self.db_url)
+        yield
+        if self.db_file.exists():
+            self.db_file.unlink()
+
+    def test_upgrade_creates_organizations_table(self) -> None:
+        """upgrade head must create the organizations table."""
+        command.upgrade(self.cfg, "head")
+
+        from sqlalchemy import create_engine
+
+        engine = create_engine(self.db_url)
+        with engine.connect() as conn:
+            inspector = inspect(conn)
+            assert "organizations" in inspector.get_table_names()
+            # Check key columns
+            org_columns = {c["name"] for c in inspector.get_columns("organizations")}
+            expected = {
+                "id", "name", "slug", "type", "parent_id",
+                "description", "visibility", "join_policy", "status",
+                "capacity", "created_by", "created_at", "updated_at",
+                "archived_at", "deleted_at",
+            }
+            assert expected.issubset(org_columns), f"Missing columns: {expected - org_columns}"
+            # Check indexes
+            org_indexes = {i["name"] for i in inspector.get_indexes("organizations")}
+            assert "ix_organizations_parent_id" in org_indexes
+            assert "ix_organizations_type" in org_indexes
+            assert "ix_organizations_status" in org_indexes
+        engine.dispose()
+
+    def test_upgrade_creates_memberships_table(self) -> None:
+        """upgrade head must create the organization_memberships table."""
+        command.upgrade(self.cfg, "head")
+
+        from sqlalchemy import create_engine
+
+        engine = create_engine(self.db_url)
+        with engine.connect() as conn:
+            inspector = inspect(conn)
+            assert "organization_memberships" in inspector.get_table_names()
+            # Check key columns
+            mem_columns = {c["name"] for c in inspector.get_columns("organization_memberships")}
+            expected = {
+                "id", "organization_id", "user_id", "role", "status",
+                "invited_by", "joined_at", "left_at",
+                "created_at", "updated_at",
+            }
+            assert expected.issubset(mem_columns), f"Missing columns: {expected - mem_columns}"
+            # Check indexes
+            mem_indexes = {i["name"] for i in inspector.get_indexes("organization_memberships")}
+            assert "ix_organization_memberships_organization_id" in mem_indexes
+            assert "ix_organization_memberships_user_id" in mem_indexes
+            assert "ix_organization_memberships_role" in mem_indexes
+            assert "ix_organization_memberships_status" in mem_indexes
+            # Check unique constraint
+            uniques = inspector.get_unique_constraints("organization_memberships")
+            uq_names = {u["name"] for u in uniques}
+            assert "uq_organization_memberships_org_user" in uq_names
+        engine.dispose()
+
+    def test_downgrade_removes_p4_tables(self) -> None:
+        """downgrade to 0002 must remove P4 tables but keep P3 tables."""
+        command.upgrade(self.cfg, "head")
+        command.downgrade(self.cfg, "0002_user_auth")
+
+        from sqlalchemy import create_engine
+
+        engine = create_engine(self.db_url)
+        with engine.connect() as conn:
+            inspector = inspect(conn)
+            table_names = inspector.get_table_names()
+            assert "organizations" not in table_names
+            assert "organization_memberships" not in table_names
+            # P3 tables should still exist
+            assert "users" in table_names
+            assert "auth_sessions" in table_names
+        engine.dispose()

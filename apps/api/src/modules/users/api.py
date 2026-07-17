@@ -20,7 +20,7 @@ from ...config import Settings
 from ...dependencies import get_db_session, get_settings
 from ...schemas.envelope import success
 from ..auth.csrf import require_csrf
-from ..auth.dependencies import get_current_user
+from ..auth.dependencies import get_current_user, get_optional_current_user
 from .models import User
 from .schemas import UserProfileUpdate, UserPublicRead
 from .service import get_user_public_profile, update_user_profile
@@ -103,17 +103,28 @@ def update_user(
 def get_user_organizations(
     user_id: UUID,
     http_request: Request,
+    actor: User | None = Depends(get_optional_current_user),
     db_session: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
     """Get a user's organizations.
 
-    P3: Returns an empty list (organizations are P4).
+    P4: Returns the user's active organization memberships with
+    visibility-based filtering for non-self queries.
+    Does NOT return email, student_no, or password_hash.
     """
+    from ..organizations.service import list_user_organizations
+
     # Verify user exists
     get_user_public_profile(user_id, db_session)
+
+    result = list_user_organizations(
+        actor=actor,
+        target_user_id=user_id,
+        session=db_session,
+    )
     return success(
-        data={"organizations": []},
+        data=result,
         request_id=getattr(http_request.state, "request_id", None),
     )
 

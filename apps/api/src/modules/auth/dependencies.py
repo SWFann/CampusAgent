@@ -79,3 +79,57 @@ def get_current_user(
     request.state.actor_id = str(user.id)
 
     return user
+
+
+def get_optional_current_user(
+    request: Request,
+    db_session: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> User | None:
+    """Extract and validate the access token from the Cookie, returning None
+    if the user is not authenticated.
+
+    This is the optional-authentication dependency for public read endpoints
+    that need to trim results based on whether the caller is authenticated
+    and/or a member of an organization.
+
+    Returns:
+        The authenticated ``User`` instance, or ``None`` if no valid token
+        is present.
+
+    Unlike ``get_current_user``, this NEVER raises — it silently returns
+    ``None`` for any auth failure (missing, invalid, expired, disabled).
+    """
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        return None
+
+    try:
+        payload = decode_token(access_token, settings)
+    except Exception:
+        return None
+
+    if payload.get("typ") != TokenType.ACCESS.value:
+        return None
+
+    user_id_str = str(payload.get("sub", ""))
+    if not user_id_str:
+        return None
+
+    try:
+        user_uuid = UUID(user_id_str)
+    except (ValueError, TypeError):
+        return None
+
+    user = UserRepository(db_session).get_by_id(user_uuid)
+    if user is None:
+        return None
+
+    # Reject disabled/deleted users silently
+    if user.status in (UserStatus.DISABLED.value, UserStatus.DELETED.value):
+        return None
+
+    # Set actor_id for request-context logging
+    request.state.actor_id = str(user.id)
+
+    return user

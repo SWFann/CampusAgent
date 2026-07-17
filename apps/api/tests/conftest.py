@@ -36,6 +36,10 @@ from src.db.base import Base  # noqa: E402
 # Import all ORM models so that Base.metadata.create_all() registers them.
 # This must come after importing Base and before any fixture uses it.
 from src.modules.auth.models import AuthSession, RefreshToken  # noqa: E402, F401
+from src.modules.organizations.models import (  # noqa: E402, F401
+    Organization,
+    OrganizationMembership,
+)
 from src.modules.users.models import StudentProfile, User  # noqa: E402, F401
 
 
