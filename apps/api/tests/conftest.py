@@ -32,10 +32,18 @@ os.environ["APP_SECRET"] = "test-secret-key-at-least-32-chars-long"
 os.environ["FIELD_ENCRYPTION_KEY"] = "test-encryption-key"
 
 from src.db.base import Base  # noqa: E402
+from src.modules.agents.models import Agent, AgentRun  # noqa: E402, F401
+from src.modules.audit.models import AuditLog  # noqa: E402, F401
 
 # Import all ORM models so that Base.metadata.create_all() registers them.
 # This must come after importing Base and before any fixture uses it.
 from src.modules.auth.models import AuthSession, RefreshToken  # noqa: E402, F401
+from src.modules.conversations.models import (  # noqa: E402, F401
+    Conversation,
+    ConversationParticipant,
+    Message,
+)
+from src.modules.memories.models import ConsentRecord, MemoryItem  # noqa: E402, F401
 from src.modules.organizations.models import (  # noqa: E402, F401
     Organization,
     OrganizationMembership,

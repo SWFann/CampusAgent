@@ -1,13 +1,17 @@
-"""Domain event boundary for the agents module."""
-
+"""Agent events for domain event bus."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+from uuid import UUID
+
+from ...events.bus import DomainEvent
 
 
-@dataclass(frozen=True, slots=True)
-class DomainEvent:
-    """Minimal immutable event envelope owned by this module."""
-
-    name: str
-    aggregate_id: str
+@dataclass(frozen=True)
+class PersonalAgentCreated(DomainEvent):
+    """Published when a personal agent is auto-created after user registration."""
+    event_id: str
+    agent_id: UUID
+    owner_user_id: UUID
+    occurred_at: datetime

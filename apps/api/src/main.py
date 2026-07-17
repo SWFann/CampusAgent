@@ -59,6 +59,10 @@ def create_lifespan(app_settings: Settings):
         redis_client = create_redis_client(app_settings)
         application.state.redis_client = redis_client
 
+        # Register domain event handlers
+        from .modules.agents.handlers import register_personal_agent_handler
+        register_personal_agent_handler()
+
         yield
 
         # Dispose engine and close Redis on shutdown
@@ -185,8 +189,12 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         }
 
     # API routes
+    from .modules.agents.api import router as agents_router
+    from .modules.audit.api import router as audit_router
     from .modules.auth.api import router as auth_router
+    from .modules.conversations.api import router as conversations_router
     from .modules.directory.api import router as directory_router
+    from .modules.memories.api import router as memories_router
     from .modules.organizations.api import router as organizations_router
     from .modules.users.api import router as users_router
 
@@ -194,6 +202,15 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     application.include_router(users_router)
     application.include_router(organizations_router)
     application.include_router(directory_router)
+    application.include_router(conversations_router)
+    application.include_router(agents_router)
+    application.include_router(memories_router)
+    application.include_router(audit_router)
+
+    # WebSocket routes
+    from .realtime.api import router as realtime_router
+
+    application.include_router(realtime_router)
 
     # Register metrics endpoint
     register_metrics_endpoint(application, metrics)
