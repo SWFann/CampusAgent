@@ -1,4 +1,4 @@
-.PHONY: help dev test lint typecheck build clean install docker-up docker-down docker-logs docker-build docker-ps docker-health db-migrate db-downgrade db-revision
+.PHONY: help dev test lint typecheck build clean install docker-up docker-down docker-logs docker-build docker-ps docker-health db-migrate db-downgrade db-revision validate validate-api validate-web demo-seed demo-reset demo-smoke release-check release-evidence
 
 # Default target
 .DEFAULT_GOAL := help
@@ -146,3 +146,53 @@ format: ## Format all code
 	@cd apps/web && pnpm exec prettier --write .
 	@cd apps/api && conda run -n CampusAgent ruff format .
 	@echo "$(GREEN)Formatting complete$(NC)"
+
+# ----------------------------------------------------------------
+# P13 Release Candidate targets
+# ----------------------------------------------------------------
+
+# Validation — run quality gates for API and Web separately.
+validate: validate-api validate-web ## Run all validation (API + Web)
+	@echo "$(GREEN)All validation passed.$(NC)"
+
+validate-api: ## Validate API: ruff + mypy + pytest (no Docker required)
+	@echo "$(BLUE)Validating API...$(NC)"
+	cd apps/api && conda run -n CampusAgent ruff check . --no-cache
+	cd apps/api && conda run -n CampusAgent mypy src tests --no-incremental
+	cd apps/api && conda run -n CampusAgent python -m pytest tests -q -p no:cacheprovider
+	@echo "$(GREEN)API validation passed.$(NC)"
+
+validate-web: ## Validate Web: lint + typecheck + test + build (no Docker required)
+	@echo "$(BLUE)Validating Web...$(NC)"
+	corepack pnpm lint
+	corepack pnpm typecheck
+	corepack pnpm test
+	corepack pnpm --filter @campus-agent/web build
+	@echo "$(GREEN)Web validation passed.$(NC)"
+
+# Demo data — seed / reset / smoke (no Docker required, uses SQLite in-memory).
+demo-reset: ## Reset demo data (deletes demo namespace only, fail-closed in production)
+	@echo "$(YELLOW)Resetting demo data...$(NC)"
+	conda run -n CampusAgent python scripts/demo/reset_demo.py
+	@echo "$(GREEN)Demo data reset complete.$(NC)"
+
+demo-seed: ## Seed demo data (idempotent, safe to re-run)
+	@echo "$(GREEN)Seeding demo data...$(NC)"
+	conda run -n CampusAgent python scripts/demo/seed_demo.py
+	@echo "$(GREEN)Demo data seeded.$(NC)"
+
+demo-smoke: ## Run in-process demo smoke test (11 steps, no Docker/server required)
+	@echo "$(BLUE)Running demo smoke test...$(NC)"
+	conda run -n CampusAgent python scripts/demo/run_demo_smoke.py
+	@echo "$(GREEN)Demo smoke test passed.$(NC)"
+
+# Release candidate checks.
+release-check: ## Check release candidate readiness (docs, secrets, contracts)
+	@echo "$(BLUE)Running release candidate checks...$(NC)"
+	conda run -n CampusAgent python scripts/release/check_release_candidate.py
+	@echo "$(GREEN)Release candidate checks passed.$(NC)"
+
+release-evidence: ## Collect release evidence (git, pytest, pnpm, pip summaries)
+	@echo "$(BLUE)Collecting release evidence...$(NC)"
+	conda run -n CampusAgent python scripts/release/collect_evidence.py
+	@echo "$(GREEN)Release evidence collected.$(NC)"

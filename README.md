@@ -4,7 +4,7 @@
 
 CampusAgent 让每名学生拥有一个由本人控制、按场景授权的个人智能体。智能体可以在校园组织与群聊场景中代表用户提交最小化的结构化偏好、参与低风险协商，但平台、管理员和其他成员默认不能读取用户的原始偏好、敏感记忆或智能体内部推理过程。
 
-> 当前状态：P0 契约已冻结（API `v1.0-frozen`，68 个 MVP HTTP 端点 + 3 个 internal 端点 = 71 个总文档化端点；WebSocket `v1.0-frozen`），P1 工程骨架已可安装、测试和构建，FastAPI/Next.js 健康基线可运行；业务模块、数据库和 Demo 场景尚未实现。R1-E 已完成、已推送至 `origin/main`，远端 GitHub Actions 已通过。
+> 当前状态：**MVP RC1**（Release Candidate 1）。P0-P13 全部完成，契约已冻结（API `v1.0-frozen`，71 个端点；WebSocket `v1.0-frozen`）。后端 1432 个测试 + 前端 115 个测试通过。聚餐协商场景完整可演示，无公网可运行。详见 [Release Notes](docs/development/P13-RELEASE-NOTES.md) 和 [RC Checklist](docs/development/P13-RC-CHECKLIST.md)。
 
 ## Demo 要证明什么
 
@@ -89,7 +89,7 @@ CampusAgent/
 └── SECURITY.md
 ```
 
-目录内的 README 是责任边界说明，不代表对应模块已经实现。
+目录内的 README 是责任边界说明。MVP RC1 中 `apps/web` 和 `apps/api` 已完整实现。
 
 ## 文档导航
 
@@ -106,18 +106,30 @@ CampusAgent/
 - [仓库协作规范](docs/development/REPOSITORY_CONVENTIONS.md)
 - [架构决策记录](docs/decisions/README.md)
 - [安全策略](SECURITY.md)
+- [Release Notes (RC1)](docs/development/P13-RELEASE-NOTES.md)
+- [RC Checklist](docs/development/P13-RC-CHECKLIST.md)
+- [演示 Runbook](docs/development/P13-DEMO-RUNBOOK.md)
+- [验收证据](docs/development/P13-ACCEPTANCE-EVIDENCE.md)
+- [恢复操作手册](docs/development/P12-RECOVERY-RUNBOOK.md)
 
-## Python 虚拟环境
+## 环境要求
+
+| 工具 | 版本 | 用途 |
+|---|---|---|
+| Python | 3.11.15 | 后端 FastAPI |
+| Conda | 任意现代版本 | Python 环境管理（环境名 `CampusAgent`）|
+| Node.js | >= 18.18 | 前端 Next.js |
+| corepack/pnpm | pnpm >= 8 | 前端包管理 |
+| Docker（可选）| 任意现代版本 | 容器化部署 PostgreSQL/Redis/Mock Model |
+| Git | >= 2.30 | 版本控制 |
+
+### Python 虚拟环境
 
 本项目使用 **Conda 虚拟环境** 管理 Python 依赖，确保环境隔离和一致性。
 
-### 环境信息
-
 - **环境名称**：`CampusAgent`
 - **Python 版本**：3.11.15
-- **Windows 当前环境位置**：`D:\Conda\Soft\envs\CampusAgent`（其他系统以 `conda env list` 为准）
-
-### 使用说明
+- **环境位置**：`conda env list` 查看（Windows 示例：`D:\Conda\Soft\envs\CampusAgent`）
 
 ```bash
 # 激活虚拟环境（后端开发前必须执行）
@@ -130,46 +142,119 @@ python --version  # 应显示 Python 3.11.15
 conda deactivate
 ```
 
-### 重要说明
-
-⚠️ **所有后端 Python 代码必须在 `CampusAgent` 虚拟环境中运行**：
-
-- 启动 FastAPI 服务前，先激活环境
-- 运行测试前，先激活环境
-- 安装 Python 依赖前，先激活环境
-- 执行数据库迁移前，先激活环境
+⚠️ **所有后端 Python 代码必须在 `CampusAgent` 虚拟环境中运行**：启动服务、运行测试、安装依赖、执行迁移前均需先激活环境。
 
 ### 已安装的核心依赖
 
-- fastapi 0.139.0
-- uvicorn 0.51.0
-- pydantic 2.13.4
-- sqlalchemy 2.0.51
-- alembic 1.18.5
-- redis 8.0.1
+- fastapi 0.139.0、uvicorn 0.51.0、pydantic 2.13.4
+- sqlalchemy 2.0.51、alembic 1.18.5、redis 8.0.1
 
 详细说明请参阅 [Conda 环境文档](docs/development/CONDA_ENV.md)。
 
-## 开发命令
+## 快速开始
+
+### 方式 A：Docker 可用时（完整环境）
 
 ```bash
-# 启动开发环境
-corepack pnpm dev
+# 1. 克隆仓库
+git clone <repo-url> CampusAgent
+cd CampusAgent
 
-# 运行测试
-corepack pnpm test
+# 2. 安装前端依赖
+corepack pnpm install --frozen-lockfile
 
-# 代码检查
-corepack pnpm lint
+# 3. 安装后端依赖
+conda run -n CampusAgent pip install -r apps/api/requirements.lock
 
-# 类型检查
-corepack pnpm typecheck
+# 4. 复制环境变量
+cp .env.example .env
 
-# 构建项目
-corepack pnpm build
+# 5. 启动核心依赖（PostgreSQL、Redis、Mock Model）
+make docker-up
+# 或: docker compose up -d postgres redis mock-model
+
+# 6. 运行数据库迁移
+cd apps/api && conda run -n CampusAgent alembic upgrade head && cd ../..
+
+# 7. 种子演示数据
+make demo-seed
+
+# 8. 启动开发服务
+make dev
+# Web: http://localhost:3000
+# API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
 ```
 
-**注意**：首次使用请阅读 [快速开始指南](docs/development/QUICK_START.md)。
+### 方式 B：Docker 不可用时（离线/无 Docker）
+
+无需 Docker、PostgreSQL 或 Redis 即可完成全部验证。测试和演示数据使用 SQLite in-memory。
+
+```bash
+# 1. 安装依赖
+corepack pnpm install --frozen-lockfile
+conda run -n CampusAgent pip install -r apps/api/requirements.lock
+
+# 2. 验证后端（ruff + mypy + pytest）
+make validate-api
+
+# 3. 验证前端（lint + typecheck + test + build）
+make validate-web
+
+# 4. 运行演示 smoke 测试（进程内 SQLite，11 步全通过）
+make demo-smoke
+```
+
+## 验证命令
+
+```bash
+# 全量验证（API + Web）
+make validate
+
+# 单独验证后端
+make validate-api    # ruff + mypy + pytest
+
+# 单独验证前端
+make validate-web    # lint + typecheck + test + build
+
+# 依赖一致性检查
+conda run -n CampusAgent pip check
+
+# Release Candidate 检查
+make release-check
+
+# 收集验收证据
+make release-evidence
+```
+
+## 演示数据
+
+```bash
+# 重置演示数据（仅删除 demo namespace，保留其他数据，生产环境 fail-closed）
+make demo-reset
+
+# 种子演示数据（幂等，可重复运行）
+make demo-seed
+
+# 运行演示 smoke 测试（进程内，无需服务器）
+make demo-smoke
+```
+
+### Demo 账号
+
+所有 demo 账号使用同一密码：`CampusAgentDemo2026!`
+
+| 账号 | 邮箱 | 角色 | 用途 |
+|---|---|---|---|
+| Demo Admin | `demo_admin@example.com` | 系统管理员 | 管理后台、demo 重置 |
+| Alice Chen | `demo_alice@example.com` | 学生 | 聚餐场景参与者 |
+| Bob Lin | `demo_bob@example.com` | 学生 | 聚餐场景参与者 |
+| Carol Wang | `demo_carol@example.com` | 学生 | 聚餐场景参与者 |
+| Deleted User | `demo_deleted@example.com` | 学生（软删除） | 登录失败演示 |
+
+> 注意：这是公开的 demo 密码，仅用于演示数据，不得用于生产默认配置。
+
+完整演示流程见 [演示 Runbook](docs/development/P13-DEMO-RUNBOOK.md)。
 
 ## Docker Compose 开发
 
@@ -202,17 +287,29 @@ docker compose down
 
 详见 [infra/docker/README.md](infra/docker/README.md)。
 
-## 后续实施顺序
+## 开发命令
 
-1. 冻结核心领域模型、OpenAPI、WebSocket 事件和隐私威胁模型；
-2. 初始化 Web/API 工程、PostgreSQL、Redis、迁移与统一配置；
-3. 完成身份、用户、组织和 RBAC；
-4. 完成会话、消息与 WebSocket；
-5. 完成个人智能体、记忆、授权和审计；
-6. 完成 Scene Core、聚餐插件、Mock 模型与数据清理；
-7. 完成模型/节点管理、演示数据、E2E 与一键启动。
+```bash
+# 启动开发环境（Web + API）
+make dev
 
-当前工程底座已提供 `corepack pnpm dev`、`corepack pnpm test`、`corepack pnpm lint`、`corepack pnpm typecheck`、`corepack pnpm build` 和 `corepack pnpm seed`。数据库、迁移和 Demo 业务流程将在 P2 之后逐步实现。
+# 运行全部测试
+make test
+
+# 代码检查
+make lint
+
+# 类型检查
+make typecheck
+
+# 构建项目
+make build
+
+# 格式化代码
+make format
+```
+
+完整命令列表运行 `make help` 查看。首次使用请阅读 [快速开始指南](docs/development/QUICK_START.md)。
 
 ## 贡献与许可
 
