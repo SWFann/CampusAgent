@@ -523,8 +523,8 @@ corepack pnpm --filter @campus-agent/web test:e2e
 ```bash
 docker compose config
 docker compose up -d postgres redis mock-model
-python scripts/demo/reset_demo.py
-python scripts/demo/seed_demo.py
+conda run -n CampusAgent python scripts/demo/reset_demo.py
+conda run -n CampusAgent python scripts/demo/seed_demo.py
 docker compose down
 ```
 

@@ -24,11 +24,11 @@
 | P13-03 | ✅ 完成 | 5 分钟演示 Runbook — `P13-DEMO-RUNBOOK.md`（9 步主线演示 + 隐私讲解点） |
 | P13-04 | ✅ 完成 | 故障备用路径 — 4 场景（Docker/模型/数据库/前端不可用） |
 | P13-05 | ✅ 完成 | 验收证据收集脚本 — `collect_evidence.py` + 41 个单元测试 |
-| P13-06 | ✅ 完成 | RC 检查脚本 — `check_release_candidate.py` + 41 个单元测试 |
+| P13-06 | ✅ 完成 | RC 检查脚本 — `check_release_candidate.py` + 41 个单元测试；Codex 审计后 required docs 扩展为 P5-P13 全部完成报告 |
 | P13-07 | ✅ 完成 | Release Notes — `P13-RELEASE-NOTES.md`（RC1 版本、能力摘要、已知限制） |
 | P13-08 | ✅ 完成 | 验收证据文档 — `P13-ACCEPTANCE-EVIDENCE.md`（测试报告、构建证据、安全证据） |
-| P13-09 | ✅ 完成 | 文档链接检查 — 247 文件、172 链接、0 断链 |
-| P13-10 | ✅ 完成 | 最终安全扫尾 — 702 文件扫描无真实密钥 |
+| P13-09 | ✅ 完成 | 文档链接检查 — 252 Markdown 文件、172 链接、0 断链 |
+| P13-10 | ✅ 完成 | 最终安全扫尾 — 710 文件扫描无真实密钥 |
 | P13-11 | ✅ 完成 | 最终演练 — ruff/mypy/pytest/pnpm lint/typecheck/test/build/demo smoke 全部通过 |
 | P13-12 | ✅ 完成 | DEVELOPMENT_PLAN 对齐 — P13 标记 RC ready，P0-P12 状态一致 |
 | P13-13 | ✅ 完成 | 完成报告 — 本文件 + `development-logs/in-progress/P13-release-candidate.md` |
@@ -81,14 +81,14 @@
 ### 演示验证
 | 命令 | 结果 |
 |---|---|
-| `python scripts/demo/run_demo_smoke.py` | ✅ 11 passed, 0 failed |
+| `conda run -n CampusAgent python scripts/demo/run_demo_smoke.py` | ✅ 11 passed, 0 failed |
 
 ### Release 脚本验证
 | 命令 | 结果 |
 |---|---|
-| `python scripts/release/check_release_candidate.py` | ✅ 6 passed, 0 failed（创建本文件后） |
-| `python scripts/security/check_no_secrets.py` | ✅ scanned 702 files, no real secrets |
-| `python scripts/release/check_doc_links.py` | ✅ 172 links, 0 broken |
+| `conda run -n CampusAgent python scripts/release/check_release_candidate.py` | ✅ 6 passed, 0 failed；required docs: 15 |
+| `conda run -n CampusAgent python scripts/security/check_no_secrets.py` | ✅ scanned 710 files, no real secrets |
+| `conda run -n CampusAgent python scripts/release/check_doc_links.py` | ✅ 172 links, 0 broken |
 
 ## 6. 安全扫尾结果
 
@@ -150,10 +150,10 @@
 | `corepack pnpm typecheck` | 0 | Success: no issues found |
 | `corepack pnpm test` | 0 | 全部通过 |
 | `corepack pnpm --filter @campus-agent/web build` | 0 | 构建成功 |
-| `python scripts/release/check_release_candidate.py` | 0 | 6 passed, 0 failed |
-| `python scripts/security/check_no_secrets.py` | 0 | scanned 702 files, no real secrets |
-| `python scripts/release/check_doc_links.py` | 0 | 172 links, 0 broken |
-| `python scripts/demo/run_demo_smoke.py` | 0 | 11 passed, 0 failed |
+| `conda run -n CampusAgent python scripts/release/check_release_candidate.py` | 0 | 6 passed, 0 failed；all 15 docs present |
+| `conda run -n CampusAgent python scripts/security/check_no_secrets.py` | 0 | scanned 710 files, no real secrets |
+| `conda run -n CampusAgent python scripts/release/check_doc_links.py` | 0 | 172 links, 0 broken |
+| `conda run -n CampusAgent python scripts/demo/run_demo_smoke.py` | 0 | 11 passed, 0 failed |
 | Docker | N/A | 不可用（当前执行环境无 Docker） |
 | gitleaks | N/A | 不可用（使用替代脚本） |
 
@@ -189,11 +189,24 @@
 
 1. **审查 git diff**：检查 P13 新增和修改的文件是否符合规范。
 2. **运行全量验证**：`make validate` + `make demo-smoke` + `make release-check`。
-3. **检查敏感信息**：运行 `python scripts/security/check_no_secrets.py` 和 `python scripts/release/check_release_candidate.py`。
+3. **检查敏感信息**：运行 `conda run -n CampusAgent python scripts/security/check_no_secrets.py` 和 `conda run -n CampusAgent python scripts/release/check_release_candidate.py`。
 4. **检查 P0/P1 契约**：确认 API `v1.0-frozen` 和 WebSocket `v1.0-frozen` 语义未变。
 5. **检查测试文件**：`apps/api/tests/unit/test_release_scripts.py` 中的敏感字符串通过运行时构造避免静态扫描器误报，请确认这是安全的测试做法。
 6. **提交后观察 CI**：确认 GitHub Actions 绿色。
 7. **不要在提交信息中包含真实密钥**。
+
+## 12.1 Codex 审计修正（2026-07-18）
+
+Codex 对 P5-P13 进行最终审计后直接修正以下小问题：
+
+- 删除 `apps/api/tests/unit/test_release_scripts.py` 中未使用的 `pytest` import，恢复 ruff 通过。
+- 将 release 脚本测试中的假 `sk-...` key 改为运行时拼接，降低外部静态扫描误报概率。
+- 将 `apps/web/tests/unit/accessibility.test.tsx` 的直接 `.click()` 改为 Testing Library `fireEvent.click()`，消除 React `act(...)` 警告。
+- 补齐 `docs/development/P7-COMPLETION-REPORT.md`、`docs/development/P8-COMPLETION-REPORT.md`、`docs/development/P9-COMPLETION-REPORT.md`，使 P5-P13 完成报告链路完整。
+- 扩展 `scripts/release/check_release_candidate.py` 的 required docs 清单，要求 P5-P13 全部完成报告存在。
+- 将 demo/release/ops 脚本示例统一改为 `conda run -n CampusAgent python ...`，避免使用宿主 Python 缺依赖导致 `ModuleNotFoundError`。
+
+审计后重新运行完整验证：1473 API tests passed、115 frontend tests passed、Web build 成功、RC check 6/6 passed、secret scan 710 files no real secrets、doc links 172 links 0 broken、demo smoke 11/11 passed。
 
 ## 13. 边界声明
 

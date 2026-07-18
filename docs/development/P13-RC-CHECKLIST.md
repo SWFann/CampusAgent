@@ -76,13 +76,15 @@
 
 | 门禁 | 检查方法 | 通过标准 |
 | --- | --- | --- |
-| 文档完整性 | `python scripts/release/check_release_candidate.py` | 退出码 0 |
-| 密钥扫描 | `python scripts/security/check_no_secrets.py` | 退出码 0 |
+| 文档完整性 | `conda run -n CampusAgent python scripts/release/check_release_candidate.py` | 退出码 0 |
+| 密钥扫描 | `conda run -n CampusAgent python scripts/security/check_no_secrets.py` | 退出码 0 |
 | 后端质量 | `ruff check` + `mypy` + `pytest` | 全部通过 |
 | 前端质量 | `pnpm lint` + `typecheck` + `test` + `build` | 全部通过 |
 | 依赖一致性 | `pip check` | 无冲突 |
-| 演示可复现 | `python scripts/demo/run_demo_smoke.py` | 11 步全部 PASS |
-| 恢复演练 | `python scripts/ops/recovery_drill.py` | 5 场景全部 PASS |
+| 演示可复现 | `conda run -n CampusAgent python scripts/demo/run_demo_smoke.py` | 11 步全部 PASS |
+| 恢复演练 | `conda run -n CampusAgent python scripts/ops/recovery_drill.py` | 5 场景全部 PASS |
+
+> Codex 审计后，RC 检查脚本的 required docs 已扩展为 P5-P13 全部完成报告以及 P12/P13 关键交付文档，共 15 个文档。
 | 无 blocker | `docs/development/P12-RISK-REGISTER.md` | critical=0, blocker=0 |
 
 ## 6. 冻结时间点

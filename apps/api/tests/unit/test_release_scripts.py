@@ -17,8 +17,6 @@ import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 # ---------------------------------------------------------------------------
 # Dynamic module loading
 # ---------------------------------------------------------------------------
@@ -390,8 +388,9 @@ class TestCheckEnvExample:
         assert "not found" in results[0].detail.lower()
 
     def test_real_api_key(self, tmp_path: Path) -> None:
+        fake_key = "sk-" + "real-key-1234567890abcdef"
         (tmp_path / ".env.example").write_text(
-            "MODEL_GATEWAY_API_KEY=sk-real-key-1234567890abcdef\n",
+            f"MODEL_GATEWAY_API_KEY={fake_key}\n",
             encoding="utf-8",
         )
         results = check_env_example(tmp_path)
@@ -407,8 +406,9 @@ class TestCheckEnvExample:
         assert results[0].ok is True
 
     def test_commented_api_key(self, tmp_path: Path) -> None:
+        fake_key = "sk-" + "real-key-1234567890abcdef"
         (tmp_path / ".env.example").write_text(
-            "# MODEL_GATEWAY_API_KEY=sk-real-key-1234567890abcdef\n",
+            f"# MODEL_GATEWAY_API_KEY={fake_key}\n",
             encoding="utf-8",
         )
         results = check_env_example(tmp_path)

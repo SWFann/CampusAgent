@@ -19,9 +19,9 @@ Drills covered (P12 guide §18):
 
 Usage::
 
-    python scripts/ops/recovery_drill.py
-    python scripts/ops/recovery_drill.py --verbose
-    python scripts/ops/recovery_drill.py --skip demo-reset
+    conda run -n CampusAgent python scripts/ops/recovery_drill.py
+    conda run -n CampusAgent python scripts/ops/recovery_drill.py --verbose
+    conda run -n CampusAgent python scripts/ops/recovery_drill.py --skip demo-reset
 
 Exit code:
 - 0 if all drills passed.

@@ -18,7 +18,7 @@ etc.) and skips vendored/generated directories.
 
 Usage::
 
-    python scripts/security/check_no_secrets.py [--root .]
+    conda run -n CampusAgent python scripts/security/check_no_secrets.py [--root .]
 
 Exit code 0 = no real secrets found, 1 = potential secret detected.
 """

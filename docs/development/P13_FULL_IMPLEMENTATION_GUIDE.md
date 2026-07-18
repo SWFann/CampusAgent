@@ -581,8 +581,8 @@ corepack pnpm --filter @campus-agent/web build
 运行 release 脚本：
 
 ```bash
-python scripts/release/check_release_candidate.py
-python scripts/release/collect_evidence.py
+conda run -n CampusAgent python scripts/release/check_release_candidate.py
+conda run -n CampusAgent python scripts/release/collect_evidence.py
 ```
 
 如果 Docker 可用：

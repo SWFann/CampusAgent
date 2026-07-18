@@ -7,7 +7,7 @@
  * - Roles are set correctly
  */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -77,8 +77,7 @@ describe("Accessibility", () => {
         />,
       );
 
-      // Click trigger to open dialog
-      screen.getByText("Delete").click();
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
       // Dialog should appear
       const dialog = await screen.findByRole("dialog");
@@ -97,7 +96,7 @@ describe("Accessibility", () => {
         />,
       );
 
-      screen.getByText("Delete").click();
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
       const confirmBtn = await screen.findByRole("button", { name: "Yes, delete" });
       expect(confirmBtn).toBeInTheDocument();
     });

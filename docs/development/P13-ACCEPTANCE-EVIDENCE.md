@@ -162,8 +162,8 @@ Summary: 5 passed, 0 failed, 0 skipped
 
 | 工具 | 结果 |
 |---|---|
-| `scripts/security/check_no_secrets.py` | ✅ scanned 700 files, no real secrets detected |
-| `scripts/release/check_release_candidate.py` | ✅ scanned 698 files, no real secrets |
+| `scripts/security/check_no_secrets.py` | ✅ scanned 710 files, no real secrets detected |
+| `scripts/release/check_release_candidate.py` | ✅ required docs 15 present; scanned 701 files, no real secrets |
 
 ### 6.2 敏感信息检查
 

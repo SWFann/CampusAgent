@@ -15,7 +15,7 @@ Checks performed:
 
 Usage::
 
-    python scripts/release/check_release_candidate.py [--root .] [--verbose]
+    conda run -n CampusAgent python scripts/release/check_release_candidate.py [--root .] [--verbose]
 
 Exit code:
 - 0: all checks passed.
@@ -52,12 +52,19 @@ class CheckResult(NamedTuple):
 # ---------------------------------------------------------------------------
 
 REQUIRED_DOCS = [
+    "docs/development/P5-COMPLETION-REPORT.md",
+    "docs/development/P6-COMPLETION-REPORT.md",
+    "docs/development/P7-COMPLETION-REPORT.md",
+    "docs/development/P8-COMPLETION-REPORT.md",
+    "docs/development/P9-COMPLETION-REPORT.md",
+    "docs/development/P10-COMPLETION-REPORT.md",
+    "docs/development/P11-COMPLETION-REPORT.md",
+    "docs/development/P12-COMPLETION-REPORT.md",
     "docs/development/P13-RC-CHECKLIST.md",
     "docs/development/P13-DEMO-RUNBOOK.md",
     "docs/development/P13-ACCEPTANCE-EVIDENCE.md",
     "docs/development/P13-RELEASE-NOTES.md",
     "docs/development/P13-COMPLETION-REPORT.md",
-    "docs/development/P12-COMPLETION-REPORT.md",
     "docs/development/P12-RISK-REGISTER.md",
     "docs/development/P12-RECOVERY-RUNBOOK.md",
 ]

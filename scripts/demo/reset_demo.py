@@ -2,8 +2,8 @@
 """P11-04: CLI entry to reset the demo dataset.
 
 Usage:
-    python scripts/demo/reset_demo.py
-    python scripts/demo/reset_demo.py --json
+    conda run -n CampusAgent python scripts/demo/reset_demo.py
+    conda run -n CampusAgent python scripts/demo/reset_demo.py --json
 
 Resets only demo-namespace data; non-demo rows are preserved. Prints
 a JSON summary to stdout. Exits non-zero if APP_ENV is production.

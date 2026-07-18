@@ -161,7 +161,7 @@
 | `corepack pnpm test` | ✅ 115 通过 |
 | `corepack pnpm --filter @campus-agent/web build` | ✅ 通过 |
 | `corepack pnpm audit --audit-level=high` | ⚠️ 16 漏洞（6 high），已登记 RISK-P12-001 |
-| `python scripts/ops/recovery_drill.py` | ✅ 5/5 演练通过 |
+| `conda run -n CampusAgent python scripts/ops/recovery_drill.py` | ✅ 5/5 演练通过 |
 
 ## 10. 未执行项与原因
 

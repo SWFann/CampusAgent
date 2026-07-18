@@ -13,8 +13,8 @@
 | 数据库不可用 | §2 | `curl /health/ready` |
 | Redis 不可用 | §3 | `curl /health/ready` |
 | 模型网关不可用 | §4 | `curl /internal/v1/model/health` |
-| 演示数据损坏 | §5 | `python scripts/ops/recovery_drill.py --skip ...` |
-| 过期数据堆积 | §6 | `python scripts/ops/cleanup_expired.py --dry-run` |
+| 演示数据损坏 | §5 | `conda run -n CampusAgent python scripts/ops/recovery_drill.py --skip ...` |
+| 过期数据堆积 | §6 | `conda run -n CampusAgent python scripts/ops/cleanup_expired.py --dry-run` |
 | 日志收集 | §7 | `docker compose logs` / `journalctl` |
 | 紧急回滚 | §8 | `git revert` / `docker compose down` |
 
@@ -102,7 +102,7 @@ curl -s http://localhost:8000/metrics/model-gateway  # 模型网关 metrics
    ```
 5. **演练验证**（可选，不依赖 Docker）：
    ```bash
-   python scripts/ops/recovery_drill.py
+   conda run -n CampusAgent python scripts/ops/recovery_drill.py
    # database-unavailable drill 验证 degraded 行为
    ```
 
@@ -145,7 +145,7 @@ curl -s -X POST http://localhost:8000/api/v1/internal/demo/seed
    ```
 4. **演练验证**：
    ```bash
-   python scripts/ops/recovery_drill.py
+   conda run -n CampusAgent python scripts/ops/recovery_drill.py
    # redis-unavailable drill 验证 degraded 但 health/live=ok
    ```
 
@@ -184,7 +184,7 @@ curl -s -X POST http://localhost:8000/api/v1/internal/demo/seed
    ```
 5. **演练验证**：
    ```bash
-   python scripts/ops/recovery_drill.py
+   conda run -n CampusAgent python scripts/ops/recovery_drill.py
    # model-gateway-unavailable drill 验证 health 不 500
    ```
 
@@ -225,7 +225,7 @@ curl -s -X POST http://localhost:8000/api/v1/internal/demo/seed
    ```
 5. **演练验证**：
    ```bash
-   python scripts/ops/recovery_drill.py
+   conda run -n CampusAgent python scripts/ops/recovery_drill.py
    # demo-reset-reseed drill 验证 reset→reseed 循环
    ```
 
@@ -249,12 +249,12 @@ curl -s -X POST http://localhost:8000/api/v1/internal/demo/seed
 
 1. **Dry-run 预览**：
    ```bash
-   python scripts/ops/cleanup_expired.py --dry-run --limit 100
+   conda run -n CampusAgent python scripts/ops/cleanup_expired.py --dry-run --limit 100
    ```
    - 不提交任何变更，只报告将清理的行数。
 2. **执行清理**：
    ```bash
-   python scripts/ops/cleanup_expired.py --limit 100
+   conda run -n CampusAgent python scripts/ops/cleanup_expired.py --limit 100
    ```
 3. **验证主路径**：
    ```bash
@@ -263,7 +263,7 @@ curl -s -X POST http://localhost:8000/api/v1/internal/demo/seed
    ```
 4. **演练验证**：
    ```bash
-   python scripts/ops/recovery_drill.py
+   conda run -n CampusAgent python scripts/ops/recovery_drill.py
    # cleanup-then-read drill 验证清理后主路径仍可用
    ```
 
@@ -391,13 +391,13 @@ conda run -n CampusAgent alembic current
 
 ```bash
 # 运行全部演练（不需要 Docker/Redis/PostgreSQL）
-python scripts/ops/recovery_drill.py
+conda run -n CampusAgent python scripts/ops/recovery_drill.py
 
 # 详细输出
-python scripts/ops/recovery_drill.py --verbose
+conda run -n CampusAgent python scripts/ops/recovery_drill.py --verbose
 
 # 跳过特定演练
-python scripts/ops/recovery_drill.py --skip demo-reset-reseed
+conda run -n CampusAgent python scripts/ops/recovery_drill.py --skip demo-reset-reseed
 ```
 
 ### 10.1 演练清单

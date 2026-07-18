@@ -20,7 +20,7 @@ Evidence collected:
 
 Usage::
 
-    python scripts/release/collect_evidence.py [--root .] [--json] [--output artifacts/release-evidence/]
+    conda run -n CampusAgent python scripts/release/collect_evidence.py [--root .] [--json] [--output artifacts/release-evidence/]
 
 Exit code:
 - 0 if all commands ran (regardless of individual pass/fail).

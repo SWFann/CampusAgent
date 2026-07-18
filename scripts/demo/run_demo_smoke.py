@@ -5,7 +5,7 @@ Runs the full product main path in-process (no Docker, no running
 server required) so a demo operator can verify the system is healthy
 before a live demo:
 
-    python scripts/demo/run_demo_smoke.py
+    conda run -n CampusAgent python scripts/demo/run_demo_smoke.py
 
 Main path exercised:
   1. reset + seed demo data (service layer, like the CLI)

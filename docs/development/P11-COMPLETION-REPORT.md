@@ -143,7 +143,7 @@ Result: 11 passed, 0 failed -> ALL PASSED
 |---|---|
 | `pytest apps/api/tests -q -k demo` | 77 passed |
 | `pytest apps/api/tests/integration/test_demo_flow.py` | 16 passed |
-| `python scripts/demo/run_demo_smoke.py` | 11 passed, exit 0 |
+| `conda run -n CampusAgent python scripts/demo/run_demo_smoke.py` | 11 passed, exit 0 |
 | `pnpm test -- --testPathPattern="tests/demo"`（apps/web） | 26 passed |
 | `ruff check apps/api` | 通过 |
 | `mypy apps/api/src apps/api/tests` | 通过 |

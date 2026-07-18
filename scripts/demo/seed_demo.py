@@ -2,8 +2,8 @@
 """P11-04: CLI entry to seed the demo dataset.
 
 Usage:
-    python scripts/demo/seed_demo.py
-    python scripts/demo/seed_demo.py --json
+    conda run -n CampusAgent python scripts/demo/seed_demo.py
+    conda run -n CampusAgent python scripts/demo/seed_demo.py --json
 
 Reads DATABASE_URL and APP_ENV from the project Settings (which in
 turn reads .env / environment variables). Seeds idempotently — safe

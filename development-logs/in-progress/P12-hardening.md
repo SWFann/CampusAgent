@@ -127,7 +127,7 @@ from src.modules.users.models import GlobalRole, User, UserStatus
 | `pnpm --filter @campus-agent/web build` | ✅ 通过 |
 | `pip check` | ✅ 无冲突 |
 | `pnpm audit --audit-level=high` | ⚠️ 16 漏洞（6 high），已登记 |
-| `python scripts/ops/recovery_drill.py` | ✅ 5/5 通过 |
+| `conda run -n CampusAgent python scripts/ops/recovery_drill.py` | ✅ 5/5 通过 |
 
 ## 边界声明
 
