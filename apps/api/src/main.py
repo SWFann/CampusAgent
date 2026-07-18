@@ -5,7 +5,7 @@ FastAPI application factory
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -62,6 +62,15 @@ def create_lifespan(app_settings: Settings):
         # Register domain event handlers
         from .modules.agents.handlers import register_personal_agent_handler
         register_personal_agent_handler()
+
+        # Register scene plugins (P9)
+        from .modules.scenes.plugins import DormDinnerPlugin
+        from .modules.scenes.registry import get_scene_registry
+
+        scene_registry = get_scene_registry()
+        # Plugin may already be registered in hot-reload scenarios.
+        with suppress(Exception):
+            scene_registry.register(DormDinnerPlugin())
 
         yield
 
@@ -195,7 +204,10 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     from .modules.conversations.api import router as conversations_router
     from .modules.directory.api import router as directory_router
     from .modules.memories.api import router as memories_router
+    from .modules.model_gateway.api import router as model_gateway_router
+    from .modules.nodes.api import router as nodes_admin_router
     from .modules.organizations.api import router as organizations_router
+    from .modules.scenes.api import router as scenes_router
     from .modules.users.api import router as users_router
 
     application.include_router(auth_router)
@@ -206,11 +218,29 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     application.include_router(agents_router)
     application.include_router(memories_router)
     application.include_router(audit_router)
+    application.include_router(nodes_admin_router)
+    application.include_router(model_gateway_router)
+    application.include_router(scenes_router)
 
     # WebSocket routes
     from .realtime.api import router as realtime_router
 
     application.include_router(realtime_router)
+
+    # Register model gateway metrics endpoint
+    from .modules.model_gateway.metrics import get_model_gateway_metrics
+
+    model_gateway_metrics = get_model_gateway_metrics()
+
+    @application.get("/metrics/model-gateway", include_in_schema=False)
+    async def model_gateway_metrics_endpoint():
+        """Model gateway metrics (Prometheus-style, no sensitive labels)."""
+        from fastapi.responses import PlainTextResponse
+
+        return PlainTextResponse(
+            content=model_gateway_metrics.to_prometheus_text(),
+            media_type="text/plain; version=0.0.4",
+        )
 
     # Register metrics endpoint
     register_metrics_endpoint(application, metrics)

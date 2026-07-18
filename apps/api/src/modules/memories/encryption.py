@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 
-from cryptography.fernet import Fernet  # type: ignore[import-not-found]
+from cryptography.fernet import Fernet
 
 from ...config import settings
 from ...utils.errors import AppError

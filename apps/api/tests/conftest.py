@@ -44,9 +44,20 @@ from src.modules.conversations.models import (  # noqa: E402, F401
     Message,
 )
 from src.modules.memories.models import ConsentRecord, MemoryItem  # noqa: E402, F401
+from src.modules.model_gateway.models import ModelDefinition  # noqa: E402, F401
+from src.modules.nodes.models import ModelDeployment, ModelNode  # noqa: E402, F401
 from src.modules.organizations.models import (  # noqa: E402, F401
     Organization,
     OrganizationMembership,
+)
+from src.modules.scenes.models import (  # noqa: E402, F401
+    PrivateSubmission,
+    SceneCandidate,
+    SceneDefinition,
+    SceneInstance,
+    SceneParticipant,
+    SceneResult,
+    SceneVote,
 )
 from src.modules.users.models import StudentProfile, User  # noqa: E402, F401
 
