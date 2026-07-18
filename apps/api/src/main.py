@@ -125,13 +125,32 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
 
     @application.exception_handler(RequestValidationError)
     async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
-        """Map Pydantic validation errors to a stable error code."""
+        """Map Pydantic validation errors to a stable error code.
+
+        Error details may contain non-JSON-serializable values (e.g. bytes
+        from form-encoded bodies). We coerce them to safe strings so the
+        envelope can always be serialized (P12-04 hardening).
+        """
+        def _coerce(obj: Any) -> Any:
+            if isinstance(obj, bytes):
+                try:
+                    return obj.decode("utf-8")
+                except UnicodeDecodeError:
+                    return f"<{len(obj)} bytes>"
+            if isinstance(obj, dict):
+                return {k: _coerce(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_coerce(v) for v in obj]
+            if isinstance(obj, tuple):
+                return [_coerce(v) for v in obj]
+            return obj
+
         return JSONResponse(
             status_code=422,
             content=envelope_error(
                 code=error_code_for_status(422),
                 message="Request validation failed.",
-                details={"errors": exc.errors()},
+                details={"errors": _coerce(exc.errors())},
                 request_id=getattr(request.state, "correlation_id", None),
             ),
         )

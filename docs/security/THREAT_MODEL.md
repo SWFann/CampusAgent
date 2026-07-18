@@ -821,6 +821,71 @@ FC 测试的完整定义见 docs/privacy/PRIVACY_TEST_MATRIX.md §12；双向追
 
 ---
 
+## 8. P12 验证备注（2026-07-18 新增）
+
+> **重要约束**：本节为 P12 阶段新增的验证备注，**不改变** §2.1 威胁矩阵中的威胁数量（仍为 9 个）、风险等级分布（严重 1、高 6、中 2、低 0）和 §4.1 控制状态（仍为 `planned=9, implemented=0, verified=0`）。
+>
+> P12 的职责是**补回归测试和运行时防御**，不是实现新控制。P12 新增的测试为部分已实现的控制提供了**验证证据**，但根据 §2.2 保守聚合规则，只要任一必要控制仍为 `planned`，威胁级状态就不能升级。因此本节只记录证据，不升级状态。
+>
+> 完整的 P12 测试—威胁映射表见 `docs/development/P12-COMPLETION-REPORT.md`。
+
+### 8.1 P12 测试证据摘要
+
+以下列出 P12 新增的测试文件及其覆盖的威胁。这些测试验证了**已实现控制的回归安全性**，但不改变威胁级控制状态。
+
+| P12 任务 | 测试文件 | 覆盖威胁 | 验证内容 |
+| --- | --- | --- | --- |
+| P12-02 | `tests/security/test_auth_security.py` | T-05 | refresh token 轮换、旧 token 重放拒绝、logout 清 cookie、软删除用户不可登录 |
+| P12-02 | `tests/security/test_csrf_and_cookies.py` | T-05、T-06 | CSRF 写请求强制、Cookie 属性（HttpOnly、SameSite、Path） |
+| P12-03 | `tests/security/test_idor_permissions.py` | T-01、T-02、T-06、T-09 | 跨组织/会话/记忆 IDOR 拒绝、admin 权限边界、非存在资源返回 404 非 500 |
+| P12-04 | `tests/security/test_input_output_validation.py` | T-04、T-06 | 过长字段、非法 UUID、HTML/SQL 输入、非法 enum 拒绝 |
+| P12-05 | `tests/security/test_prompt_injection.py` | T-04、T-08 | 私有字段不进入 prompt、reason code 白名单、模型输出 redaction |
+| P12-06 | `tests/security/test_sensitive_redaction.py` | T-03 | denylist 覆盖、header 脱敏、request log 无 cookie/authorization、metrics 无 email/token |
+| P12-06 | `scripts/security/check_frontend_sensitive_data.py` | T-03 | 前端源码无敏感 payload |
+| P12-07 | `tests/security/test_ttl_and_cleanup.py` | T-07 | 过期 memory 清理、撤销 consent 清理、场景实例过期、私有提交清理 |
+| P12-07 | `scripts/ops/cleanup_expired.py` | T-07 | 清理脚本 dry-run 可用 |
+| P12-08 | `tests/integration/test_concurrency_idempotency.py` | T-05 | 并发 refresh、重复邀请接受、幂等键冲突 |
+| P12-10 | `tests/integration/test_websocket_stability.py` | T-01、T-06、T-08 | 未认证连接拒绝、非成员连接拒绝、非法消息不崩溃 |
+| P12-12 | `tests/security/test_observability_panel.py` | T-03、T-08、T-09 | metrics 无 secret 模式、admin 列表不泄露 api_key/secret/password_hash |
+| P12-13 | `scripts/ops/recovery_drill.py` | T-07 | 数据库/Redis 不可用时降级、demo reset+reseed、清理后主路径可用 |
+
+### 8.2 威胁级状态说明
+
+根据 §2.2 保守聚合规则，P12 新增测试为以下控制提供了**部分验证证据**，但威胁级状态**不升级**：
+
+| 威胁 | P12 提供证据的控制 | 威胁级状态（不变） | 不升级原因 |
+| --- | --- | --- | --- |
+| T-01 | 权限检查、所有权验证（P12-03 IDOR 测试） | `planned` | 需要全量 PT-001~PT-008 正式执行并通过 |
+| T-02 | MemoryService 四重检查（P12-03 跨记忆 IDOR 测试） | `planned` | 需要全量 PT-101~PT-107 正式执行并通过 |
+| T-03 | 敏感日志过滤（P12-06 脱敏测试、P12-12 metrics 测试） | `planned` | 需要全量 LG-001~LG-005 正式执行并通过 |
+| T-04 | Prompt 最小化、输出验证（P12-05 注入测试） | `planned` | 需要全量 PI-001~PI-005 正式执行并通过 |
+| T-05 | 幂等性、Token 轮换（P12-02、P12-08 测试） | `planned` | 需要全量 RP-001~RP-005 正式执行并通过 |
+| T-06 | 权限矩阵、所有权检查（P12-03 IDOR 测试） | `planned` | 需要全量 PT 测试正式执行并通过 |
+| T-07 | TTL 清理（P12-07 清理测试、P12-13 恢复演练） | `planned` | 需要全量 CL-001~CL-005、RT-001~RT-005 正式执行并通过 |
+| T-08 | 外部模型禁用、路由策略（P12-05 注入测试） | `planned` | 需要全量 MR-001~MR-005 正式执行并通过 |
+| T-09 | 节点管理权限（P12-03 admin 测试、P12-12 observability 测试） | `planned` | 需要全量 EN-001~EN-012 正式执行并通过；P12 未覆盖网络隔离和 mTLS |
+
+### 8.3 P12 新增的运行时防御
+
+P12 除了测试外，还修复了以下小型安全问题（不构成新控制，属于既有控制的补强）：
+
+1. **`apps/api/src/main.py`**：修复 `validation_error_handler` 对 `bytes` 类型 detail 的序列化问题，避免 500 错误。
+2. **`apps/api/src/utils/redaction.py`**：将 `password_hash` 添加到 `SENSITIVE_FIELDS` denylist，确保日志和错误响应中不出现密码哈希。
+
+这些修复不改变威胁级状态，但增强了 T-03（日志泄露）和 T-06（横向访问）的运行时防御深度。
+
+### 8.4 P12 未覆盖的控制
+
+以下控制 P12 **未提供验证证据**，仍保持 `planned`：
+
+- T-09 的网络隔离（EN-008）：需要 k8s 网络策略验证，超出 P12 范围。
+- T-09 的 mTLS（EN-002）：需要真实节点证书验证，超出 P12 范围。
+- T-09 的供应链检查（EN-011）：需要镜像哈希校验，超出 P12 范围。
+- T-08 的真实外部模型路由验证（MR-001~MR-005）：P12 只验证了 mock 模式下的注入防御。
+- 所有 RT-004~RT-010 保留策略测试：需要长期运行环境验证，超出 P12 范围。
+
+---
+
 **下一步**：P0-08（冻结场景状态机）、P0-09（草拟HTTP契约）、P0-12（接受首批ADR）
 **变更记录**：
 | 日期 | 变更内容 | 变更人 |
@@ -833,3 +898,4 @@ FC 测试的完整定义见 docs/privacy/PRIVACY_TEST_MATRIX.md §12；双向追
 | 2026-07-15 | R1-29 建立威胁—控制—测试双向追踪：T-01～T-09 每个威胁均映射正式测试 ID；新增 27 个测试定义（PI-001～005、RP-001～005、MR-001～005、EN-001～012）；总定义 78；定义状态 defined、执行状态 not_run；删除 §5.1 中旧版两位数 ST 测试编号（01 至 08，不恢复 09），改为引用 PRIVACY_TEST_MATRIX.md §13 权威追踪矩阵；更新 T-01～T-09 详细分析测试覆盖章节；未执行测试；未升级控制状态（planned=9、implemented=0、verified=0）；R1-30、R1-31 未执行 | - |
 | 2026-07-15 | R1-30 检查隐私失败关闭：重构 §4.3 为 R1-30 权威口径；新增 FC-001～FC-012 失败关闭场景矩阵（12 类场景：授权失败、授权撤销、解密失败、租户隔离、privacy_context 缺失、模型路由、Prompt/输出校验、WebSocket 认证订阅、幂等重放、边缘节点、审计日志、清理保留）；§4.3.5 从“将在 R1-30 定义”改为正式测试定义；新增 12 个 FC 测试定义（总定义 90）；更新 §5.1 威胁覆盖表加入 FC 测试；更新所有 §12 引用为 §13（追踪矩阵重新编号）；未修改 T-01～T-09 风险等级；未升级控制状态（planned=9、implemented=0、verified=0）；R1-31 未执行 | - |
 | 2026-07-15 | R1-31 复核保留策略：更新 FC-012 引用为指向 DATA_INVENTORY.md §13 R1-31 权威口径；确认 T-07 数据残留风险控制（立即清理、TTL 兜底 24h）与 R1-31 保留矩阵一致；未修改威胁编号；未修改风险等级；未修改控制状态（planned=9、implemented=0、verified=0）；保留策略权威口径见 DATA_INVENTORY.md §13 | - |
+| 2026-07-18 | P12-14 威胁模型回填：新增 §8 P12 验证备注，记录 P12-01~P12-13 新增测试为 T-01~T-09 部分控制提供的验证证据；未修改威胁数量（仍为 9）、风险等级分布（严重 1、高 6、中 2、低 0）和控制状态（planned=9、implemented=0、verified=0）；根据 §2.2 保守聚合规则，威胁级状态不升级；完整映射表见 P12-COMPLETION-REPORT.md | - |

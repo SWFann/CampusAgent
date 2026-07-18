@@ -22,6 +22,7 @@ SENSITIVE_FIELDS: frozenset[str] = frozenset(
     {
         # Authentication / credentials
         "password",
+        "password_hash",
         "token",
         "access_token",
         "refresh_token",

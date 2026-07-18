@@ -186,9 +186,16 @@ class TestParticipantPrivacy:
 
         status = get_submission_status(user_a, instance_id, test_db_session)
         status_str = str(status)
-        assert "42" not in status_str  # budget value
         assert "unique marker text xyz789" not in status_str
         assert "sichuan" not in status_str  # cuisine
+        # Budget value should not leak into status response. Exclude
+        # timestamp fields from substring check, since ISO timestamps
+        # may coincidentally contain the same digits (e.g. ".421077").
+        non_ts_fields = {
+            k: v for k, v in status.items()
+            if k not in ("submitted_at", "expires_at")
+        }
+        assert "42" not in str(non_ts_fields)  # budget value
         assert "preferences" not in status_str.lower() or "has_submitted" in status_str
 
 
