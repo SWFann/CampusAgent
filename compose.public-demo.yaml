@@ -1,0 +1,67 @@
+# Public demo override for CampusAgent.
+#
+# Usage:
+#   cp .env.example .env
+#   # Fill public URLs and secrets in .env
+#   docker compose -f compose.yaml -f compose.public-demo.yaml up -d --build
+#
+# Required .env values for a real public demo:
+#   PUBLIC_WEB_URL=https://campus.example.com
+#   PUBLIC_API_URL=https://api-campus.example.com
+#   APP_SECRET=<openssl rand -hex 32>
+#   FIELD_ENCRYPTION_KEY=<openssl rand -hex 32>
+#   MODEL_GATEWAY_API_KEY=<local secret, never committed>
+
+services:
+  api:
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: "false"
+      APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?FIELD_ENCRYPTION_KEY is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-campus_agent}
+      REDIS_URL: redis://redis:6379/0
+      MODEL_GATEWAY_BASE_URL: ${MODEL_GATEWAY_BASE_URL:-https://api.stepfun.com/v1}
+      MODEL_GATEWAY_MODEL: ${MODEL_GATEWAY_MODEL:-step-3.7-flash}
+      MODEL_GATEWAY_TIMEOUT_MS: ${MODEL_GATEWAY_TIMEOUT_MS:-45000}
+      MODEL_GATEWAY_IS_EXTERNAL: "true"
+      MODEL_GATEWAY_API_KEY: ${MODEL_GATEWAY_API_KEY:?MODEL_GATEWAY_API_KEY is required}
+      ENABLE_EXTERNAL_MODEL: "true"
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:?PUBLIC_API_URL is required}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_PROMPT_CONTENT: "false"
+      DB_ECHO_SQL: "false"
+
+  web:
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:?PUBLIC_API_URL is required}
+      NEXT_TELEMETRY_DISABLED: "1"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: campus-agent-caddy
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_WEB_HOST: ${PUBLIC_WEB_HOST:?PUBLIC_WEB_HOST is required}
+      PUBLIC_API_HOST: ${PUBLIC_API_HOST:?PUBLIC_API_HOST is required}
+    volumes:
+      - ./infra/caddy/Caddyfile.public-demo.example:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - campus_agent
+
+volumes:
+  caddy_data:
+    name: campus_agent_caddy_data
+  caddy_config:
+    name: campus_agent_caddy_config

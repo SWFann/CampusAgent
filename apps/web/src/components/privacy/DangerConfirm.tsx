@@ -8,10 +8,10 @@ import { useState, ReactNode } from "react";
  */
 export function DangerConfirm({
   trigger,
-  title = "Confirm action",
+  title = "确认操作",
   message,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel = "确认",
+  cancelLabel = "取消",
   onConfirm,
 }: {
   trigger: ReactNode;
@@ -79,7 +79,7 @@ export function DangerConfirm({
                 onClick={handleConfirm}
                 disabled={loading}
               >
-                {loading ? "Processing..." : confirmLabel}
+                {loading ? "处理中..." : confirmLabel}
               </button>
             </div>
           </div>

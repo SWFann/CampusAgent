@@ -33,7 +33,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
     // Extract safe error info without leaking sensitive details
     const message =
-      error instanceof Error ? error.message : "An unexpected error occurred.";
+      error instanceof Error ? error.message : "发生未知错误。";
     // Never expose stack traces or raw response bodies
     const safeMessage = message.length > 200 ? message.slice(0, 200) + "..." : message;
     return { hasError: true, message: safeMessage, requestId: null };
@@ -43,7 +43,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
     if (this.state.hasError) {
       return (
         <ErrorState
-          title="Application Error"
+          title="应用错误"
           message={this.state.message}
           requestId={this.state.requestId}
           action={
@@ -51,7 +51,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
               className="btn"
               onClick={() => this.setState({ hasError: false, message: "", requestId: null })}
             >
-              Try again
+              重试
             </button>
           }
         />

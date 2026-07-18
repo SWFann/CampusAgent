@@ -102,6 +102,7 @@ class SceneCoordinatorFacade:
         preference_capsule: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Call the model gateway for chat completion."""
+        from ...config import settings
         from ..model_gateway.schemas import (
             ChatMessage,
             ChatRequest,
@@ -113,6 +114,7 @@ class SceneCoordinatorFacade:
         privacy_context = PrivacyContext(
             data_classification=DataClassification(data_classification),
             purpose=purpose,
+            allow_external=settings.ENABLE_EXTERNAL_MODEL,
         )
         chat_messages = [ChatMessage(role=m["role"], content=m["content"]) for m in messages]
         request = ChatRequest(

@@ -32,7 +32,7 @@ function sanitizeReason(reason: string): string {
   ];
   let sanitized = reason;
   for (const p of patterns) {
-    sanitized = sanitized.replace(p, "Multiple members");
+    sanitized = sanitized.replace(p, "多位成员");
   }
   return sanitized;
 }
@@ -79,23 +79,23 @@ function DinnerResultContent() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
-      <h1 style={{ fontSize: "var(--font-size-xl)" }}>Dinner Results</h1>
+      <h1 style={{ fontSize: "var(--font-size-xl)" }}>聚餐结果</h1>
 
       {/* Privacy notice: results show only aggregated reasons */}
-      <PrivacyNotice title="Aggregated Results Only">
-        <p>These results show only aggregated recommendations. Individual preferences are never displayed.</p>
+      <PrivacyNotice title="仅展示聚合结果">
+        <p>这里仅展示聚合推荐，不展示任何个人偏好。</p>
       </PrivacyNotice>
 
-      {loading && <LoadingState message="Loading results..." />}
-      {error && <ErrorState message="Failed to load results." />}
+      {loading && <LoadingState message="正在加载结果..." />}
+      {error && <ErrorState message="加载结果失败。" />}
       {candidates && candidates.length === 0 && (
-        <EmptyState title="No candidates yet" description="Candidates will appear after participants submit their preferences." />
+        <EmptyState title="暂无候选方案" description="参与者提交偏好后，候选方案会显示在这里。" />
       )}
 
       {confirmStatus?.confirmed && (
         <div className="card" style={{ borderColor: "var(--color-success)", background: "var(--color-success-light)" }}>
           <p style={{ color: "var(--color-success)", fontWeight: "var(--font-weight-semibold)" }}>
-            ✓ Dinner confirmed: {confirmStatus.confirmed_candidate}
+            ✓ 已确认聚餐方案： {confirmStatus.confirmed_candidate}
           </p>
         </div>
       )}
@@ -112,7 +112,7 @@ function DinnerResultContent() {
                     <div style={{ display: "flex", gap: "var(--space-sm)", alignItems: "center", marginBottom: "var(--space-xs)" }}>
                       <span style={{ fontSize: "var(--font-size-lg)", fontWeight: "var(--font-weight-bold)" }}>#{idx + 1}</span>
                       <h3>{cand.display_name}</h3>
-                      <StatusBadge label={`Score: ${cand.aggregate_score.toFixed(1)}`} variant="info" />
+                      <StatusBadge label={`得分：${cand.aggregate_score.toFixed(1)}`} variant="info" />
                     </div>
 
                     {/* Sanitized public reasons - no personal attribution */}
@@ -136,10 +136,10 @@ function DinnerResultContent() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)", alignItems: "flex-end" }}>
                     {hasVoted ? (
                       <DangerConfirm
-                        trigger={<button className="btn btn-sm">Revoke Vote</button>}
-                        title="Revoke Vote"
-                        message="Are you sure you want to revoke your vote for this candidate?"
-                        confirmLabel="Revoke"
+                        trigger={<button className="btn btn-sm">撤销投票</button>}
+                        title="撤销投票"
+                        message="确定撤销对此候选方案的投票吗？"
+                        confirmLabel="撤销"
                         onConfirm={() => handleRevokeVote(cand.candidate_key)}
                       />
                     ) : (
@@ -148,7 +148,7 @@ function DinnerResultContent() {
                         onClick={() => handleVote(cand.candidate_key)}
                         disabled={voting === cand.candidate_key}
                       >
-                        {voting === cand.candidate_key ? "Voting..." : "Vote"}
+                        {voting === cand.candidate_key ? "投票中..." : "投票"}
                       </button>
                     )}
                     {!confirmStatus?.confirmed && (
@@ -156,7 +156,7 @@ function DinnerResultContent() {
                         className="btn btn-sm"
                         onClick={() => handleConfirm(cand.candidate_key)}
                       >
-                        Confirm
+                        确认方案
                       </button>
                     )}
                   </div>

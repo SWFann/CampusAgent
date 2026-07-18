@@ -9,7 +9,7 @@ import { ReactNode } from "react";
  * purpose, retention, and deletion.
  */
 export function PrivacyNotice({
-  title = "Privacy Notice",
+  title = "隐私提示",
   children,
 }: {
   title?: string;
@@ -52,16 +52,16 @@ export function PrivacyNotice({
         {children ?? (
           <>
             <p style={{ marginBottom: "var(--space-xs)" }}>
-              &#8226; <strong>Visibility:</strong> Only you can see your raw preferences. Other members only see aggregated results.
+              &#8226; <strong>可见性：</strong>只有你可以看到原始偏好，其他成员只能看到聚合结果。
             </p>
             <p style={{ marginBottom: "var(--space-xs)" }}>
-              &#8226; <strong>Purpose:</strong> Used only for this scene&apos;s recommendation algorithm.
+              &#8226; <strong>使用目的：</strong>仅用于当前场景的推荐算法。
             </p>
             <p style={{ marginBottom: "var(--space-xs)" }}>
-              &#8226; <strong>Retention:</strong> Deleted after the scene ends, or within 24 hours at most.
+              &#8226; <strong>保留期限：</strong>场景结束后删除，最长不超过 24 小时。
             </p>
             <p>
-              &#8226; <strong>Deletion:</strong> You can delete your submission at any time before the scene ends.
+              &#8226; <strong>删除：</strong>你可以在场景结束前随时删除自己的提交。
             </p>
           </>
         )}

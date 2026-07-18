@@ -8,6 +8,7 @@ import {
   createGroupConversation,
   type ConversationListItem,
 } from "@/lib/conversations";
+import { listContacts, type ContactItem } from "@/lib/contacts";
 import { formatDate } from "@/lib/utils";
 
 export default function ConversationsPage() {
@@ -17,6 +18,7 @@ export default function ConversationsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createType, setCreateType] = useState<"private" | "group">("private");
   const [targetUserId, setTargetUserId] = useState("");
+  const [contacts, setContacts] = useState<ContactItem[]>([]);
   const [groupTitle, setGroupTitle] = useState("");
   const [participantIds, setParticipantIds] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
@@ -39,9 +41,19 @@ export default function ConversationsPage() {
     }
   }, []);
 
+  const fetchContacts = useCallback(async () => {
+    const result = await listContacts();
+    if (result.success && result.data) {
+      setContacts(result.data.contacts);
+      const firstContactUserId = result.data.contacts[0]?.user.id || "";
+      setTargetUserId((current) => current || firstContactUserId);
+    }
+  }, []);
+
   useEffect(() => {
     void fetchConversations();
-  }, [fetchConversations]);
+    void fetchContacts();
+  }, [fetchConversations, fetchContacts]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,14 +161,31 @@ export default function ConversationsPage() {
 
           {createType === "private" ? (
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: "block", marginBottom: 4, fontSize: 14, color: "#374151" }}>目标用户 ID</label>
-              <input
-                type="text"
-                value={targetUserId}
-                onChange={(e) => setTargetUserId(e.target.value)}
-                placeholder="粘贴用户 UUID"
-                style={{ width: "100%", padding: 8, boxSizing: "border-box", borderRadius: 4, border: "1px solid #d1d5db" }}
-              />
+              <label style={{ display: "block", marginBottom: 4, fontSize: 14, color: "#374151" }}>选择好友</label>
+              {contacts.length > 0 ? (
+                <select
+                  value={targetUserId}
+                  onChange={(e) => setTargetUserId(e.target.value)}
+                  style={{ width: "100%", padding: 8, boxSizing: "border-box", borderRadius: 4, border: "1px solid #d1d5db" }}
+                >
+                  {contacts.map((contact) => (
+                    <option key={contact.user.id} value={contact.user.id}>
+                      {contact.user.display_name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  <p style={{ color: "#666", fontSize: 14 }}>暂无好友。请先到校园目录搜索用户并发送好友申请。</p>
+                  <input
+                    type="text"
+                    value={targetUserId}
+                    onChange={(e) => setTargetUserId(e.target.value)}
+                    placeholder="临时输入用户 ID"
+                    style={{ width: "100%", padding: 8, boxSizing: "border-box", borderRadius: 4, border: "1px solid #d1d5db" }}
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -227,7 +256,7 @@ export default function ConversationsPage() {
                   </div>
                   {conv.last_message_at && (
                     <span style={{ color: "#999", fontSize: 12 }}>
-                      最后消息: {formatDate(conv.last_message_at)}
+                      最后消息：{formatDate(conv.last_message_at)}
                     </span>
                   )}
                 </div>

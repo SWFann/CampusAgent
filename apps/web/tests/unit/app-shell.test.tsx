@@ -48,11 +48,11 @@ describe("NavRail", () => {
       </AuthProvider>,
     );
 
-    // Wait for auth to load and Admin link to appear
-    await screen.findByText("Admin");
+    // Wait for auth to load and admin link to appear
+    await screen.findByText("管理");
 
     // Admin link should be visible
-    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.getByText("管理")).toBeInTheDocument();
   });
 
   it("hides admin entry for regular users", async () => {
@@ -70,10 +70,10 @@ describe("NavRail", () => {
     );
 
     // Wait for auth to load
-    await screen.findByText("Home");
+    await screen.findByText("首页");
 
     // Admin link should NOT be visible
-    expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+    expect(screen.queryByText("管理")).not.toBeInTheDocument();
   });
 
   it("shows all non-admin nav items", async () => {
@@ -90,13 +90,13 @@ describe("NavRail", () => {
       </AuthProvider>,
     );
 
-    await screen.findByText("Home");
-    expect(screen.getByText("Messages")).toBeInTheDocument();
-    expect(screen.getByText("Organizations")).toBeInTheDocument();
-    expect(screen.getByText("Agents")).toBeInTheDocument();
-    expect(screen.getByText("Memory")).toBeInTheDocument();
-    expect(screen.getByText("Scenes")).toBeInTheDocument();
-    expect(screen.getByText("Private Prefs")).toBeInTheDocument();
+    await screen.findByText("首页");
+    expect(screen.getByText("消息")).toBeInTheDocument();
+    expect(screen.getByText("组织")).toBeInTheDocument();
+    expect(screen.getByText("智能体")).toBeInTheDocument();
+    expect(screen.getByText("记忆中心")).toBeInTheDocument();
+    expect(screen.getByText("场景")).toBeInTheDocument();
+    expect(screen.getByText("私密偏好")).toBeInTheDocument();
   });
 
   it("does not render token in the DOM", async () => {
@@ -113,7 +113,7 @@ describe("NavRail", () => {
       </AuthProvider>,
     );
 
-    await screen.findByText("Home");
+    await screen.findByText("首页");
     // No token-related strings in the DOM
     expect(container.textContent).not.toContain("access_token");
     expect(container.textContent).not.toContain("refresh_token");

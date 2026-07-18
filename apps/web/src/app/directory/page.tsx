@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { AppShell } from "@/components/app/AppShell";
+import { displayLabel } from "@/components/ui/StatusBadge";
 import {
   getRecommended,
   searchDirectory,
@@ -9,8 +12,11 @@ import {
   type DirectoryRecommendedItem,
   type DirectoryUserResult,
 } from "@/lib/directory";
+import { createContactRequest } from "@/lib/contacts";
+import { createPrivateConversation } from "@/lib/conversations";
 
-export default function DirectoryPage() {
+function DirectoryContent() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [searchType, setSearchType] = useState("all");
   const [users, setUsers] = useState<DirectoryUserResult[]>([]);
@@ -21,6 +27,7 @@ export default function DirectoryPage() {
 
   const [recommendations, setRecommendations] = useState<DirectoryRecommendedItem[]>([]);
   const [recLoading, setRecLoading] = useState(true);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const fetchRecommendations = useCallback(async () => {
     setRecLoading(true);
@@ -30,7 +37,7 @@ export default function DirectoryPage() {
         setRecommendations(result.data.recommendations);
       }
     } catch {
-      // Silent fail for recommendations
+      // Silent fail，用途：recommendations
     } finally {
       setRecLoading(false);
     }
@@ -61,6 +68,22 @@ export default function DirectoryPage() {
     }
   };
 
+  const handleAddContact = async (userId: string) => {
+    setActionMessage(null);
+    const result = await createContactRequest(userId);
+    setActionMessage(result.success ? "好友申请已发送。" : result.error?.message ?? "发送好友申请失败");
+  };
+
+  const handleStartChat = async (userId: string) => {
+    setActionMessage(null);
+    const result = await createPrivateConversation(userId);
+    if (result.success && result.data) {
+      router.push(`/conversations/${result.data.id}`);
+      return;
+    }
+    setActionMessage(result.error?.message ?? "创建私聊失败");
+  };
+
   return (
     <main style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px" }}>
       <h1 style={{ marginBottom: 24 }}>校园目录</h1>
@@ -86,6 +109,7 @@ export default function DirectoryPage() {
       </form>
 
       {searchError && <p style={{ color: "red", marginBottom: 16 }}>{searchError}</p>}
+      {actionMessage && <p style={{ color: "#2563eb", marginBottom: 16 }}>{actionMessage}</p>}
 
       {hasSearched && !searching && !searchError && users.length === 0 && organizations.length === 0 && (
         <p style={{ color: "#666", marginBottom: 24 }}>无搜索结果</p>
@@ -96,9 +120,22 @@ export default function DirectoryPage() {
           <h2 style={{ fontSize: 18, marginBottom: 12 }}>用户 ({users.length})</h2>
           <div style={{ display: "grid", gap: 8 }}>
             {users.map((u) => (
-              <div key={u.id} style={{ padding: 12, border: "1px solid #e0e0e0", borderRadius: 6 }}>
-                <strong>{u.display_name}</strong>
-                <span style={{ marginLeft: 8, color: "#666", fontSize: 14 }}>{u.profile_visibility}</span>
+              <div
+                key={u.id}
+                style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", padding: 12, border: "1px solid #e0e0e0", borderRadius: 6 }}
+              >
+                <div>
+                  <strong>{u.display_name}</strong>
+                  <span style={{ marginLeft: 8, color: "#666", fontSize: 14 }}>{displayLabel(u.profile_visibility)}</span>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" className="btn btn-sm" onClick={() => handleAddContact(u.id)}>
+                    加好友
+                  </button>
+                  <button type="button" className="btn btn-sm btn-primary" onClick={() => handleStartChat(u.id)}>
+                    发消息
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -117,7 +154,7 @@ export default function DirectoryPage() {
               >
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <strong>{o.name}</strong>
-                  <span style={{ color: "#666", fontSize: 14 }}>{o.type} · {o.member_count} 成员</span>
+                  <span style={{ color: "#666", fontSize: 14 }}>{displayLabel(o.type)} · {o.member_count} 名成员</span>
                 </div>
               </Link>
             ))}
@@ -142,7 +179,7 @@ export default function DirectoryPage() {
                     <strong>{r.name}</strong>
                     <span style={{ color: "#999", fontSize: 12 }}>{r.reason}</span>
                   </div>
-                  <span style={{ color: "#666", fontSize: 14 }}>{r.type}</span>
+                  <span style={{ color: "#666", fontSize: 14 }}>{displayLabel(r.type)}</span>
                 </Link>
               ))}
             </div>
@@ -150,5 +187,13 @@ export default function DirectoryPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function DirectoryPage() {
+  return (
+    <AppShell requireAuth>
+      <DirectoryContent />
+    </AppShell>
   );
 }

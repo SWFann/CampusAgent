@@ -6,7 +6,7 @@ import { ReactNode } from "react";
  * Loading state component.
  * Shows a spinner and optional message.
  */
-export function LoadingState({ message = "Loading..." }: { message?: string }) {
+export function LoadingState({ message = "加载中..." }: { message?: string }) {
   return (
     <div
       style={{

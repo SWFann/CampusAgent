@@ -33,7 +33,7 @@ function mockLoginSuccess() {
           data: {
             id: "1",
             email: "demo_admin@example.com",
-            display_name: "Demo Admin",
+            display_name: "演示管理员",
             global_role: "SYSTEM_ADMIN",
           },
         }),
@@ -66,16 +66,16 @@ describe("LoginPage demo picker", () => {
 
   it("lists all demo accounts", () => {
     render(<LoginPage />);
-    expect(screen.getByText("Demo Admin")).toBeInTheDocument();
-    expect(screen.getByText("Alice Chen")).toBeInTheDocument();
-    expect(screen.getByText("Bob Lin")).toBeInTheDocument();
-    expect(screen.getByText("Carol Wang")).toBeInTheDocument();
-    expect(screen.getByText("Deleted Demo User")).toBeInTheDocument();
+    expect(screen.getByText("演示管理员")).toBeInTheDocument();
+    expect(screen.getByText("陈同学")).toBeInTheDocument();
+    expect(screen.getByText("林同学")).toBeInTheDocument();
+    expect(screen.getByText("王同学")).toBeInTheDocument();
+    expect(screen.getByText("已删除演示用户")).toBeInTheDocument();
   });
 
   it("fills the email field when a demo account is clicked", () => {
     render(<LoginPage />);
-    const aliceButton = screen.getByText("Alice Chen").closest("button")!;
+    const aliceButton = screen.getByText("陈同学").closest("button")!;
     fireEvent.click(aliceButton);
 
     const emailInput = screen.getByLabelText("邮箱") as HTMLInputElement;
@@ -84,7 +84,7 @@ describe("LoginPage demo picker", () => {
 
   it("fills the password field for a loginable demo account", () => {
     render(<LoginPage />);
-    const adminButton = screen.getByText("Demo Admin").closest("button")!;
+    const adminButton = screen.getByText("演示管理员").closest("button")!;
     fireEvent.click(adminButton);
 
     const passwordInput = screen.getByLabelText("密码") as HTMLInputElement;
@@ -94,7 +94,7 @@ describe("LoginPage demo picker", () => {
   it("does NOT fill the password for the deleted demo account", () => {
     render(<LoginPage />);
     const deletedButton = screen
-      .getByText("Deleted Demo User")
+      .getByText("已删除演示用户")
       .closest("button")!;
     fireEvent.click(deletedButton);
 
@@ -104,7 +104,7 @@ describe("LoginPage demo picker", () => {
 
   it("does NOT write the demo password to localStorage", () => {
     render(<LoginPage />);
-    const adminButton = screen.getByText("Demo Admin").closest("button")!;
+    const adminButton = screen.getByText("演示管理员").closest("button")!;
     fireEvent.click(adminButton);
 
     // Scan all localStorage values for the demo password
@@ -123,7 +123,7 @@ describe("LoginPage demo picker", () => {
 
   it("does NOT write the demo password to sessionStorage", () => {
     render(<LoginPage />);
-    const aliceButton = screen.getByText("Alice Chen").closest("button")!;
+    const aliceButton = screen.getByText("陈同学").closest("button")!;
     fireEvent.click(aliceButton);
 
     let found = false;
@@ -141,7 +141,7 @@ describe("LoginPage demo picker", () => {
 
   it("calls the real /auth/login endpoint on submit after selecting a demo account", async () => {
     render(<LoginPage />);
-    const adminButton = screen.getByText("Demo Admin").closest("button")!;
+    const adminButton = screen.getByText("演示管理员").closest("button")!;
     fireEvent.click(adminButton);
 
     const submitButton = screen.getByRole("button", { name: "登录" });
@@ -157,7 +157,7 @@ describe("LoginPage demo picker", () => {
 
   it("marks the selected demo account as pressed", () => {
     render(<LoginPage />);
-    const bobButton = screen.getByText("Bob Lin").closest("button")!;
+    const bobButton = screen.getByText("林同学").closest("button")!;
     fireEvent.click(bobButton);
     expect(bobButton).toHaveAttribute("aria-pressed", "true");
   });

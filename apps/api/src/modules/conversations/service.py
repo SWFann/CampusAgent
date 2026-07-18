@@ -19,6 +19,7 @@ Privacy principles:
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import secrets
@@ -248,6 +249,62 @@ def _get_participant(
     return ConversationParticipantRepository(session).get_active_by_conversation_user(
         conversation_id, actor.id
     )
+
+
+def create_system_message(
+    *,
+    conversation_id: UUID,
+    content: str,
+    message_type: str = MessageType.SYSTEM.value,
+    payload: dict[str, Any] | None = None,
+    session: Session,
+) -> dict[str, Any]:
+    """Persist a public system/agent message and publish its realtime event.
+
+    Scene modules use this boundary instead of writing ``Message`` rows
+    directly. The event intentionally carries no content or payload; clients
+    fetch the committed message through the authenticated conversation API.
+    """
+    conversation = ConversationRepository(session).get_active_by_id(conversation_id)
+    if conversation is None:
+        raise ConversationNotFoundError()
+    _validate_message_type(message_type)
+    payload_json = json.dumps(payload, ensure_ascii=False) if payload else None
+    _check_sensitive_content(content, payload_json)
+    repository = MessageRepository(session)
+    sequence = repository.get_next_sequence(conversation_id)
+    message = Message(
+        conversation_id=conversation_id,
+        sender_type=(
+            SenderType.AGENT.value
+            if message_type == MessageType.AGENT_PUBLIC.value
+            else SenderType.SYSTEM.value
+        ),
+        sender_user_id=None,
+        sender_agent_id=None,
+        message_type=message_type,
+        content=content,
+        payload_json=payload_json,
+        status=MessageStatus.ACTIVE.value,
+        sequence=sequence,
+    )
+    session.add(message)
+    session.commit()
+    session.refresh(message)
+    default_event_bus.publish(
+        MessageCreatedEvent(
+            event_id=_generate_event_id(),
+            conversation_id=conversation_id,
+            message_id=message.id,
+            sender_type=message.sender_type,
+            sender_user_id=None,
+            sender_agent_id=None,
+            message_type=message_type,
+            sequence=sequence,
+            occurred_at=utc_now(),
+        )
+    )
+    return _message_to_read(message)
 
 
 # ---------------------------------------------------------------------------

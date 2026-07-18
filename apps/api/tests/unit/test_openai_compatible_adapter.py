@@ -174,6 +174,46 @@ class TestOpenAICompatibleChat:
         assert resp.response.type == "STRUCTURED"
         assert "candidates" in resp.response.content
 
+    def test_structured_output_retries_without_response_format_when_rejected(self):
+        structured_content = json.dumps({"summary": "真实模型可用"})
+        calls: list[dict] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content.decode())
+            calls.append(body)
+            if len(calls) == 1:
+                return httpx.Response(400, json={"error": "unsupported response_format"})
+            return httpx.Response(200, json=_chat_response_body(content=structured_content))
+
+        provider = OpenAICompatibleProvider(
+            base_url="http://test-node.example/v1",
+            model="test-model",
+            api_key="key",
+            max_retries=0,
+            transport=_make_transport(handler),
+        )
+        req = ChatRequest(
+            messages=[ChatMessage(role="user", content="return json")],
+            privacy_context=PrivacyContext(
+                data_classification=DataClassification.P0,
+                purpose="test",
+                allow_external=True,
+            ),
+            purpose="test",
+            response_schema={
+                "type": "object",
+                "properties": {"summary": {"type": "string"}},
+                "required": ["summary"],
+            },
+        )
+        resp = provider.chat(req)
+
+        assert resp.response.type == "STRUCTURED"
+        assert resp.response.content["summary"] == "真实模型可用"
+        assert "response_format" in calls[0]
+        assert "response_format" not in calls[1]
+        assert "JSON" in calls[1]["messages"][-1]["content"]
+
 
 class TestOpenAICompatibleEmbedding:
     def test_successful_embedding(self):

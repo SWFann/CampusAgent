@@ -8,7 +8,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 /**
  * Route guard component.
  * Redirects to /login if not authenticated.
- * Shows forbidden state for 403 errors.
+ * Shows forbidden state，用途：403 errors.
  */
 export function RouteGuard({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -21,14 +21,14 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   }, [user, loading, router]);
 
   if (loading) {
-    return <LoadingState message="Checking authentication..." />;
+    return <LoadingState message="正在检查登录状态..." />;
   }
 
   if (!user) {
     return (
       <div style={{ padding: "var(--space-2xl)", textAlign: "center" }}>
         <p style={{ color: "var(--color-text-secondary)" }}>
-          Redirecting to login...
+          正在跳转到登录页...
         </p>
       </div>
     );
@@ -39,19 +39,19 @@ export function RouteGuard({ children }: { children: ReactNode }) {
 
 /**
  * Admin route guard.
- * Shows forbidden state for non-admin users.
+ * Shows forbidden state，用途：non-admin users.
  */
 export function AdminGuard({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <LoadingState message="Checking permissions..." />;
+    return <LoadingState message="正在检查权限..." />;
   }
 
   if (!user) {
     return (
       <div style={{ padding: "var(--space-2xl)", textAlign: "center" }}>
-        <p style={{ color: "var(--color-text-secondary)" }}>Redirecting to login...</p>
+        <p style={{ color: "var(--color-text-secondary)" }}>正在跳转到登录页...</p>
       </div>
     );
   }
@@ -76,10 +76,10 @@ export function AdminGuard({ children }: { children: ReactNode }) {
           &#9888;
         </div>
         <p style={{ fontWeight: "var(--font-weight-semibold)", color: "var(--color-danger)" }}>
-          Access Denied
+          无权访问
         </p>
         <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-          You do not have permission to access this page.
+          你没有权限访问此页面。
         </p>
       </div>
     );

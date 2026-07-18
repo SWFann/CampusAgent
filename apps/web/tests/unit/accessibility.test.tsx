@@ -41,7 +41,7 @@ describe("Accessibility", () => {
     it("retry button is keyboard accessible", () => {
       const onRetry = jest.fn();
       render(<OfflineState onRetry={onRetry} />);
-      const button = screen.getByRole("button", { name: "Retry" });
+      const button = screen.getByRole("button", { name: "重试" });
       expect(button).toBeInTheDocument();
     });
   });
@@ -60,9 +60,9 @@ describe("Accessibility", () => {
     });
 
     it("has aria-label matching title", () => {
-      render(<PrivacyNotice title="Test Notice" />);
+      render(<PrivacyNotice title="测试提示" />);
       const note = screen.getByRole("note");
-      expect(note).toHaveAttribute("aria-label", "Test Notice");
+      expect(note).toHaveAttribute("aria-label", "测试提示");
     });
   });
 
@@ -70,14 +70,14 @@ describe("Accessibility", () => {
     it("dialog has role=dialog when open", async () => {
       render(
         <DangerConfirm
-          trigger={<button>Delete</button>}
-          title="Confirm Delete"
-          message="Are you sure?"
+          trigger={<button>删除</button>}
+          title="确认删除"
+          message="确定要删除吗？"
           onConfirm={jest.fn()}
         />,
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+      fireEvent.click(screen.getByRole("button", { name: "删除" }));
 
       // Dialog should appear
       const dialog = await screen.findByRole("dialog");
@@ -88,16 +88,16 @@ describe("Accessibility", () => {
     it("confirm button has accessible label", async () => {
       render(
         <DangerConfirm
-          trigger={<button>Delete</button>}
-          title="Confirm"
-          message="Sure?"
-          confirmLabel="Yes, delete"
+          trigger={<button>删除</button>}
+          title="确认"
+          message="确定吗？"
+          confirmLabel="确认删除"
           onConfirm={jest.fn()}
         />,
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-      const confirmBtn = await screen.findByRole("button", { name: "Yes, delete" });
+      fireEvent.click(screen.getByRole("button", { name: "删除" }));
+      const confirmBtn = await screen.findByRole("button", { name: "确认删除" });
       expect(confirmBtn).toBeInTheDocument();
     });
   });

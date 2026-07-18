@@ -109,7 +109,7 @@ export default function AuditPage() {
                 {log.resource_type && <span>资源: {log.resource_type}</span>}
                 {log.resource_id && <span> / {log.resource_id.slice(0, 8)}...</span>}
                 {log.purpose && <span> | 用途: {log.purpose}</span>}
-                {log.request_id && <span> | 请求: {log.request_id.slice(0, 8)}</span>}
+                {log.request_id && <span> | 请求 ID：{log.request_id.slice(0, 8)}</span>}
               </div>
             </div>
           ))}

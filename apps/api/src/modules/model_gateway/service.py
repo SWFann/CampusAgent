@@ -503,7 +503,20 @@ def get_model_gateway_service() -> ModelGatewayService:
     """
     global _service
     if _service is None:
-        _service = ModelGatewayService()
+        from ...config import settings
+        from .openai_compatible import OpenAICompatibleProvider
+
+        external_provider = None
+        if settings.ENABLE_EXTERNAL_MODEL:
+            external_provider = OpenAICompatibleProvider(
+                base_url=settings.MODEL_GATEWAY_BASE_URL,
+                model=settings.MODEL_GATEWAY_MODEL,
+                api_key=settings.MODEL_GATEWAY_API_KEY,
+                timeout_ms=settings.MODEL_GATEWAY_TIMEOUT_MS,
+                is_external=settings.MODEL_GATEWAY_IS_EXTERNAL,
+                name="stepfun",
+            )
+        _service = ModelGatewayService(external=external_provider)
     return _service
 
 

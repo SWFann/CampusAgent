@@ -11,24 +11,53 @@ import { useAsync } from "@/lib/useAsync";
 import type { ConversationSummary, OrganizationSummary, SceneSummary, AgentSummary } from "@/lib/api/types";
 import Link from "next/link";
 
+interface ConversationListResponse {
+  conversations: ConversationSummary[];
+  total: number;
+}
+
+interface OrganizationListResponse {
+  organizations: OrganizationSummary[];
+  total: number;
+}
+
+interface SceneListResponse {
+  scenes: Array<SceneSummary & { name?: string }>;
+  total: number;
+}
+
+interface AgentListResponse {
+  agents: AgentSummary[];
+  total: number;
+}
+
 function HomeContent() {
   const { user } = useAuth();
-  const { data: conversations, loading: convLoading, error: convError } = useAsync<ConversationSummary[]>(
-    async () => apiGet("/conversations", { limit: "5" }),
+  const { data: conversationData, loading: convLoading, error: convError } = useAsync<ConversationListResponse>(
+    async () => apiGet("/conversations", { page_size: "5" }),
     [],
   );
-  const { data: orgs, loading: orgLoading, error: orgError } = useAsync<OrganizationSummary[]>(
+  const { data: orgData, loading: orgLoading, error: orgError } = useAsync<OrganizationListResponse>(
     async () => apiGet("/organizations"),
     [],
   );
-  const { data: scenes, loading: sceneLoading, error: sceneError } = useAsync<SceneSummary[]>(
-    async () => apiGet("/scenes", { status: "active" }),
+  const { data: sceneData, loading: sceneLoading, error: sceneError } = useAsync<SceneListResponse>(
+    async () => apiGet("/scenes"),
     [],
   );
-  const { data: agents, loading: agentLoading, error: agentError } = useAsync<AgentSummary[]>(
-    async () => apiGet("/agents"),
+  const { data: agentData, loading: agentLoading, error: agentError } = useAsync<AgentListResponse>(
+    async () => {
+      const list = await apiGet<AgentListResponse>("/agents");
+      if (list.agents.length > 0) return list;
+      const agent = await apiGet<AgentSummary>("/agents/me");
+      return { agents: [agent], total: 1 };
+    },
     [],
   );
+  const conversations = conversationData?.conversations ?? [];
+  const orgs = orgData?.organizations ?? [];
+  const scenes = sceneData?.scenes ?? [];
+  const agents = agentData?.agents ?? [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
@@ -37,14 +66,14 @@ function HomeContent() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h1 style={{ fontSize: "var(--font-size-xl)", marginBottom: "var(--space-xs)" }}>
-              Welcome, {user?.display_name ?? "User"}
+              欢迎，{user?.display_name ?? "用户"}
             </h1>
             <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
               {user?.email}
             </p>
           </div>
-          {orgs && orgs.length > 0 && (
-            <StatusBadge label={`${orgs.length} org${orgs.length > 1 ? "s" : ""}`} variant="info" />
+          {orgs.length > 0 && (
+            <StatusBadge label={`${orgs.length} 个组织`} variant="info" />
           )}
         </div>
       </div>
@@ -53,14 +82,14 @@ function HomeContent() {
         {/* Recent conversations */}
         <div className="card">
           <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>
-            Recent Conversations
+            最近会话
           </h2>
-          {convLoading && <LoadingState message="Loading conversations..." />}
-          {convError && <ErrorState message="Failed to load conversations." requestId={null} />}
-          {conversations && conversations.length === 0 && (
-            <EmptyState title="No conversations" description="Start a conversation to see it here." />
+          {convLoading && <LoadingState message="正在加载会话..." />}
+          {convError && <ErrorState message="加载会话失败。" requestId={null} />}
+          {!convLoading && conversations.length === 0 && (
+            <EmptyState title="暂无会话" description="发起会话后会显示在这里。" />
           )}
-          {conversations && conversations.length > 0 && (
+          {conversations.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
               {conversations.slice(0, 5).map((conv) => (
                 <Link
@@ -76,15 +105,15 @@ function HomeContent() {
                   }}
                 >
                   <span style={{ fontWeight: "var(--font-weight-medium)", fontSize: "var(--font-size-sm)" }}>
-                    {conv.title}
+                    {conv.title || "未命名会话"}
                   </span>
                   {conv.unread_count && conv.unread_count > 0 ? (
-                    <StatusBadge label={`${conv.unread_count} unread`} variant="warning" />
+                    <StatusBadge label={`${conv.unread_count} 条未读`} variant="warning" />
                   ) : null}
                 </Link>
               ))}
-              <Link href="/messages" style={{ fontSize: "var(--font-size-sm)", marginTop: "var(--space-xs)" }}>
-                View all →
+              <Link href="/conversations" style={{ fontSize: "var(--font-size-sm)", marginTop: "var(--space-xs)" }}>
+                查看全部 →
               </Link>
             </div>
           )}
@@ -93,14 +122,14 @@ function HomeContent() {
         {/* Active scenes */}
         <div className="card">
           <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>
-            Active Scenes
+            进行中的场景
           </h2>
-          {sceneLoading && <LoadingState message="Loading scenes..." />}
-          {sceneError && <ErrorState message="Failed to load scenes." />}
-          {scenes && scenes.length === 0 && (
-            <EmptyState title="No active scenes" description="Start a scene from the Scenes page." />
+          {sceneLoading && <LoadingState message="正在加载场景..." />}
+          {sceneError && <ErrorState message="加载场景失败。" />}
+          {!sceneLoading && scenes.length === 0 && (
+            <EmptyState title="暂无进行中的场景" description="可以从场景页发起新场景。" />
           )}
-          {scenes && scenes.length > 0 && (
+          {scenes.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
               {scenes.map((scene) => (
                 <Link
@@ -116,7 +145,7 @@ function HomeContent() {
                   }}
                 >
                   <span style={{ fontWeight: "var(--font-weight-medium)", fontSize: "var(--font-size-sm)" }}>
-                    {scene.title}
+                    {scene.title ?? scene.name ?? "未命名场景"}
                   </span>
                   <StatusBadge label={scene.status} variant="info" />
                 </Link>
@@ -124,21 +153,21 @@ function HomeContent() {
             </div>
           )}
           <Link href="/scenes" style={{ fontSize: "var(--font-size-sm)", display: "inline-block", marginTop: "var(--space-sm)" }}>
-            Browse scenes →
+            浏览场景 →
           </Link>
         </div>
 
-        {/* Agents */}
+        {/* 智能体 */}
         <div className="card">
           <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>
-            Your Agents
+            你的智能体
           </h2>
-          {agentLoading && <LoadingState message="Loading agents..." />}
-          {agentError && <ErrorState message="Failed to load agents." />}
-          {agents && agents.length === 0 && (
-            <EmptyState title="No agents" description="Your personal agent will appear here." />
+          {agentLoading && <LoadingState message="正在加载智能体..." />}
+          {agentError && <ErrorState message="加载智能体失败。" />}
+          {!agentLoading && agents.length === 0 && (
+            <EmptyState title="暂无智能体" description="你的个人智能体会显示在这里。" />
           )}
-          {agents && agents.length > 0 && (
+          {agents.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
               {agents.map((agent) => (
                 <div
@@ -160,18 +189,18 @@ function HomeContent() {
             </div>
           )}
           <Link href="/agents" style={{ fontSize: "var(--font-size-sm)", display: "inline-block", marginTop: "var(--space-sm)" }}>
-            Manage agents →
+            管理智能体 →
           </Link>
         </div>
 
         {/* Privacy reminder */}
         <div className="card" style={{ borderColor: "var(--color-privacy)", background: "var(--color-privacy-light)" }}>
           <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-sm)", color: "var(--color-privacy)" }}>
-            Privacy Reminder
+            隐私提醒
           </h2>
           <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-primary)", lineHeight: "var(--line-height-relaxed)" }}>
-            Your private preferences are encrypted and only visible to you. Other members only see aggregated results.
-            Manage your data in the <Link href="/memory">Memory Center</Link> or <Link href="/preferences/private">Private Preferences</Link>.
+            你的私密偏好会被加密，且仅你本人可见。其他成员只能看到聚合结果。
+            你可以在 <Link href="/memory">记忆中心</Link> 或 <Link href="/preferences/private">私密偏好</Link> 管理自己的数据。
           </p>
         </div>
       </div>

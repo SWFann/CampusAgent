@@ -109,6 +109,8 @@ CampusAgent/
 - [Release Notes (RC1)](docs/development/P13-RELEASE-NOTES.md)
 - [RC Checklist](docs/development/P13-RC-CHECKLIST.md)
 - [演示 Runbook](docs/development/P13-DEMO-RUNBOOK.md)
+- [公网演示部署计划](docs/development/DEPLOYMENT_PUBLIC_DEMO_PLAN.md)
+- [宿舍聚餐群聊化计划](docs/development/DORM_DINNER_CHAT_SCENE_REDESIGN_PLAN.md)
 - [验收证据](docs/development/P13-ACCEPTANCE-EVIDENCE.md)
 - [恢复操作手册](docs/development/P12-RECOVERY-RUNBOOK.md)
 
@@ -152,6 +154,48 @@ conda deactivate
 详细说明请参阅 [Conda 环境文档](docs/development/CONDA_ENV.md)。
 
 ## 快速开始
+
+### 一键启动（推荐）
+
+Linux / WSL / macOS：
+
+```bash
+cd /root/CampusAgent
+./scripts/start.sh
+```
+
+Windows PowerShell：
+
+```powershell
+cd C:\path\to\CampusAgent
+.\scripts\start.ps1
+```
+
+启动脚本会自动检测 Docker：
+
+- Docker 可用：启动 PostgreSQL、Redis、Mock Model，迁移数据库并种子 demo 数据。
+- Docker 不可用：自动使用 SQLite fallback，仍可打开网站和 API。
+
+启动后访问：
+
+```text
+Web:      http://localhost:3000
+API:      http://localhost:8000
+API Docs: http://localhost:8000/docs
+```
+
+如果默认端口已被占用，脚本会自动选择下一个可用端口，并在终端输出实际访问地址。
+
+更多参数见 [One-Click Start](docs/development/ONE_CLICK_START.md)。
+
+### 公网演示
+
+如果需要让同学通过公网参与真实投票，可以选择：
+
+- 快速演示：Cloudflare Tunnel / Tailscale Funnel 暴露本机 `web` 和 `api`。
+- 稳定演示：VPS + Docker Compose + Caddy 自动 HTTPS。
+
+部署前阅读 [公网演示部署计划](docs/development/DEPLOYMENT_PUBLIC_DEMO_PLAN.md)。项目提供 `compose.public-demo.yaml`、`infra/caddy/Caddyfile.public-demo.example` 和 `scripts/check_public_demo.sh` 用于生产演示配置检查。
 
 ### 方式 A：Docker 可用时（完整环境）
 

@@ -50,21 +50,21 @@ function DinnerContent() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ fontSize: "var(--font-size-xl)" }}>Dorm Dinner</h1>
+        <h1 style={{ fontSize: "var(--font-size-xl)" }}>宿舍聚餐</h1>
         <Link href="/scenes/dinner/result" className="btn">
-          View Results →
+          查看结果 →
         </Link>
       </div>
 
-      {loading && <LoadingState message="Loading scene..." />}
-      {error && <ErrorState message="Failed to load scene." />}
+      {loading && <LoadingState message="正在加载场景..." />}
+      {error && <ErrorState message="加载场景失败。" />}
       {scene && (
         <>
           <div className="card">
             <div style={{ display: "flex", gap: "var(--space-md)", alignItems: "center" }}>
               <StatusBadge label={scene.status} variant="info" />
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                {scene.participant_count} participant{scene.participant_count !== 1 ? "s" : ""}
+                {scene.participant_count} 名参与者
               </span>
             </div>
           </div>
@@ -72,45 +72,45 @@ function DinnerContent() {
           {scene.has_submitted ? (
             <div className="card" style={{ borderColor: "var(--color-success)", background: "var(--color-success-light)" }}>
               <p style={{ color: "var(--color-success)", fontWeight: "var(--font-weight-medium)" }}>
-                ✓ Your preferences have been submitted.
+                ✓ 你的偏好已提交。
               </p>
               <p style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: "var(--space-xs)" }}>
-                Check the <Link href="/scenes/dinner/result">results page</Link> for aggregated recommendations.
+                可前往 <Link href="/scenes/dinner/result">结果页</Link> 查看聚合推荐。
               </p>
             </div>
           ) : submitStatus === "success" ? (
             <div className="card" style={{ borderColor: "var(--color-success)", background: "var(--color-success-light)" }}>
               <p style={{ color: "var(--color-success)", fontWeight: "var(--font-weight-medium)" }}>
-                ✓ Preferences submitted successfully.
+                ✓ 偏好已提交成功。
               </p>
             </div>
           ) : (
             <div className="card">
               {/* Privacy notice MUST appear before input fields */}
-              <PrivacyNotice title="Private Preference Submission">
+              <PrivacyNotice title="私密偏好提交">
                 <p style={{ marginBottom: "var(--space-xs)" }}>
-                  &#8226; <strong>Visibility:</strong> Only you can see your raw preferences. Other members only see aggregated results.
+                  &#8226; <strong>可见性：</strong> 只有你可以看到原始偏好，其他成员只能看到聚合结果。
                 </p>
                 <p style={{ marginBottom: "var(--space-xs)" }}>
-                  &#8226; <strong>Purpose:</strong> Used only for restaurant recommendation matching.
+                  &#8226; <strong>使用目的：</strong> 仅用于餐厅推荐匹配。
                 </p>
                 <p style={{ marginBottom: "var(--space-xs)" }}>
-                  &#8226; <strong>Retention:</strong> Deleted after the scene ends, or within 24 hours at most.
+                  &#8226; <strong>保留期限：</strong> 场景结束后删除，最长不超过 24 小时。
                 </p>
                 <p>
-                  &#8226; <strong>Deletion:</strong> You can delete your submission at any time before the scene ends.
+                  &#8226; <strong>删除：</strong> 你可以在场景结束前随时删除自己的提交。
                 </p>
               </PrivacyNotice>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
                 <div>
                   <label htmlFor="budget" style={{ display: "block", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-xs)", fontWeight: "var(--font-weight-medium)" }}>
-                    Budget Range (CNY)
+                    预算范围（元）
                   </label>
                   <input
                     id="budget"
                     className="input"
-                    placeholder="e.g. 20-50"
+                    placeholder="例如：20-50"
                     value={budget}
                     onChange={(e) => setBudget(e.target.value)}
                   />
@@ -118,10 +118,10 @@ function DinnerContent() {
 
                 <div>
                   <label style={{ display: "block", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-xs)", fontWeight: "var(--font-weight-medium)" }}>
-                    Dietary Restrictions
+                    饮食限制
                   </label>
                   <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap" }}>
-                    {["Vegetarian", "Halal", "No Spice", "Gluten Free", "None"].map((d) => (
+                    {["素食", "清真", "不吃辣", "无麸质", "无"].map((d) => (
                       <label key={d} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", fontSize: "var(--font-size-sm)" }}>
                         <input
                           type="checkbox"
@@ -139,7 +139,7 @@ function DinnerContent() {
 
                 <div>
                   <label htmlFor="time" style={{ display: "block", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-xs)", fontWeight: "var(--font-weight-medium)" }}>
-                    Preferred Time
+                    偏好时间
                   </label>
                   <select
                     id="time"
@@ -147,7 +147,7 @@ function DinnerContent() {
                     value={timeSlot}
                     onChange={(e) => setTimeSlot(e.target.value)}
                   >
-                    <option value="">Select a time...</option>
+                    <option value="">请选择时间...</option>
                     <option value="17:00">17:00 - 18:00</option>
                     <option value="18:00">18:00 - 19:00</option>
                     <option value="19:00">19:00 - 20:00</option>
@@ -160,7 +160,7 @@ function DinnerContent() {
                   onClick={handleSubmit}
                   disabled={submitting || (!budget && dietary.length === 0 && !timeSlot)}
                 >
-                  {submitting ? "Submitting..." : "Submit Preferences"}
+                  {submitting ? "提交中..." : "提交偏好"}
                 </button>
               </div>
             </div>

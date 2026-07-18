@@ -17,9 +17,9 @@ import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_API_SRC = _REPO_ROOT / "apps" / "api" / "src"
-if str(_API_SRC) not in sys.path:
-    sys.path.insert(0, str(_API_SRC))
+_API_ROOT = _REPO_ROOT / "apps" / "api"
+if str(_API_ROOT) not in sys.path:
+    sys.path.insert(0, str(_API_ROOT))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,10 +31,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    from config import settings  # type: ignore[import-not-found]
-    from db.session import create_engine_from_settings, create_sessionmaker  # type: ignore[import-not-found]
-    from demo.reset import reset_demo  # type: ignore[import-not-found]
-    from demo.security import DemoResetForbiddenError  # type: ignore[import-not-found]
+    from src.config import settings
+    from src.db.session import create_engine_from_settings, create_sessionmaker
+    from src.demo.reset import reset_demo
+    from src.demo.security import DemoResetForbiddenError
 
     try:
         engine = create_engine_from_settings(settings)

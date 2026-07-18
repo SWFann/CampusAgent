@@ -12,14 +12,15 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Home", icon: "🏠" },
-  { href: "/messages", label: "Messages", icon: "💬" },
-  { href: "/organizations", label: "Organizations", icon: "🏫" },
-  { href: "/agents", label: "Agents", icon: "🤖" },
-  { href: "/memory", label: "Memory", icon: "🧠" },
-  { href: "/scenes", label: "Scenes", icon: "🍽️" },
-  { href: "/preferences/private", label: "Private Prefs", icon: "🔒" },
-  { href: "/admin", label: "Admin", icon: "⚙️", adminOnly: true },
+  { href: "/", label: "首页", icon: "🏠" },
+  { href: "/conversations", label: "消息", icon: "💬" },
+  { href: "/contacts", label: "联系人", icon: "👥" },
+  { href: "/organizations", label: "组织", icon: "🏫" },
+  { href: "/agents", label: "智能体", icon: "🤖" },
+  { href: "/memory", label: "记忆中心", icon: "🧠" },
+  { href: "/scenes", label: "场景", icon: "🍽️" },
+  { href: "/preferences/private", label: "私密偏好", icon: "🔒" },
+  { href: "/admin", label: "管理", icon: "⚙️", adminOnly: true },
 ];
 
 export function NavRail() {
@@ -41,10 +42,10 @@ export function NavRail() {
         borderRight: "1px solid var(--color-border)",
         background: "var(--color-surface)",
       }}
-      aria-label="Main navigation"
+      aria-label="主导航"
     >
       <div style={{ padding: "var(--space-sm) var(--space-md)", marginBottom: "var(--space-md)" }}>
-        <strong style={{ fontSize: "var(--font-size-lg)" }}>CampusAgent</strong>
+        <strong style={{ fontSize: "var(--font-size-lg)" }}>校园智能体</strong>
       </div>
       {items.map((item) => {
         const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -75,7 +76,7 @@ export function NavRail() {
       {user && (
         <div style={{ marginTop: "auto", padding: "var(--space-sm) var(--space-md)" }}>
           <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-            Signed in as
+            当前登录
           </span>
           <p style={{ fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-medium)" }}>
             {user.display_name}

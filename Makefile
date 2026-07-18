@@ -1,4 +1,4 @@
-.PHONY: help dev test lint typecheck build clean install docker-up docker-down docker-logs docker-build docker-ps docker-health db-migrate db-downgrade db-revision validate validate-api validate-web demo-seed demo-reset demo-smoke release-check release-evidence
+.PHONY: help start start-sqlite start-smoke dev test lint typecheck build clean install docker-up docker-down docker-logs docker-build docker-ps docker-health db-migrate db-downgrade db-revision validate validate-api validate-web demo-seed demo-reset demo-smoke release-check release-evidence
 
 # Default target
 .DEFAULT_GOAL := help
@@ -15,6 +15,15 @@ help: ## Show this help message
 	@echo "$(YELLOW)⚠️  重要提示：所有后端命令必须在 CampusAgent Conda 环境中运行$(NC)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"; printf "$(YELLOW)Usage:$(NC) make $(GREEN)<target>$(NC)\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(BLUE)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+start: ## One-click start (auto Docker if available, SQLite fallback otherwise)
+	@./scripts/start.sh
+
+start-sqlite: ## One-click start using SQLite fallback
+	@./scripts/start.sh --mode sqlite
+
+start-smoke: ## Run one-click smoke verification and exit
+	@./scripts/start.sh --smoke
 
 # Development
 dev: ## Start all development services

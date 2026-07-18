@@ -75,6 +75,9 @@ class Settings(BaseSettings):
 
     # Model Gateway
     MODEL_GATEWAY_BASE_URL: str = "http://localhost:8001"
+    MODEL_GATEWAY_MODEL: str = "step-3.7-flash"
+    MODEL_GATEWAY_TIMEOUT_MS: int = 30000
+    MODEL_GATEWAY_IS_EXTERNAL: bool = True
     MODEL_GATEWAY_API_KEY: SecretStr = SecretStr("")
 
     # Logging
@@ -109,6 +112,18 @@ class Settings(BaseSettings):
                     "MODEL_GATEWAY_API_KEY must be non-empty when "
                     "ENABLE_EXTERNAL_MODEL is True"
                 )
+            if not self.MODEL_GATEWAY_BASE_URL.strip():
+                raise ValueError(
+                    "MODEL_GATEWAY_BASE_URL must be non-empty when "
+                    "ENABLE_EXTERNAL_MODEL is True"
+                )
+            if not self.MODEL_GATEWAY_MODEL.strip():
+                raise ValueError(
+                    "MODEL_GATEWAY_MODEL must be non-empty when "
+                    "ENABLE_EXTERNAL_MODEL is True"
+                )
+            if self.MODEL_GATEWAY_TIMEOUT_MS <= 0:
+                raise ValueError("MODEL_GATEWAY_TIMEOUT_MS must be positive")
 
         # --- Production-only checks ---
         if self.APP_ENV != AppEnv.PRODUCTION:
@@ -191,6 +206,9 @@ class Settings(BaseSettings):
             "APP_SECRET",
             "FIELD_ENCRYPTION_KEY",
             "MODEL_GATEWAY_API_KEY",
+            "MODEL_GATEWAY_MODEL",
+            "MODEL_GATEWAY_TIMEOUT_MS",
+            "MODEL_GATEWAY_IS_EXTERNAL",
         )
         for field in secret_fields:
             if field in data:

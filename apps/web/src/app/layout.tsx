@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'CampusAgent',
-  description: 'Privacy-first, agent-native campus communication platform',
+  title: '校园智能体',
+  description: '隐私优先的校园智能协作平台',
 }
 
 export default function RootLayout({

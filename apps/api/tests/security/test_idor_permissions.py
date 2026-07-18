@@ -136,7 +136,7 @@ class TestCrossMemoryIdor:
     def _create_memory(self, client: TestClient, creds: dict[str, str]) -> str:
         set_auth_cookies(client, creds)
         resp = client.post(
-            "/memories",
+            "/api/v1/memories",
             json={
                 "category": "PREFERENCE",
                 "content": "private content for idor",
@@ -157,7 +157,7 @@ class TestCrossMemoryIdor:
             db_client, email="idor_mem_intruder@example.edu", student_no="20263021"
         )
         set_auth_cookies(db_client, intruder)
-        resp = db_client.get(f"/memories/{mem_id}")
+        resp = db_client.get(f"/api/v1/memories/{mem_id}")
         assert resp.status_code in (403, 404)
 
     def test_non_owner_cannot_patch_memory(self, db_client: TestClient):
@@ -171,7 +171,7 @@ class TestCrossMemoryIdor:
         )
         set_auth_cookies(db_client, intruder)
         resp = db_client.patch(
-            f"/memories/{mem_id}",
+            f"/api/v1/memories/{mem_id}",
             json={"content": "hijacked"},
             headers=auth_headers(intruder["csrf_token"]),
         )
@@ -188,7 +188,7 @@ class TestCrossMemoryIdor:
         )
         set_auth_cookies(db_client, intruder)
         resp = db_client.delete(
-            f"/memories/{mem_id}",
+            f"/api/v1/memories/{mem_id}",
             headers=auth_headers(intruder["csrf_token"]),
         )
         assert resp.status_code in (403, 404)

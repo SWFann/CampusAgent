@@ -26,7 +26,7 @@ function mockAuthenticated() {
         status: 200,
         json: async () => ({
           success: true,
-          data: { id: '1', email: 'test@test.com', display_name: 'Test User', global_role: 'USER' },
+          data: { id: '1', email: 'test@test.com', display_name: '测试用户', global_role: 'USER' },
         }),
       })
     }
@@ -51,7 +51,7 @@ describe('HomePage', () => {
     mockAuthenticated()
     render(<HomePage />)
     await waitFor(() => {
-      expect(screen.getByText(/Welcome/)).toBeInTheDocument()
+      expect(screen.getByText(/欢迎/)).toBeInTheDocument()
     })
   })
 
@@ -60,7 +60,7 @@ describe('HomePage', () => {
     render(<HomePage />)
     // Wait for auth to load and page to render
     await waitFor(() => {
-      expect(screen.getByText(/Welcome/)).toBeInTheDocument()
+      expect(screen.getByText(/欢迎/)).toBeInTheDocument()
     })
   })
 })

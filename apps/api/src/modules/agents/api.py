@@ -14,7 +14,7 @@ from ..auth.dependencies import get_current_user
 from ..users.models import User
 from . import service
 
-router = APIRouter(prefix="/agents", tags=["agents"])
+router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
 
 
 @router.get("/me")

@@ -186,7 +186,10 @@ export class RealtimeClient {
 
   /** WebSocket URL derived from API origin. */
   private getWsUrl(): string {
-    const apiOrigin = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+    const configuredOrigin = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+    const apiOrigin = configuredOrigin || (
+      typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"
+    );
     const wsUrl = apiOrigin.replace(/^http/, "ws");
     return `${wsUrl}/api/v1/ws`;
   }

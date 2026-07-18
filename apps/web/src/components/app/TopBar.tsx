@@ -44,9 +44,9 @@ export function TopBar() {
         <button
           className="btn btn-sm"
           onClick={handleLogout}
-          aria-label="Logout"
+          aria-label="退出登录"
         >
-          Logout
+          退出登录
         </button>
       </div>
     </header>

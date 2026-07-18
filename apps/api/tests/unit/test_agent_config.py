@@ -92,10 +92,14 @@ class TestAgentConfig:
         assert result["type"] == "PERSONAL"
         assert result["owner_user_id"] == str(owner.id)
 
-    def test_get_my_agent_not_found(self, test_db_session: Session, owner: User) -> None:
-        """If no agent exists, raises AgentNotFoundError."""
-        with pytest.raises(AgentNotFoundError):
-            get_my_agent(owner, test_db_session)
+    def test_get_my_agent_auto_creates_when_missing(
+        self, test_db_session: Session, owner: User
+    ) -> None:
+        """If no agent exists, the service creates the user's personal agent."""
+        result = get_my_agent(owner, test_db_session)
+
+        assert result["type"] == "PERSONAL"
+        assert result["owner_user_id"] == str(owner.id)
 
     def test_get_agent_by_id_owner(
         self, test_db_session: Session, owner: User, owner_agent: Agent

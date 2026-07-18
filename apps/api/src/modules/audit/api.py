@@ -12,7 +12,7 @@ from ..auth.dependencies import get_current_user
 from ..users.models import User
 from . import service
 
-router = APIRouter(prefix="/audit", tags=["audit"])
+router = APIRouter(prefix="/api/v1/audit", tags=["audit"])
 
 
 @router.get("/me")

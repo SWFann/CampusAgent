@@ -15,6 +15,8 @@ from src.main import create_app
 # Helpers
 # ---------------------------------------------------------------------------
 
+UNREACHABLE_POSTGRES_URL = "postgresql://postgres:postgres@127.0.0.1:1/campus_agent"
+
 
 def _make_settings(**overrides: str) -> Settings:
     """Create Settings without reading a .env file, applying env overrides."""
@@ -94,9 +96,7 @@ class TestLifespanWithPostgresqlUrl:
 
     def test_lifespan_postgresql_health_live_ok(self) -> None:
         """``/health/live`` must return 200 inside the lifespan."""
-        s = _make_settings(
-            DATABASE_URL="postgresql://postgres:postgres@localhost:5432/campus_agent",
-        )
+        s = _make_settings(DATABASE_URL=UNREACHABLE_POSTGRES_URL)
         app = create_app(s)
         with TestClient(app) as client:
             resp = client.get("/health/live")
@@ -106,9 +106,7 @@ class TestLifespanWithPostgresqlUrl:
 
     def test_lifespan_postgresql_health_ready_degraded(self) -> None:
         """``/health/ready`` must return degraded when Postgres is unreachable."""
-        s = _make_settings(
-            DATABASE_URL="postgresql://postgres:postgres@localhost:5432/campus_agent",
-        )
+        s = _make_settings(DATABASE_URL=UNREACHABLE_POSTGRES_URL)
         app = create_app(s)
         with TestClient(app) as client:
             resp = client.get("/health/ready")
@@ -117,10 +115,9 @@ class TestLifespanWithPostgresqlUrl:
             assert body["status"] == "degraded"
             assert body["checks"]["database"] == "unavailable"
 
-    def test_lifespan_default_postgresql_url(self) -> None:
-        """The default Settings DATABASE_URL is postgresql:// and must not crash."""
-        # Use the default Settings instance — which has a postgresql:// URL.
-        s = _make_settings()
+    def test_lifespan_unreachable_postgresql_url(self) -> None:
+        """An unreachable postgresql:// URL must not crash the lifespan."""
+        s = _make_settings(DATABASE_URL=UNREACHABLE_POSTGRES_URL)
         assert s.DATABASE_URL.startswith("postgresql://")
         app = create_app(s)
         with TestClient(app) as client:
@@ -131,3 +128,47 @@ class TestLifespanWithPostgresqlUrl:
             ready_body = ready.json()
             assert ready_body["status"] == "degraded"
             assert ready_body["checks"]["database"] == "unavailable"
+
+
+class TestDevelopmentCors:
+    """Browser-based local development must allow the Next.js dev server
+    to call the API even when the one-click launcher shifts ports.
+    """
+
+    def test_development_allows_localhost_origin_with_credentials(self) -> None:
+        s = _make_settings(APP_ENV="development", DATABASE_URL="sqlite:///:memory:")
+        app = create_app(s)
+
+        with TestClient(app) as client:
+            resp = client.options(
+                "/api/v1/auth/login",
+                headers={
+                    "Origin": "http://localhost:3001",
+                    "Access-Control-Request-Method": "POST",
+                    "Access-Control-Request-Headers": "content-type,x-csrf-token",
+                },
+            )
+
+        assert resp.status_code == 200
+        assert resp.headers["access-control-allow-origin"] == "http://localhost:3001"
+        assert resp.headers["access-control-allow-credentials"] == "true"
+
+    def test_production_does_not_enable_localhost_cors_by_default(self) -> None:
+        s = _make_settings(
+            APP_ENV="production",
+            APP_SECRET="x" * 48,
+            FIELD_ENCRYPTION_KEY="y" * 48,
+            DATABASE_URL="sqlite:///:memory:",
+        )
+        app = create_app(s)
+
+        with TestClient(app) as client:
+            resp = client.options(
+                "/api/v1/auth/login",
+                headers={
+                    "Origin": "http://localhost:3001",
+                    "Access-Control-Request-Method": "POST",
+                },
+            )
+
+        assert "access-control-allow-origin" not in resp.headers

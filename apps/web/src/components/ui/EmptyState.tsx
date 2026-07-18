@@ -7,7 +7,7 @@ import { ReactNode } from "react";
  * Shows an icon, title, and optional description/action.
  */
 export function EmptyState({
-  title = "No data",
+  title = "暂无数据",
   description,
   action,
   icon,

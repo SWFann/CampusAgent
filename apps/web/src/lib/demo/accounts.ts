@@ -42,15 +42,15 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   {
     key: "admin",
     email: "demo_admin@example.com",
-    display_name: "Demo Admin",
+    display_name: "演示管理员",
     role: "SYSTEM_ADMIN",
-    description: "管理员 — 可访问管理后台与 demo 重置接口",
+    description: "管理员 — 可访问管理后台与演示重置接口",
     can_login: true,
   },
   {
     key: "alice",
     email: "demo_alice@example.com",
-    display_name: "Alice Chen",
+    display_name: "陈同学",
     role: "STUDENT",
     description: "学生用户 — 聚餐场景参与者",
     can_login: true,
@@ -58,7 +58,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   {
     key: "bob",
     email: "demo_bob@example.com",
-    display_name: "Bob Lin",
+    display_name: "林同学",
     role: "STUDENT",
     description: "学生用户 — 聚餐场景参与者",
     can_login: true,
@@ -66,7 +66,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   {
     key: "carol",
     email: "demo_carol@example.com",
-    display_name: "Carol Wang",
+    display_name: "王同学",
     role: "STUDENT",
     description: "学生用户 — 聚餐场景参与者",
     can_login: true,
@@ -74,7 +74,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   {
     key: "deleted",
     email: "demo_deleted@example.com",
-    display_name: "Deleted Demo User",
+    display_name: "已删除演示用户",
     role: "STUDENT",
     description: "软删除用户 — 用于演示登录失败场景",
     can_login: false,

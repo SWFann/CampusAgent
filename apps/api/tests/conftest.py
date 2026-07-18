@@ -38,6 +38,7 @@ from src.modules.audit.models import AuditLog  # noqa: E402, F401
 # Import all ORM models so that Base.metadata.create_all() registers them.
 # This must come after importing Base and before any fixture uses it.
 from src.modules.auth.models import AuthSession, RefreshToken  # noqa: E402, F401
+from src.modules.contacts.models import ContactRelationship  # noqa: E402, F401
 from src.modules.conversations.models import (  # noqa: E402, F401
     Conversation,
     ConversationParticipant,

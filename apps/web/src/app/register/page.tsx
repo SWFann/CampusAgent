@@ -1,15 +1,16 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { register } from "@/lib/api";
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { register } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [studentNo, setStudentNo] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [studentNo, setStudentNo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -26,94 +27,114 @@ export default function RegisterPage() {
         student_no: studentNo,
       });
       if (result.success) {
-        router.push("/");
+        router.push('/');
       } else {
-        setError(result.error?.message ?? "注册失败");
+        setError(result.error?.message ?? '注册失败');
       }
     } catch {
-      setError("网络错误，请重试");
+      setError(
+        '无法连接后端服务。请确认终端里打印的 API 地址正在运行，并重新打开对应的 Web 地址。'
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        <h1 className="mb-6 text-center text-2xl font-bold text-gray-900">注册 CampusAgent</h1>
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-lg bg-white p-6 shadow-md">
+    <main className="auth-page">
+      <section className="auth-intro" aria-label="校园智能体注册">
+        <div className="auth-kicker">加入校园智能体</div>
+        <h1 className="auth-title">把校园身份变成协作入口。</h1>
+        <p className="auth-copy">
+          创建账号后，你可以加入组织、管理个人资料，并在受控边界内使用智能体辅助校园沟通。
+        </p>
+        <div className="auth-points" aria-label="注册后能力">
+          <div className="auth-point">
+            <strong>真实身份</strong>
+            <span>用邮箱、学号和展示名建立清晰的校园身份。</span>
+          </div>
+          <div className="auth-point">
+            <strong>组织连接</strong>
+            <span>注册后可浏览并加入校园组织空间。</span>
+          </div>
+          <div className="auth-point">
+            <strong>可控记忆</strong>
+            <span>个人资料与偏好会按隐私策略受控使用。</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="auth-panel-wrap" aria-label="注册表单">
+        <form onSubmit={handleSubmit} className="auth-panel auth-form">
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
-              邮箱
-            </label>
+            <h1>创建账号</h1>
+            <p className="auth-panel-subtitle">填写基础身份信息即可进入校园智能体。</p>
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="email">邮箱</label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="input"
               placeholder="student@example.edu"
             />
           </div>
-          <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
-              密码
-            </label>
+
+          <div className="form-field">
+            <label htmlFor="password">密码</label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="input"
               placeholder="至少8个字符，含字母和数字"
             />
+            <span className="form-help">建议使用 12 位以上密码。</span>
           </div>
-          <div>
-            <label htmlFor="displayName" className="mb-1 block text-sm font-medium text-gray-700">
-              显示名称
-            </label>
+
+          <div className="form-field">
+            <label htmlFor="displayName">显示名称</label>
             <input
               id="displayName"
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="input"
               placeholder="张三"
             />
           </div>
-          <div>
-            <label htmlFor="studentNo" className="mb-1 block text-sm font-medium text-gray-700">
-              学号
-            </label>
+
+          <div className="form-field">
+            <label htmlFor="studentNo">学号</label>
             <input
               id="studentNo"
               type="text"
               value={studentNo}
               onChange={(e) => setStudentNo(e.target.value)}
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="input"
               placeholder="20260001"
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-          >
-            {loading ? "注册中..." : "注册"}
+
+          {error && <p className="auth-error">{error}</p>}
+
+          <button type="submit" disabled={loading} className="btn btn-primary">
+            {loading ? '注册中...' : '注册'}
           </button>
-          <p className="text-center text-sm text-gray-500">
-            已有账号？{" "}
-            <a href="/login" className="text-blue-600 hover:underline">
-              登录
-            </a>
+
+          <p className="auth-footer">
+            已有账号？ <Link href="/login">登录</Link>
           </p>
         </form>
-      </div>
+      </section>
     </main>
   );
 }

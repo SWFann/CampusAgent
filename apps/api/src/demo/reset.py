@@ -25,6 +25,7 @@ from ..config import Settings
 from ..modules.agents.models import Agent, AgentRun
 from ..modules.audit.models import AuditLog
 from ..modules.auth.models import AuthSession, RefreshToken
+from ..modules.contacts.models import ContactRelationship
 from ..modules.conversations.models import (
     Conversation,
     ConversationParticipant,
@@ -41,7 +42,6 @@ from ..modules.scenes.models import (
 )
 from ..modules.users.models import StudentProfile, User
 from .data import (
-    DEMO_CONVERSATION,
     DEMO_ORG_SLUG_SUFFIX,
     DEMO_SCENE_IDEMPOTENCY_KEY,
     demo_emails,
@@ -93,11 +93,59 @@ def _collect_demo_conversation_ids(
 ) -> list[Any]:
     if not demo_user_ids:
         return []
-    stmt = select(Conversation.id).where(
-        (Conversation.title == DEMO_CONVERSATION.title)
-        & (Conversation.created_by.in_(demo_user_ids))
+    created_stmt = select(Conversation.id).where(
+        Conversation.created_by.in_(demo_user_ids)
     )
-    return list(session.execute(stmt).scalars().all())
+    participated_stmt = select(ConversationParticipant.conversation_id).where(
+        ConversationParticipant.participant_user_id.in_(demo_user_ids)
+    )
+    conversation_ids = set(session.execute(created_stmt).scalars().all())
+    conversation_ids.update(session.execute(participated_stmt).scalars().all())
+    return list(conversation_ids)
+
+
+def _delete_scene_graph(session: Session, scene_ids: list[Any]) -> tuple[int, int]:
+    """Delete scene child rows before deleting SceneInstance rows.
+
+    Returns:
+        ``(deleted_preferences, deleted_scenes)``.
+    """
+    if not scene_ids:
+        return 0, 0
+
+    deleted_preferences = _delete_count(
+        session,
+        delete(PrivateSubmission).where(
+            PrivateSubmission.scene_instance_id.in_(scene_ids)
+        ),
+    )
+    session.execute(
+        delete(SceneVote).where(
+            SceneVote.scene_instance_id.in_(scene_ids)
+        )
+    )
+    session.execute(
+        delete(SceneResult).where(
+            SceneResult.scene_instance_id.in_(scene_ids)
+        )
+    )
+    session.execute(
+        delete(SceneCandidate).where(
+            SceneCandidate.scene_instance_id.in_(scene_ids)
+        )
+    )
+    session.execute(
+        delete(SceneParticipant).where(
+            SceneParticipant.scene_instance_id.in_(scene_ids)
+        )
+    )
+    deleted_scenes = _delete_count(
+        session,
+        delete(SceneInstance).where(
+            SceneInstance.id.in_(scene_ids)
+        ),
+    )
+    return deleted_preferences, deleted_scenes
 
 
 def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
@@ -130,41 +178,31 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
     # 1. Scene data (votes, submissions, candidates, results, participants,
     #    instances) for the demo scene.
     if demo_scene_ids:
-        deleted_preferences += _delete_count(
+        preferences_count, scenes_count = _delete_scene_graph(
             session,
-            delete(PrivateSubmission).where(
-                PrivateSubmission.scene_instance_id.in_(demo_scene_ids)
-            ),
+            demo_scene_ids,
         )
-        session.execute(
-            delete(SceneVote).where(
-                SceneVote.scene_instance_id.in_(demo_scene_ids)
-            )
-        )
-        session.execute(
-            delete(SceneCandidate).where(
-                SceneCandidate.scene_instance_id.in_(demo_scene_ids)
-            )
-        )
-        session.execute(
-            delete(SceneResult).where(
-                SceneResult.scene_instance_id.in_(demo_scene_ids)
-            )
-        )
-        session.execute(
-            delete(SceneParticipant).where(
-                SceneParticipant.scene_instance_id.in_(demo_scene_ids)
-            )
-        )
-        deleted_scenes += _delete_count(
-            session,
-            delete(SceneInstance).where(
-                SceneInstance.id.in_(demo_scene_ids)
-            ),
-        )
+        deleted_preferences += preferences_count
+        deleted_scenes += scenes_count
 
     # 2. Conversation data for the demo conversation.
     if demo_conv_ids:
+        # Defensive: also delete any SceneInstance that references these
+        # conversations, in case they weren't caught by demo_scene_ids above
+        # (e.g. missing idempotency_key on prior seed runs).
+        extra_scene_ids = list(
+            session.execute(
+                select(SceneInstance.id).where(
+                    SceneInstance.conversation_id.in_(demo_conv_ids)
+                )
+            ).scalars().all()
+        )
+        preferences_count, scenes_count = _delete_scene_graph(
+            session,
+            extra_scene_ids,
+        )
+        deleted_preferences += preferences_count
+        deleted_scenes += scenes_count
         deleted_messages += _delete_count(
             session,
             delete(Message).where(Message.conversation_id.in_(demo_conv_ids)),
@@ -225,6 +263,12 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
 
     # 7. Refresh tokens and auth sessions for demo users.
     if demo_user_ids:
+        session.execute(
+            delete(ContactRelationship).where(
+                (ContactRelationship.requester_id.in_(demo_user_ids))
+                | (ContactRelationship.addressee_id.in_(demo_user_ids))
+            )
+        )
         deleted_sessions += _delete_count(
             session,
             delete(RefreshToken).where(

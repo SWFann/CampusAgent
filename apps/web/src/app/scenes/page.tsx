@@ -17,34 +17,34 @@ interface SceneInfo {
 const SCENES: SceneInfo[] = [
   {
     key: "dorm_dinner",
-    title: "Dorm Dinner",
-    description: "Negotiate dinner plans with your dorm mates. Submit private preferences and get aggregated restaurant recommendations.",
+    title: "宿舍聚餐",
+    description: "和舍友协商聚餐计划。提交私密偏好后，系统会生成聚合餐厅推荐。",
     status: "available",
-    privacySummary: "Private preferences are encrypted and only used for aggregation. Other members only see aggregated results.",
-    dataTypes: ["Dietary restrictions", "Budget range", "Time preferences", "Location constraints"],
+    privacySummary: "私密偏好会加密保存，仅用于聚合计算。其他成员只能看到聚合结果。",
+    dataTypes: ["饮食限制", "预算范围", "时间偏好", "位置限制"],
   },
   {
     key: "study_group",
-    title: "Study Group",
-    description: "Find study partners based on courses and schedules.",
+    title: "学习小组",
+    description: "根据课程与时间安排寻找合适的学习伙伴。",
     status: "concept",
-    privacySummary: "Course schedules will be used only for matching.",
-    dataTypes: ["Course schedule", "Study preferences"],
+    privacySummary: "课程安排仅用于匹配学习伙伴。",
+    dataTypes: ["课程安排", "学习偏好"],
   },
   {
     key: "room_share",
-    title: "Room Share",
-    description: "Split dorm expenses with roommates.",
+    title: "宿舍分账",
+    description: "和室友一起分摊宿舍开销。",
     status: "concept",
-    privacySummary: "Expense data will be used only for calculation.",
-    dataTypes: ["Expense items", "Payment preferences"],
+    privacySummary: "开销数据仅用于分账计算。",
+    dataTypes: ["开销项目", "支付偏好"],
   },
 ];
 
 function ScenesContent() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
-      <h1 style={{ fontSize: "var(--font-size-xl)" }}>Scenes</h1>
+      <h1 style={{ fontSize: "var(--font-size-xl)" }}>场景</h1>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "var(--space-md)" }}>
         {SCENES.map((scene) => (
@@ -52,7 +52,7 @@ function ScenesContent() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3>{scene.title}</h3>
               <StatusBadge
-                label={scene.status === "available" ? "Available" : "Coming Soon"}
+                label={scene.status === "available" ? "可用" : "即将推出"}
                 variant={scene.status === "available" ? "success" : "default"}
               />
             </div>
@@ -62,7 +62,7 @@ function ScenesContent() {
 
             <div style={{ background: "var(--color-privacy-light)", padding: "var(--space-sm)", borderRadius: "var(--radius-md)" }}>
               <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-privacy)", fontWeight: "var(--font-weight-medium)", marginBottom: "var(--space-xs)" }}>
-                🔒 Privacy
+                🔒 隐私
               </p>
               <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-primary)" }}>
                 {scene.privacySummary}
@@ -71,7 +71,7 @@ function ScenesContent() {
 
             <div>
               <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: "var(--space-xs)" }}>
-                Data used:
+                使用的数据：
               </p>
               <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
                 {scene.dataTypes.map((dt) => (
@@ -81,12 +81,12 @@ function ScenesContent() {
             </div>
 
             {scene.status === "available" ? (
-              <Link href={`/scenes/${scene.key}`} className="btn btn-primary" style={{ marginTop: "var(--space-sm)", textAlign: "center" }}>
-                Enter Scene
+              <Link href={scene.key === "dorm_dinner" ? "/scenes/dinner" : "/scenes"} className="btn btn-primary" style={{ marginTop: "var(--space-sm)", textAlign: "center" }}>
+                进入场景
               </Link>
             ) : (
               <button className="btn" disabled style={{ marginTop: "var(--space-sm)" }}>
-                Coming Soon
+                即将推出
               </button>
             )}
           </div>

@@ -17,12 +17,12 @@ function AdminAuditContent() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
-      <h1 style={{ fontSize: "var(--font-size-xl)" }}>Audit Logs</h1>
+      <h1 style={{ fontSize: "var(--font-size-xl)" }}>审计日志</h1>
 
-      {loading && <LoadingState message="Loading audit logs..." />}
-      {error && <ErrorState message="Failed to load audit logs." />}
+      {loading && <LoadingState message="正在加载审计日志..." />}
+      {error && <ErrorState message="加载审计日志失败。" />}
       {logs && logs.length === 0 && (
-        <EmptyState title="No audit logs" description="Audit logs will appear here as users interact with the system." />
+        <EmptyState title="暂无审计日志" description="用户与系统交互后，审计日志会显示在这里。" />
       )}
       {logs && logs.length > 0 && (
         <div className="card">
@@ -36,7 +36,7 @@ function AdminAuditContent() {
                   </span>
                   {log.purpose && (
                     <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-                      purpose: {log.purpose}
+                      用途：{log.purpose}
                     </span>
                   )}
                 </div>
@@ -57,7 +57,7 @@ function AdminAuditContent() {
         </div>
       )}
       <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-        Audit logs show only metadata: action, resource, result, timestamp, and request_id. No payload content is displayed.
+        审计日志仅显示动作、资源、结果、时间和请求 ID 等元数据，不展示载荷内容。
       </p>
     </div>
   );

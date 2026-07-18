@@ -34,7 +34,9 @@ _SETTINGS_ENV_VARS = [
     "REDIS_CONNECT_TIMEOUT_SECONDS", "DEFAULT_CACHE_TTL_SECONDS",
     "APP_SECRET", "FIELD_ENCRYPTION_KEY",
     "ACCESS_TOKEN_EXPIRE_MINUTES", "REFRESH_TOKEN_EXPIRE_DAYS",
-    "MODEL_GATEWAY_BASE_URL", "MODEL_GATEWAY_API_KEY",
+    "MODEL_GATEWAY_BASE_URL", "MODEL_GATEWAY_MODEL",
+    "MODEL_GATEWAY_TIMEOUT_MS", "MODEL_GATEWAY_IS_EXTERNAL",
+    "MODEL_GATEWAY_API_KEY",
     "LOG_LEVEL", "LOG_PROMPT_CONTENT",
     "ENABLE_EXTERNAL_MODEL", "PRIVATE_SCENE_TTL_HOURS",
 ]
@@ -288,9 +290,21 @@ class TestExternalModelApiKey:
             APP_ENV="test",
             ENABLE_EXTERNAL_MODEL="true",
             MODEL_GATEWAY_API_KEY="some-api-key",
+            MODEL_GATEWAY_BASE_URL="https://api.stepfun.com/v1",
+            MODEL_GATEWAY_MODEL="step-3.7-flash",
         )
         assert s.ENABLE_EXTERNAL_MODEL is True
         assert s.MODEL_GATEWAY_API_KEY.get_secret_value() == "some-api-key"
+        assert s.MODEL_GATEWAY_MODEL == "step-3.7-flash"
+
+    def test_external_model_true_with_empty_model_fails(self) -> None:
+        with pytest.raises(ValidationError, match="MODEL_GATEWAY_MODEL"):
+            _make_settings(
+                APP_ENV="test",
+                ENABLE_EXTERNAL_MODEL="true",
+                MODEL_GATEWAY_API_KEY="some-api-key",
+                MODEL_GATEWAY_MODEL="",
+            )
 
     def test_external_model_false_with_empty_key_succeeds(self) -> None:
         s = _make_settings(
@@ -333,6 +347,9 @@ class TestEnvExampleAlignment:
             "API_V1_PREFIX",
             "NEXT_PUBLIC_API_URL",
             "MODEL_GATEWAY_BASE_URL",
+            "MODEL_GATEWAY_MODEL",
+            "MODEL_GATEWAY_TIMEOUT_MS",
+            "MODEL_GATEWAY_IS_EXTERNAL",
             "MODEL_GATEWAY_API_KEY",
             "LOG_LEVEL",
             "LOG_PROMPT_CONTENT",

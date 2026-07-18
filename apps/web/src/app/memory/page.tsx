@@ -17,19 +17,32 @@ interface MemoryDetail extends MemorySummary {
   consent_expires_at?: string;
 }
 
+interface MemoryListResponse {
+  memories: MemoryDetail[];
+  total: number;
+}
+
+interface AuditLogListResponse {
+  audit_logs: AuditLogEntry[];
+  total: number;
+}
+
 function MemoryContent() {
   const [reloadKey, setReloadKey] = useState(0);
   const [showContent, setShowContent] = useState<string | null>(null);
 
-  const { data: memories, loading, error, reload } = useAsync<MemoryDetail[]>(
+  const { data: memoryData, loading, error, reload } = useAsync<MemoryListResponse>(
     async () => apiGet("/memories"),
     [reloadKey],
   );
 
-  const { data: auditLogs } = useAsync<AuditLogEntry[]>(
+  const { data: auditData } = useAsync<AuditLogListResponse>(
     async () => apiGet("/audit/me", { limit: "20" }),
     [reloadKey],
   );
+
+  const memories = memoryData?.memories ?? [];
+  const auditLogs = auditData?.audit_logs ?? [];
 
   const handleDelete = async (memoryId: string) => {
     await apiDelete(`/memories/${memoryId}`);
@@ -43,17 +56,17 @@ function MemoryContent() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
-      <h1 style={{ fontSize: "var(--font-size-xl)" }}>Memory Center</h1>
+      <h1 style={{ fontSize: "var(--font-size-xl)" }}>记忆中心</h1>
 
       {/* Memory list */}
       <div className="card">
-        <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>Your Memories</h2>
-        {loading && <LoadingState message="Loading memories..." />}
-        {error && <ErrorState message="Failed to load memories." />}
-        {memories && memories.length === 0 && (
-          <EmptyState title="No memories" description="Memories created by your agents will appear here." />
+        <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>你的记忆</h2>
+        {loading && <LoadingState message="正在加载记忆..." />}
+        {error && <ErrorState message="加载记忆失败。" />}
+        {!loading && memories.length === 0 && (
+          <EmptyState title="暂无记忆" description="智能体创建的记忆会显示在这里。" />
         )}
-        {memories && memories.length > 0 && (
+        {memories.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
             {memories.map((mem) => (
               <div
@@ -74,29 +87,29 @@ function MemoryContent() {
                       label={mem.sensitivity_level}
                       variant={mem.sensitivity_level === "HIGH" ? "danger" : mem.sensitivity_level === "MEDIUM" ? "warning" : "default"}
                     />
-                    {mem.is_deleted && <StatusBadge label="Deleted" variant="default" />}
+                    {mem.is_deleted && <StatusBadge label="已删除" variant="default" />}
                   </div>
                   <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-                    Source: {mem.source} | Created: {new Date(mem.created_at).toLocaleDateString()}
-                    {mem.agent_name ? ` | Agent: ${mem.agent_name}` : ""}
+                    来源：{mem.source} ｜ 创建时间：{new Date(mem.created_at).toLocaleDateString()}
+                    {mem.agent_name ? ` ｜ 智能体：${mem.agent_name}` : ""}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: "var(--space-xs)" }}>
                   {mem.consent_status && mem.consent_status !== "revoked" && !mem.is_deleted && (
                     <DangerConfirm
-                      trigger={<button className="btn btn-sm">Revoke Consent</button>}
-                      title="Revoke Consent"
-                      message="Are you sure you want to revoke consent for this memory? Agents will no longer be able to access it."
-                      confirmLabel="Revoke"
+                      trigger={<button className="btn btn-sm">撤销授权</button>}
+                      title="撤销授权"
+                      message="确定撤销此记忆的授权吗？撤销后智能体将无法继续访问。"
+                      confirmLabel="撤销"
                       onConfirm={() => handleRevoke(mem.id)}
                     />
                   )}
                   {!mem.is_deleted && (
                     <DangerConfirm
-                      trigger={<button className="btn btn-sm btn-danger">Delete</button>}
-                      title="Delete Memory"
-                      message="Are you sure you want to delete this memory? This action cannot be undone."
-                      confirmLabel="Delete"
+                      trigger={<button className="btn btn-sm btn-danger">删除</button>}
+                      title="删除记忆"
+                      message="确定删除此记忆吗？此操作不可撤销。"
+                      confirmLabel="删除"
                       onConfirm={() => handleDelete(mem.id)}
                     />
                   )}
@@ -106,15 +119,15 @@ function MemoryContent() {
           </div>
         )}
         <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: "var(--space-sm)" }}>
-          Memory content is not displayed by default. Only metadata is shown.
+          默认不展示记忆正文，仅显示元数据。
         </p>
       </div>
 
       {/* Access log (metadata only) */}
       <div className="card">
-        <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>Recent Access Log</h2>
-        {!auditLogs || auditLogs.length === 0 ? (
-          <EmptyState title="No access logs" description="Access logs will appear here when agents access your memories." />
+        <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>最近访问记录</h2>
+        {auditLogs.length === 0 ? (
+          <EmptyState title="暂无访问记录" description="智能体访问你的记忆后，访问记录会显示在这里。" />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
             {auditLogs.map((log) => (
@@ -130,8 +143,8 @@ function MemoryContent() {
                 }}
               >
                 <span>
-                  {log.action} on {log.resource_type}
-                  {log.purpose ? ` for ${log.purpose}` : ""}
+                  {log.action} 作用于 {log.resource_type}
+                  {log.purpose ? `，用途：${log.purpose}` : ""}
                 </span>
                 <span style={{ color: "var(--color-text-muted)" }}>
                   {new Date(log.created_at).toLocaleString()}
@@ -141,7 +154,7 @@ function MemoryContent() {
           </div>
         )}
         <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: "var(--space-sm)" }}>
-          Only access metadata is shown. No payload content is displayed.
+          这里只展示访问元数据，不展示载荷内容。
         </p>
       </div>
     </div>

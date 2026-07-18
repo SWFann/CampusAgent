@@ -108,7 +108,7 @@ def get_my_agent(user: User, session: Session) -> dict[str, Any]:
     repo = AgentRepository(session)
     agent = repo.get_personal_agent(user.id)
     if agent is None:
-        raise AgentNotFoundError(message="个人智能体不存在")
+        return create_personal_agent(user, session)
     return _agent_to_read(agent, include_private_config=True)
 
 

@@ -60,31 +60,31 @@ function PrivatePreferencesContent() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
-      <h1 style={{ fontSize: "var(--font-size-xl)" }}>Private Preferences</h1>
+      <h1 style={{ fontSize: "var(--font-size-xl)" }}>私密偏好</h1>
 
       {/* Privacy notice MUST appear before input fields */}
-      <PrivacyNotice title="Private Preference Management">
+      <PrivacyNotice title="私密偏好管理">
         <p style={{ marginBottom: "var(--space-xs)" }}>
-          &#8226; <strong>Visibility:</strong> Only you can see your raw preferences. Other members only see aggregated results.
+          &#8226; <strong>可见性：</strong> 只有你可以看到原始偏好，其他成员只能看到聚合结果。
         </p>
         <p style={{ marginBottom: "var(--space-xs)" }}>
-          &#8226; <strong>Purpose:</strong> Used only for scene recommendation algorithms.
+          &#8226; <strong>使用目的：</strong> 仅用于场景推荐算法。
         </p>
         <p style={{ marginBottom: "var(--space-xs)" }}>
-          &#8226; <strong>Retention:</strong> Deleted after the scene ends, or within 24 hours at most.
+          &#8226; <strong>保留期限：</strong> 场景结束后删除，最长不超过 24 小时。
         </p>
         <p>
-          &#8226; <strong>Deletion:</strong> You can delete your submission at any time. Preferences are never stored in browser storage.
+          &#8226; <strong>删除：</strong> 你可以随时删除自己的提交。偏好不会存入浏览器存储。
         </p>
       </PrivacyNotice>
 
       {/* Existing preferences (metadata only, no content) */}
       <div className="card">
-        <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>Submitted Preferences</h2>
-        {loading && <LoadingState message="Loading..." />}
-        {error && <ErrorState message="Failed to load preferences." />}
+        <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>已提交的偏好</h2>
+        {loading && <LoadingState message="加载中..." />}
+        {error && <ErrorState message="加载偏好失败。" />}
         {prefs && prefs.length === 0 && (
-          <EmptyState title="No preferences submitted" description="Submit your preferences using the form below." />
+          <EmptyState title="暂无已提交偏好" description="可使用下方表单提交偏好。" />
         )}
         {prefs && prefs.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
@@ -93,14 +93,14 @@ function PrivatePreferencesContent() {
                 <div>
                   <StatusBadge label={p.scene_key} variant="info" />
                   <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginLeft: "var(--space-sm)" }}>
-                    Submitted: {new Date(p.submitted_at).toLocaleString()}
+                    提交时间：{new Date(p.submitted_at).toLocaleString()}
                   </span>
                 </div>
                 <DangerConfirm
-                  trigger={<button className="btn btn-sm btn-danger">Delete</button>}
-                  title="Delete Preference"
-                  message="Are you sure you want to delete this preference? This action cannot be undone."
-                  confirmLabel="Delete"
+                  trigger={<button className="btn btn-sm btn-danger">删除</button>}
+                  title="删除偏好"
+                  message="确定删除此偏好吗？此操作不可撤销。"
+                  confirmLabel="删除"
                   onConfirm={() => handleDelete(p.id)}
                 />
               </div>
@@ -108,7 +108,7 @@ function PrivatePreferencesContent() {
           </div>
         )}
         <p style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: "var(--space-sm)" }}>
-          Preference content is not displayed for privacy. Only submission metadata is shown.
+          出于隐私保护，不展示偏好正文，只显示提交元数据。
         </p>
       </div>
 
@@ -116,28 +116,28 @@ function PrivatePreferencesContent() {
       {success ? (
         <div className="card" style={{ borderColor: "var(--color-success)", background: "var(--color-success-light)" }}>
           <p style={{ color: "var(--color-success)", fontWeight: "var(--font-weight-medium)" }}>
-            ✓ Preferences submitted successfully. Content is not displayed for privacy.
+            ✓ 偏好已提交成功。出于隐私保护，页面不会展示偏好正文。
           </p>
           <button className="btn" onClick={() => setSuccess(false)} style={{ marginTop: "var(--space-sm)" }}>
-            Submit another
+            继续提交
           </button>
         </div>
       ) : (
         <div className="card">
-          <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>Submit New Preference</h2>
+          <h2 style={{ fontSize: "var(--font-size-lg)", marginBottom: "var(--space-md)" }}>提交新偏好</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
             <div>
               <label htmlFor="pref-budget" style={{ display: "block", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-xs)", fontWeight: "var(--font-weight-medium)" }}>
-                Budget Range (CNY)
+                预算范围（元）
               </label>
-              <input id="pref-budget" className="input" placeholder="e.g. 20-50" value={budget} onChange={(e) => setBudget(e.target.value)} />
+              <input id="pref-budget" className="input" placeholder="例如：20-50" value={budget} onChange={(e) => setBudget(e.target.value)} />
             </div>
             <div>
               <label style={{ display: "block", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-xs)", fontWeight: "var(--font-weight-medium)" }}>
-                Dietary Restrictions
+                饮食限制
               </label>
               <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap" }}>
-                {["Vegetarian", "Halal", "No Spice", "Gluten Free", "None"].map((d) => (
+                {["素食", "清真", "不吃辣", "无麸质", "无"].map((d) => (
                   <label key={d} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", fontSize: "var(--font-size-sm)" }}>
                     <input type="checkbox" checked={dietary.includes(d)} onChange={(e) => { if (e.target.checked) setDietary([...dietary, d]); else setDietary(dietary.filter((x) => x !== d)); }} />
                     {d}
@@ -147,10 +147,10 @@ function PrivatePreferencesContent() {
             </div>
             <div>
               <label htmlFor="pref-time" style={{ display: "block", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-xs)", fontWeight: "var(--font-weight-medium)" }}>
-                Preferred Time
+                偏好时间
               </label>
               <select id="pref-time" className="input" value={timeSlot} onChange={(e) => setTimeSlot(e.target.value)}>
-                <option value="">Select a time...</option>
+                <option value="">请选择时间...</option>
                 <option value="17:00">17:00 - 18:00</option>
                 <option value="18:00">18:00 - 19:00</option>
                 <option value="19:00">19:00 - 20:00</option>
@@ -158,7 +158,7 @@ function PrivatePreferencesContent() {
               </select>
             </div>
             <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting || (!budget && dietary.length === 0 && !timeSlot)}>
-              {submitting ? "Submitting..." : "Submit Preferences"}
+              {submitting ? "提交中..." : "提交偏好"}
             </button>
           </div>
         </div>

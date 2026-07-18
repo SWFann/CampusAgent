@@ -20,6 +20,18 @@ import {
   type RealtimeClient,
 } from "@/lib/realtime";
 import { listMessages as fetchBackfill } from "@/lib/conversations";
+import {
+  getDormDinnerChatStatus,
+  setDormDinnerParticipation,
+  startDormDinnerChat,
+  startDormDinnerDebate,
+  submitDormDinnerPreferences,
+  voteDormDinnerCandidate,
+  closeDormDinnerVote,
+  endDormDinner,
+  requestNextDormDinnerNegotiation,
+  type DormDinnerChatStatus,
+} from "@/lib/dormDinnerChat";
 import { formatDate } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -80,24 +92,24 @@ function WsStatusIndicator() {
 // Scene card placeholder
 // ---------------------------------------------------------------------------
 
-function SceneCardPlaceholder() {
+function SceneCardPlaceholder({ content, onOpen }: { content: string | null; onOpen: () => void }) {
   return (
     <div
       style={{
         padding: 12,
         margin: "8px 0",
-        border: "1px dashed #8b5cf6",
+        border: "1px solid #c4b5fd",
         borderRadius: 8,
         background: "#f5f3ff",
-        textAlign: "center",
       }}
     >
-      <span style={{ fontSize: 14, color: "#7c3aed", fontWeight: 500 }}>
-        🎬 场景卡片占位
+      <span style={{ fontSize: 14, color: "#5b21b6", fontWeight: 600 }}>
+        宿舍聚餐协商
       </span>
-      <p style={{ fontSize: 12, color: "#9ca3af", margin: "4px 0 0 0" }}>
-        场景执行将在后续阶段实现
+      <p style={{ fontSize: 12, color: "#6d28d9", margin: "4px 0 0 0" }}>
+        {content ?? "群聊场景状态已更新"}
       </p>
+      <button className="btn btn-sm" onClick={onOpen} style={{ marginTop: 8 }}>打开投票</button>
     </div>
   );
 }
@@ -109,9 +121,13 @@ function SceneCardPlaceholder() {
 function MessageBubble({
   message,
   currentUserId,
+  senderName,
+  onOpenDinner,
 }: {
   message: Message;
   currentUserId: string | null;
+  senderName: string | null;
+  onOpenDinner: () => void;
 }) {
   const isSelf = message.sender_user_id === currentUserId;
   const isDeleted = message.status === "DELETED";
@@ -119,7 +135,7 @@ function MessageBubble({
   const isSceneCard = message.message_type === "SCENE_CARD";
 
   if (isSceneCard) {
-    return <SceneCardPlaceholder />;
+    return <SceneCardPlaceholder content={message.content} onOpen={onOpenDinner} />;
   }
 
   if (isSystem) {
@@ -159,7 +175,7 @@ function MessageBubble({
       >
         {!isSelf && (
           <div style={{ fontSize: 11, marginBottom: 2, color: "#6b7280", fontWeight: 500 }}>
-            {message.sender_user_id ? message.sender_user_id.slice(0, 8) : "未知"}
+            {senderName ?? "未知成员"}
           </div>
         )}
         <div style={{ wordBreak: "break-word", fontSize: 14 }}>
@@ -181,6 +197,209 @@ function MessageBubble({
         </div>
       </div>
     </div>
+  );
+}
+
+function DormDinnerChatCard({
+  status,
+  maxRounds,
+  setMaxRounds,
+  onStart,
+  onParticipate,
+  onSubmitPreferences,
+  onStartDebate,
+  onVote,
+  onRequestNext,
+  actionLoading,
+  actionError,
+}: {
+  status: DormDinnerChatStatus | null;
+  maxRounds: number;
+  setMaxRounds: (value: number) => void;
+  onStart: (input: { city: string; origin: string; topic: string }) => void;
+  onParticipate: (participate: boolean) => void;
+  onSubmitPreferences: (preferences: Record<string, unknown>) => void;
+  onStartDebate: () => void;
+  onVote: (candidateKey: string) => void;
+  onRequestNext: () => void;
+  actionLoading: boolean;
+  actionError: string | null;
+}) {
+  const hasStarted = status?.scene_id !== null && status?.status !== "NOT_STARTED";
+  const [budgetRange, setBudgetRange] = useState("30-60");
+  const [preferredTime, setPreferredTime] = useState("18:00");
+  const [city, setCity] = useState("");
+  const [origin, setOrigin] = useState("");
+  const [topic, setTopic] = useState("宿舍聚餐");
+  const [notes, setNotes] = useState("");
+  const [dietaryRestrictions, setDietaryRestrictions] = useState<string[]>(["无"]);
+  const dietaryOptions = ["无", "素食", "清真", "不吃辣"];
+  const toggleDietary = (option: string) => {
+    setDietaryRestrictions((current) => {
+      if (option === "无") return ["无"];
+      const withoutNone = current.filter((item) => item !== "无");
+      if (withoutNone.includes(option)) {
+        const next = withoutNone.filter((item) => item !== option);
+        return next.length > 0 ? next : ["无"];
+      }
+      return [...withoutNone, option];
+    });
+  };
+  return (
+    <section style={{ border: "1px solid #c4b5fd", background: "#f5f3ff", borderRadius: 10, padding: 12, marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 16, color: "#5b21b6" }}>宿舍聚餐协商</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6d28d9" }}>
+            群聊内发起，私密偏好仅本人可见，群里只展示进度、公开辩论和候选结果。
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <label style={{ fontSize: 12, color: "#4c1d95" }}>
+            最大轮数
+            <input
+              type="number"
+              min={1}
+              max={8}
+              value={maxRounds}
+              onChange={(e) => setMaxRounds(Number(e.target.value))}
+              style={{ width: 56, marginLeft: 6, padding: 4, border: "1px solid #c4b5fd", borderRadius: 4 }}
+            />
+          </label>
+          <button className="btn btn-sm btn-primary" onClick={() => onStart({ city, origin, topic })} disabled={actionLoading || hasStarted || !city.trim() || !origin.trim()}>
+            {hasStarted ? "已发起" : "发起"}
+          </button>
+        </div>
+      </div>
+
+      {status && (
+        <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+          {!hasStarted && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
+              <label>城市<input aria-label="城市" value={city} onChange={(e) => setCity(e.target.value)} /></label>
+              <label>校区/出发地点<input aria-label="校区/出发地点" value={origin} onChange={(e) => setOrigin(e.target.value)} /></label>
+              <label>聚餐主题<input aria-label="聚餐主题" value={topic} onChange={(e) => setTopic(e.target.value)} /></label>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
+            <span>阶段：{status.phase}</span>
+            <span>参与：{status.joined_count}</span>
+            <span>不参与：{status.skipped_count}</span>
+            <span>已提交：{status.submitted_count}/{status.joined_count}</span>
+            <span>辩论轮数：{status.current_round}/{status.max_rounds}</span>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="btn btn-sm" onClick={() => onParticipate(true)} disabled={actionLoading}>
+              我参与
+            </button>
+            <button className="btn btn-sm" onClick={() => onParticipate(false)} disabled={actionLoading}>
+              我不参与
+            </button>
+            <button className="btn btn-sm btn-primary" onClick={onStartDebate} disabled={actionLoading || !status.ready_for_debate}>
+              开始智能体辩论
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, padding: 8, background: "#fff", borderRadius: 6 }}>
+            <label style={{ fontSize: 12, color: "#4c1d95" }}>
+              预算
+              <select
+                value={budgetRange}
+                onChange={(e) => setBudgetRange(e.target.value)}
+                style={{ display: "block", width: "100%", marginTop: 4, padding: 6, border: "1px solid #ddd6fe", borderRadius: 4 }}
+              >
+                <option value="20-40">20-40 元</option>
+                <option value="30-60">30-60 元</option>
+                <option value="60-100">60-100 元</option>
+              </select>
+            </label>
+            <label style={{ fontSize: 12, color: "#4c1d95" }}>
+              时间
+              <select
+                value={preferredTime}
+                onChange={(e) => setPreferredTime(e.target.value)}
+                style={{ display: "block", width: "100%", marginTop: 4, padding: 6, border: "1px solid #ddd6fe", borderRadius: 4 }}
+              >
+                <option value="17:00">17:00</option>
+                <option value="18:00">18:00</option>
+                <option value="19:00">19:00</option>
+                <option value="20:00">20:00</option>
+              </select>
+            </label>
+            <div style={{ fontSize: 12, color: "#4c1d95" }}>
+              饮食限制
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                {dietaryOptions.map((option) => (
+                  <label key={option} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={dietaryRestrictions.includes(option)}
+                      onChange={() => toggleDietary(option)}
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={() => onSubmitPreferences({
+                budget_range: budgetRange,
+                dietary_restrictions: dietaryRestrictions,
+                preferred_time: preferredTime,
+                notes,
+              })}
+              disabled={actionLoading || status.my_participation === "DECLINED"}
+              style={{ alignSelf: "end" }}
+            >
+              提交我的偏好
+            </button>
+            <label style={{ gridColumn: "1 / -1", fontSize: 12, color: "#4c1d95" }}>
+              补充需求（仅本人和智能体可见）
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} style={{ display: "block", width: "100%" }} />
+            </label>
+          </div>
+
+          {status.debate_turns.length > 0 && (
+            <div style={{ display: "grid", gap: 4 }}>
+              {status.debate_turns.map((turn) => (
+                <p key={turn.round} style={{ margin: 0, fontSize: 12, color: "#4c1d95" }}>
+                  {turn.speaker}：{turn.content}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {status.candidates.length > 0 && (
+            <div style={{ display: "grid", gap: 6 }}>
+              {status.candidates.map((candidate) => (
+                <div key={candidate.candidate_key} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: 8, background: "#fff", borderRadius: 6 }}>
+                  <div>
+                    <strong>{candidate.display_name}</strong>
+                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>{candidate.public_reason}</p>
+                    <p style={{ margin: "2px 0", fontSize: 11 }}>{candidate.public_metadata?.address ?? "地址未核实"} · {candidate.public_metadata?.price_hint ?? "价格未核实"}</p>
+                    {(candidate.public_metadata?.sources ?? []).map((source) => (
+                      <a key={source.url} href={source.url} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 11 }}>{source.title}</a>
+                    ))}
+                    <small>信息可能变化，请到店前确认</small>
+                  </div>
+                  <button className="btn btn-sm" onClick={() => onVote(candidate.candidate_key)} disabled={actionLoading}>
+                    投票
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {status.candidates.length > 0 && (
+            <button className="btn btn-sm" onClick={onRequestNext} disabled={actionLoading}>
+              都不同意，请求下一次协商（已有 {status.next_negotiation_requests} 人）
+            </button>
+          )}
+          {actionError && <p style={{ color: "#b91c1c", margin: 0, fontSize: 12 }}>{actionError}</p>}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -207,6 +426,11 @@ export default function ConversationDetailPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [dormDinner, setDormDinner] = useState<DormDinnerChatStatus | null>(null);
+  const [dormDinnerLoading, setDormDinnerLoading] = useState(false);
+  const [dormDinnerError, setDormDinnerError] = useState<string | null>(null);
+  const [maxRounds, setMaxRounds] = useState(3);
+  const [showDinnerModal, setShowDinnerModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const processedMessageIds = useRef<Set<string>>(new Set());
@@ -247,7 +471,7 @@ export default function ConversationDetailPage() {
           setHasMore(result.data.total > pageNum * 50);
         }
       } catch {
-        // Silent fail for message fetch
+        // Silent fail，用途：message fetch
       }
     },
     [conversationId]
@@ -264,15 +488,24 @@ export default function ConversationDetailPage() {
     }
   }, [conversationId]);
 
+  const fetchDormDinner = useCallback(async () => {
+    const result = await getDormDinnerChatStatus(conversationId);
+    if (result.success && result.data) {
+      setDormDinner(result.data);
+      setMaxRounds(result.data.max_rounds || 3);
+    }
+  }, [conversationId]);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     await Promise.all([
       fetchConversation(),
       fetchMessages(1, false),
       fetchParticipants(),
+      fetchDormDinner(),
     ]);
     setLoading(false);
-  }, [fetchConversation, fetchMessages, fetchParticipants]);
+  }, [fetchConversation, fetchMessages, fetchParticipants, fetchDormDinner]);
 
   useEffect(() => {
     void fetchAll();
@@ -300,7 +533,7 @@ export default function ConversationDetailPage() {
   // HTTP backfill function (§6.3)
   const backfillMessages = useCallback(
     async (convId: string) => {
-      // Only backfill for current conversation
+      // Only backfill，用途：current conversation
       if (convId !== conversationId) return;
       try {
         const result = await fetchBackfill(convId, 1, 50);
@@ -347,14 +580,14 @@ export default function ConversationDetailPage() {
     // Subscribe to this conversation
     client.subscribe(conversationId);
 
-    // Event handler for WebSocket events
+    // Event handler，用途：WebSocket events
     const unsubEvents = client.onEvent((event: ServerEvent) => {
       if (event.event === "message.created") {
         const data = event.data;
         const messageId = data.message_id as string;
         const convId = data.conversation_id as string;
 
-        // Only handle events for this conversation
+        // Only handle events，用途：this conversation
         if (convId !== conversationId) return;
 
         // Dedup by message_id (business idempotency)
@@ -384,6 +617,9 @@ export default function ConversationDetailPage() {
               new Date(a.created_at).getTime()
           );
         });
+        if (["SCENE_CARD", "AGENT_PUBLIC", "VOTE", "RESULT"].includes(String(data.message_type))) {
+          void fetchDormDinner();
+        }
       } else if (event.event === "message.deleted") {
         const data = event.data;
         const messageId = data.message_id as string;
@@ -404,12 +640,12 @@ export default function ConversationDetailPage() {
       }
     });
 
-    // Cleanup on unmount or conversation change
+    // Cleanup 作用于 unmount or conversation change
     return () => {
       unsubEvents();
       client.unsubscribe(conversationId);
     };
-  }, [conversationId, fetchParticipants, fetchConversation, backfillMessages]);
+  }, [conversationId, fetchParticipants, fetchConversation, fetchDormDinner, backfillMessages]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -418,7 +654,7 @@ export default function ConversationDetailPage() {
     }
   }, [messages]);
 
-  // Listen for browser online event to reset fail count (§6.1)
+  // Listen，用途：browser online event to reset fail count (§6.1)
   useEffect(() => {
     const handleOnline = () => {
       const client = clientRef.current;
@@ -440,7 +676,7 @@ export default function ConversationDetailPage() {
     setSending(true);
     setSendError(null);
 
-    // Generate idempotency key for retry safety
+    // Generate idempotency key，用途：retry safety
     const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     try {
@@ -495,6 +731,32 @@ export default function ConversationDetailPage() {
     await fetchMessages(nextPage, true);
     setLoadingMore(false);
   };
+
+  const runDormDinnerAction = async (
+    action: () => Promise<{ success: boolean; data?: DormDinnerChatStatus; error?: { message: string } }>
+  ) => {
+    setDormDinnerLoading(true);
+    setDormDinnerError(null);
+    try {
+      const result = await action();
+      if (result.success && result.data) {
+        setDormDinner(result.data);
+        void fetchMessages(1, false);
+      } else {
+        setDormDinnerError(result.error?.message ?? "场景操作失败");
+      }
+    } catch {
+      setDormDinnerError("网络错误");
+    } finally {
+      setDormDinnerLoading(false);
+    }
+  };
+
+  const participantNameByUserId = new Map(
+    participants
+      .filter((p) => p.participant_user_id)
+      .map((p) => [p.participant_user_id as string, p.display_name ?? "未知成员"])
+  );
 
   // -----------------------------------------------------------------------
   // Render
@@ -594,7 +856,7 @@ export default function ConversationDetailPage() {
 
       {/* Main content area: messages + sidebar */}
       <div style={{ display: "flex", flex: 1, gap: 16, minHeight: 0 }}>
-        {/* Messages area */}
+        {/* Message area */}
         <div
           style={{
             flex: 1,
@@ -648,7 +910,16 @@ export default function ConversationDetailPage() {
                   }}
                   style={{ cursor: msg.sender_user_id === currentUserId && msg.status === "ACTIVE" ? "pointer" : "default" }}
                 >
-                  <MessageBubble message={msg} currentUserId={currentUserId} />
+                  <MessageBubble
+                    message={msg}
+                    currentUserId={currentUserId}
+                    senderName={
+                      msg.sender_user_id
+                        ? participantNameByUserId.get(msg.sender_user_id) ?? null
+                        : null
+                    }
+                    onOpenDinner={() => setShowDinnerModal(true)}
+                  />
                 </div>
               ))
             )}
@@ -665,6 +936,9 @@ export default function ConversationDetailPage() {
               borderTop: "1px solid #e5e7eb",
             }}
           >
+            {(conversation.type === "GROUP" || conversation.type === "ORG_GROUP") && (
+              <button type="button" className="btn btn-sm" onClick={() => setShowDinnerModal(true)}>宿舍聚餐</button>
+            )}
             <input
               type="text"
               value={inputText}
@@ -692,7 +966,7 @@ export default function ConversationDetailPage() {
                 color: "#fff",
               }}
             >
-              {sending ? "..." : "发送"}
+              {sending ? "发送中..." : "发送"}
             </button>
           </form>
           {sendError && (
@@ -750,6 +1024,35 @@ export default function ConversationDetailPage() {
           </div>
         )}
       </div>
+      {showDinnerModal && (
+        <div role="dialog" aria-modal="true" aria-label="宿舍聚餐投票" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.48)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
+          <div style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto", background: "white", borderRadius: 12, padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <strong>宿舍聚餐投票</strong>
+              <button type="button" onClick={() => setShowDinnerModal(false)}>关闭窗口</button>
+            </div>
+            <DormDinnerChatCard
+              status={dormDinner}
+              maxRounds={maxRounds}
+              setMaxRounds={setMaxRounds}
+              actionLoading={dormDinnerLoading}
+              actionError={dormDinnerError ?? dormDinner?.public_error ?? null}
+              onStart={({ city, origin, topic }) => void runDormDinnerAction(() => startDormDinnerChat(conversationId, { maxRounds, city, origin, topic }))}
+              onParticipate={(participate) => void runDormDinnerAction(() => setDormDinnerParticipation(conversationId, participate))}
+              onSubmitPreferences={(preferences) => void runDormDinnerAction(() => submitDormDinnerPreferences(conversationId, preferences))}
+              onStartDebate={() => void runDormDinnerAction(() => startDormDinnerDebate(conversationId, maxRounds))}
+              onVote={(candidateKey) => void runDormDinnerAction(() => voteDormDinnerCandidate(conversationId, candidateKey))}
+              onRequestNext={() => void runDormDinnerAction(() => requestNextDormDinnerNegotiation(conversationId))}
+            />
+            {dormDinner?.capabilities.can_manage && dormDinner.scene_id && (
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => void runDormDinnerAction(() => closeDormDinnerVote(conversationId))}>关闭投票</button>
+                <button type="button" onClick={() => void runDormDinnerAction(() => endDormDinner(conversationId))}>结束聚餐</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

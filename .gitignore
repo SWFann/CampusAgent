@@ -14,6 +14,7 @@ Thumbs.db
 # JavaScript / TypeScript
 node_modules/
 .next/
+.next-share/
 out/
 coverage/
 *.tsbuildinfo
@@ -33,7 +34,9 @@ build/
 logs/
 tmp/
 data/
+.local/
 *.log
+*.db
 *.sqlite3
 
 # Test and tooling artifacts

@@ -123,7 +123,7 @@ def _search_users(
     """
     pattern = f"%{query}%"
     stmt = select(User).where(
-        User.display_name.ilike(pattern),
+        (User.display_name.ilike(pattern) | User.email.ilike(pattern)),
         User.status == UserStatus.ACTIVE.value,
     )
     stmt = stmt.order_by(User.display_name.asc()).limit(limit).offset(offset)

@@ -57,6 +57,32 @@ def _host_hash(base_url: str) -> str:
     return hashlib.sha256(host.encode("utf-8")).hexdigest()[:16]
 
 
+def _add_json_only_instruction(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a retry payload that asks for JSON without response_format.
+
+    Some OpenAI-compatible providers implement chat completions but do not
+    accept the newer ``json_schema`` response_format parameter. The fallback
+    keeps privacy behavior identical while relying on prompt instruction plus
+    downstream schema validation.
+    """
+    retry_payload = dict(payload)
+    retry_payload.pop("response_format", None)
+    messages = [
+        dict(message)
+        for message in retry_payload.get("messages", [])
+        if isinstance(message, dict)
+    ]
+    instruction = (
+        "\n\n请只返回一个 JSON 对象，不要使用 Markdown，不要添加解释文字。"
+    )
+    if messages:
+        messages[-1]["content"] = f"{messages[-1].get('content', '')}{instruction}"
+    else:
+        messages.append({"role": "user", "content": instruction.strip()})
+    retry_payload["messages"] = messages
+    return retry_payload
+
+
 class OpenAICompatibleProvider:
     """HTTP adapter for OpenAI-compatible endpoints (vLLM / llama.cpp).
 
@@ -209,6 +235,16 @@ class OpenAICompatibleProvider:
 
         url = f"{self._base_url}/chat/completions"
         resp = self._request_with_retry(url=url, payload=payload)
+
+        if (
+            resp.status_code in (400, 422)
+            and request.response_schema is not None
+            and "response_format" in payload
+        ):
+            resp = self._request_with_retry(
+                url=url,
+                payload=_add_json_only_instruction(payload),
+            )
 
         if resp.status_code != 200:
             self._error_count += 1

@@ -5,11 +5,11 @@ import { ReactNode } from "react";
 /**
  * Error state component.
  * Shows a safe error summary without leaking sensitive details.
- * Only displays the request_id for debugging, never the raw response.
+ * Only displays the request_id，用途：debugging, never the raw response.
  */
 export function ErrorState({
-  title = "Something went wrong",
-  message = "An unexpected error occurred. Please try again.",
+  title = "出现错误",
+  message = "发生未知错误，请稍后重试。",
   requestId,
   action,
 }: {
@@ -48,7 +48,7 @@ export function ErrorState({
             fontFamily: "monospace",
           }}
         >
-          Request ID: {requestId}
+          请求 ID：{requestId}
         </p>
       )}
       {action && <div style={{ marginTop: "var(--space-sm)" }}>{action}</div>}

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Offline state component.
+ * 离线 state component.
  * Shows when the network is disconnected.
  */
 export function OfflineState({ onRetry }: { onRetry?: () => void }) {
@@ -22,14 +22,14 @@ export function OfflineState({ onRetry }: { onRetry?: () => void }) {
         &#9889;
       </div>
       <p style={{ fontWeight: "var(--font-weight-semibold)", color: "var(--color-warning)" }}>
-        Connection lost
+        连接已断开
       </p>
       <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-        You are offline. Changes will be synced when the connection is restored.
+        当前处于离线状态，连接恢复后会继续同步。
       </p>
       {onRetry && (
         <button className="btn btn-sm" onClick={onRetry} style={{ marginTop: "var(--space-sm)" }}>
-          Retry
+          重试
         </button>
       )}
     </div>

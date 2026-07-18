@@ -10,11 +10,12 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .cache.redis import create_redis_client, ping_redis
-from .config import Settings, settings
+from .config import AppEnv, Settings, settings
 from .db.session import (
     check_database_connection,
     create_engine_from_settings,
@@ -100,6 +101,15 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
 
     # Configure structured logging
     configure_logging(current_settings.LOG_LEVEL)
+
+    if current_settings.APP_ENV != AppEnv.PRODUCTION:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     # Initialise metrics
     metrics = RequestMetrics()
@@ -221,6 +231,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     from .modules.agents.api import router as agents_router
     from .modules.audit.api import router as audit_router
     from .modules.auth.api import router as auth_router
+    from .modules.contacts.api import router as contacts_router
     from .modules.conversations.api import router as conversations_router
     from .modules.directory.api import router as directory_router
     from .modules.memories.api import router as memories_router
@@ -235,6 +246,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     application.include_router(organizations_router)
     application.include_router(directory_router)
     application.include_router(conversations_router)
+    application.include_router(contacts_router)
     application.include_router(agents_router)
     application.include_router(memories_router)
     application.include_router(audit_router)
