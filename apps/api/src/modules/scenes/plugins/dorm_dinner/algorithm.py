@@ -113,7 +113,6 @@ def generate_candidates(
         (distance_order.index(d) for d in distance_preferences),
         default=1,
     )
-    distance_order[min_distance_idx]
     max_minutes = {0: 10, 1: 20, 2: 30}[min_distance_idx]
 
     # Convert dietary strings to enums.
@@ -445,7 +444,6 @@ def aggregate_evaluations(
     # 5. Budget centrality bonus.
     rest_price_min = float(metadata.get("price_min", 0))
     rest_price_max = float(metadata.get("price_max", 0))
-    (rest_price_min + rest_price_max) / 2
     # Bonus is higher when the restaurant's mid-price is close to
     # the group's average budget midpoint. We don't have the group's
     # budget here, so we use a neutral bonus based on price range
@@ -456,7 +454,7 @@ def aggregate_evaluations(
     # Compute final aggregate score.
     aggregate_score = mean_utility - fairness_penalty + distance_bonus + budget_bonus
 
-    # If hard gate failed, set score to 0; otherwise clamp to [0, 1].
+    # If hard gate failed, set score to 0.
     aggregate_score = (
         0.0 if not hard_gate_passed
         else max(0.0, min(1.0, round(aggregate_score, 6)))

@@ -228,6 +228,13 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
 
     application.include_router(realtime_router)
 
+    # P11: Demo internal routes — only in development/test.
+    from .demo.routes import get_demo_router
+
+    demo_router = get_demo_router(current_settings)
+    if demo_router is not None:
+        application.include_router(demo_router)
+
     # Register model gateway metrics endpoint
     from .modules.model_gateway.metrics import get_model_gateway_metrics
 

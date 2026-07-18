@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/api";
+import {
+  DEMO_ACCOUNTS,
+  DEMO_PASSWORD,
+  isDemoPickerEnabled,
+  type DemoAccount,
+} from "@/lib/demo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +16,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedDemoKey, setSelectedDemoKey] = useState<string | null>(null);
+
+  const demoEnabled = isDemoPickerEnabled();
+
+  function selectDemoAccount(account: DemoAccount) {
+    setSelectedDemoKey(account.key);
+    setEmail(account.email);
+    // Pre-fill the demo password for one-click demo login. The
+    // password is a PUBLIC demo constant and is held only in React
+    // state (memory) — it is never written to localStorage or
+    // sessionStorage. Login still goes through the real /auth/login
+    // API, so real auth logic is exercised end-to-end.
+    if (account.can_login) {
+      setPassword(DEMO_PASSWORD);
+    } else {
+      setPassword("");
+    }
+    setError(null);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,7 +103,71 @@ export default function LoginPage() {
             </a>
           </p>
         </form>
+
+        {demoEnabled && (
+          <DemoAccountPicker
+            selectedKey={selectedDemoKey}
+            onSelect={selectDemoAccount}
+          />
+        )}
       </div>
     </main>
+  );
+}
+
+/** Demo account quick-select panel (development/test only). */
+function DemoAccountPicker({
+  selectedKey,
+  onSelect,
+}: {
+  selectedKey: string | null;
+  onSelect: (account: DemoAccount) => void;
+}) {
+  return (
+    <section
+      data-testid="demo-account-picker"
+      className="mt-4 rounded-lg border border-dashed border-blue-300 bg-blue-50/50 p-4"
+    >
+      <h2 className="mb-1 text-sm font-semibold text-blue-900">
+        Demo 账号快速登录
+      </h2>
+      <p className="mb-3 text-xs text-blue-700">
+        点击下方账号可自动填入邮箱与 demo 密码（仅开发环境可见，不会写入浏览器存储）。
+      </p>
+      <ul className="space-y-1">
+        {DEMO_ACCOUNTS.map((account) => {
+          const isSelected = account.key === selectedKey;
+          return (
+            <li key={account.key}>
+              <button
+                type="button"
+                onClick={() => onSelect(account)}
+                aria-pressed={isSelected}
+                className={[
+                  "w-full rounded-md border px-3 py-2 text-left text-sm transition",
+                  isSelected
+                    ? "border-blue-500 bg-blue-100 text-blue-900"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50",
+                  !account.can_login ? "opacity-70" : "",
+                ].join(" ")}
+              >
+                <span className="font-medium">{account.display_name}</span>
+                <span className="ml-2 text-xs text-gray-500">
+                  {account.role === "SYSTEM_ADMIN" ? "管理员" : "学生"}
+                </span>
+                <span className="block text-xs text-gray-500">
+                  {account.description}
+                </span>
+                {!account.can_login && (
+                  <span className="mt-1 block text-xs text-red-500">
+                    不可登录（软删除）
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
