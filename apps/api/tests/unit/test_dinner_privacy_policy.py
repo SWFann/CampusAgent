@@ -41,7 +41,7 @@ def _make_prefs(**kwargs) -> DinnerPreferenceInput:
     """Helper to create a preference with sensible defaults."""
     defaults = {"budget_min": 20, "budget_max": 50}
     defaults.update(kwargs)
-    return DinnerPreferenceInput(**defaults)
+    return DinnerPreferenceInput(**defaults)  # type: ignore[arg-type]
 
 
 class TestDisclosurePolicy:

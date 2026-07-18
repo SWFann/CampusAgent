@@ -113,7 +113,7 @@ class TestCleanup:
             def handle(self, event: ScenePrivateDataCleaned) -> None:
                 events.append(event)
 
-        default_event_bus.subscribe(ScenePrivateDataCleaned, CaptureHandler())
+        default_event_bus.subscribe(ScenePrivateDataCleaned, CaptureHandler())  # type: ignore[arg-type]
 
         cleanup_private_data(scene_with_submission, test_db_session)
 

@@ -166,4 +166,4 @@ class TestPublicEvents:
         for event in events:
             # Frozen dataclasses should raise on attribute assignment.
             with pytest.raises(AttributeError):
-                event.event_id = "modified"
+                event.event_id = "modified"  # type: ignore[attr-defined]

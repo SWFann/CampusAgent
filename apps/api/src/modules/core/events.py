@@ -6,7 +6,6 @@ Events are used for inter-module communication.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -72,7 +71,7 @@ class EventBus:
     async def subscribe(
         self,
         event_type: str,
-        handler: Callable[[DomainEvent], Coroutine[None, None, None]],
+        handler: Any,
     ) -> None:
         """Subscribe to an event type"""
         raise NotImplementedError

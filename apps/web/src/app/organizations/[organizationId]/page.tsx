@@ -1,200 +1,112 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import {
-  addMember,
-  getOrganization,
-  joinOrganization,
-  leaveOrganization,
-  listMembers,
-  removeMember,
-  updateMemberRole,
-  type Organization,
-  type OrganizationMember,
-} from "@/lib/organizations";
+import { useState } from "react";
+import { AppShell } from "@/components/app/AppShell";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { apiGet, isForbiddenError } from "@/lib/api/client";
+import { useAsync } from "@/lib/useAsync";
+import { use } from "react";
 
-export default function OrganizationDetailPage() {
-  const params = useParams();
-  const orgId = params.organizationId as string;
+interface OrgDetail {
+  id: string;
+  name: string;
+  org_type: string;
+  description?: string;
+}
 
-  const [org, setOrg] = useState<Organization | null>(null);
-  const [members, setMembers] = useState<OrganizationMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface Member {
+  id: string;
+  user_id: string;
+  display_name: string;
+  email: string;
+  role: string;
+  status: string;
+}
 
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [addUserId, setAddUserId] = useState("");
-  const [addRole, setAddRole] = useState("MEMBER");
-  const [actionError, setActionError] = useState<string | null>(null);
+function OrgDetailContent({ params }: { params: Promise<{ organizationId: string }> }) {
+  const { organizationId } = use(params);
+  const [search, setSearch] = useState("");
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [orgResult, membersResult] = await Promise.all([
-        getOrganization(orgId),
-        listMembers(orgId).catch(() => ({ success: false } as const)),
-      ]);
-      if (orgResult.success && orgResult.data) {
-        setOrg(orgResult.data);
-      } else {
-        setError(orgResult.error?.message ?? "加载组织失败");
-      }
-      if (membersResult.success && "data" in membersResult && membersResult.data) {
-        setMembers(membersResult.data.members);
-      }
-    } catch {
-      setError("网络错误");
-    } finally {
-      setLoading(false);
-    }
-  }, [orgId]);
+  const { data: org, loading: orgLoading, error: orgError } = useAsync<OrgDetail>(
+    async () => apiGet(`/organizations/${organizationId}`),
+    [organizationId],
+  );
+  const { data: members, loading: memLoading, error: memError } = useAsync<Member[]>(
+    async () => apiGet(`/organizations/${organizationId}/members`),
+    [organizationId],
+  );
 
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+  const filteredMembers = members?.filter((m) =>
+    !search ||
+    m.display_name.toLowerCase().includes(search.toLowerCase()) ||
+    m.email.toLowerCase().includes(search.toLowerCase()) ||
+    m.role.toLowerCase().includes(search.toLowerCase())
+  ) ?? [];
 
-  const handleAddMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setActionError(null);
-    const result = await addMember(orgId, addUserId, addRole);
-    if (result.success) {
-      setShowAddForm(false);
-      setAddUserId("");
-      setAddRole("MEMBER");
-      void fetchData();
-    } else {
-      setActionError(result.error?.message ?? "添加成员失败");
-    }
-  };
+  const isForbidden = (orgError && isForbiddenError(orgError)) || (memError && isForbiddenError(memError));
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    setActionError(null);
-    const result = await updateMemberRole(orgId, userId, newRole);
-    if (!result.success) {
-      setActionError(result.error?.message ?? "修改角色失败");
-    } else {
-      void fetchData();
-    }
-  };
-
-  const handleRemoveMember = async (userId: string) => {
-    setActionError(null);
-    try {
-      await removeMember(orgId, userId);
-      void fetchData();
-    } catch {
-      setActionError("移除成员失败");
-    }
-  };
-
-  const handleJoin = async () => {
-    setActionError(null);
-    const result = await joinOrganization(orgId);
-    if (!result.success) {
-      setActionError(result.error?.message ?? "加入失败");
-    } else {
-      void fetchData();
-    }
-  };
-
-  const handleLeave = async () => {
-    setActionError(null);
-    try {
-      await leaveOrganization(orgId);
-      void fetchData();
-    } catch {
-      setActionError("退出失败");
-    }
-  };
-
-  if (loading) return <main style={{ padding: 24 }}><p>加载中...</p></main>;
-  if (error) return <main style={{ padding: 24 }}><p style={{ color: "red" }}>{error}</p></main>;
-  if (!org) return <main style={{ padding: 24 }}><p>组织不存在</p></main>;
+  if (isForbidden) {
+    return <ErrorState title="Access Denied" message="You do not have permission to view this organization." />;
+  }
 
   return (
-    <main style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px" }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: "0 0 8px 0" }}>{org.name}</h1>
-        <div style={{ color: "#666", fontSize: 14 }}>
-          {org.type} · {org.visibility} · {org.join_policy} · {org.status}
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
+      {orgLoading ? (
+        <LoadingState message="Loading organization..." />
+      ) : org ? (
+        <div className="card">
+          <h1 style={{ fontSize: "var(--font-size-xl)", marginBottom: "var(--space-xs)" }}>{org.name}</h1>
+          <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
+            Type: {org.org_type}
+          </p>
+          {org.description && (
+            <p style={{ marginTop: "var(--space-sm)", fontSize: "var(--font-size-sm)" }}>{org.description}</p>
+          )}
         </div>
-        {org.description && <p style={{ marginTop: 8 }}>{org.description}</p>}
-      </div>
+      ) : null}
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-        <button onClick={handleJoin} style={{ padding: "6px 12px", cursor: "pointer" }}>加入</button>
-        <button onClick={handleLeave} style={{ padding: "6px 12px", cursor: "pointer" }}>退出</button>
-        <button onClick={() => setShowAddForm(!showAddForm)} style={{ padding: "6px 12px", cursor: "pointer" }}>
-          {showAddForm ? "取消" : "添加成员"}
-        </button>
-      </div>
-
-      {actionError && <p style={{ color: "red", marginBottom: 12 }}>{actionError}</p>}
-
-      {showAddForm && (
-        <form onSubmit={handleAddMember} style={{ marginBottom: 24, padding: 16, border: "1px solid #e0e0e0", borderRadius: 8 }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "end" }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: "block", marginBottom: 4 }}>用户 ID</label>
-              <input
-                type="text"
-                value={addUserId}
-                onChange={(e) => setAddUserId(e.target.value)}
-                required
-                style={{ width: "100%", padding: 8, boxSizing: "border-box" }}
-              />
-            </div>
-            <div>
-              <label style={{ display: "block", marginBottom: 4 }}>角色</label>
-              <select value={addRole} onChange={(e) => setAddRole(e.target.value)} style={{ padding: 8 }}>
-                <option value="MEMBER">成员</option>
-                <option value="ADMIN">管理员</option>
-                <option value="GUEST">访客</option>
-              </select>
-            </div>
-            <button type="submit" style={{ padding: "8px 16px", cursor: "pointer" }}>添加</button>
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-md)" }}>
+          <h2 style={{ fontSize: "var(--font-size-lg)" }}>Members</h2>
+          <input
+            className="input"
+            style={{ width: 240 }}
+            placeholder="Search by name, email, role..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search members"
+          />
+        </div>
+        {memLoading && <LoadingState message="Loading members..." />}
+        {memError && !isForbidden && <ErrorState message="Failed to load members." />}
+        {filteredMembers.length === 0 && !memLoading && (
+          <EmptyState title="No members found" description={search ? "Try a different search term." : "No members in this organization."} />
+        )}
+        {filteredMembers.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+            {filteredMembers.map((m) => (
+              <div key={m.id} style={{ display: "flex", justifyContent: "space-between", padding: "var(--space-sm)", borderRadius: "var(--radius-md)", background: "var(--color-surface-hover)" }}>
+                <div>
+                  <span style={{ fontWeight: "var(--font-weight-medium)", fontSize: "var(--font-size-sm)" }}>{m.display_name}</span>
+                  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginLeft: "var(--space-sm)" }}>{m.email}</span>
+                </div>
+                <StatusBadge label={m.role} variant={m.role === "ADMIN" ? "info" : "default"} />
+              </div>
+            ))}
           </div>
-        </form>
-      )}
+        )}
+      </div>
+    </div>
+  );
+}
 
-      <h2 style={{ fontSize: 18, marginBottom: 12 }}>成员 ({members.length})</h2>
-      {members.length === 0 ? (
-        <p style={{ color: "#666" }}>暂无成员</p>
-      ) : (
-        <div style={{ display: "grid", gap: 8 }}>
-          {members.map((m) => (
-            <div
-              key={m.user_id}
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, border: "1px solid #e0e0e0", borderRadius: 6 }}
-            >
-              <div>
-                <strong>{m.display_name}</strong>
-                <span style={{ marginLeft: 8, color: "#666", fontSize: 14 }}>{m.role} · {m.status}</span>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <select
-                  value={m.role}
-                  onChange={(e) => handleRoleChange(m.user_id, e.target.value)}
-                  style={{ padding: 4 }}
-                >
-                  <option value="MEMBER">成员</option>
-                  <option value="ADMIN">管理员</option>
-                  <option value="GUEST">访客</option>
-                  <option value="OWNER">所有者</option>
-                </select>
-                <button
-                  onClick={() => handleRemoveMember(m.user_id)}
-                  style={{ padding: "4px 8px", cursor: "pointer", color: "red" }}
-                >
-                  移除
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </main>
+export default function OrgDetailPage({ params }: { params: Promise<{ organizationId: string }> }) {
+  return (
+    <AppShell requireAuth>
+      <OrgDetailContent params={params} />
+    </AppShell>
   );
 }
