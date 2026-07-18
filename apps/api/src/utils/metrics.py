@@ -16,8 +16,10 @@ from __future__ import annotations
 import time
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
@@ -96,7 +98,7 @@ class RequestMetrics:
 class MetricsMiddleware(BaseHTTPMiddleware):
     """Middleware that records request metrics."""
 
-    def __init__(self, app, metrics: RequestMetrics) -> None:
+    def __init__(self, app: Any, metrics: RequestMetrics) -> None:
         super().__init__(app)
         self._metrics = metrics
 
@@ -130,10 +132,8 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 def register_metrics_endpoint(app: FastAPI, metrics: RequestMetrics) -> None:
     """Register a /metrics endpoint on the given FastAPI app."""
     @app.get("/metrics", include_in_schema=False)
-    async def metrics_endpoint():
+    async def metrics_endpoint() -> PlainTextResponse:
         """Prometheus-style metrics endpoint."""
-        from fastapi.responses import PlainTextResponse
-
         return PlainTextResponse(
             content=metrics.to_prometheus_text(),
             media_type="text/plain; version=0.0.4",

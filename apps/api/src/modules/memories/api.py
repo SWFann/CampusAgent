@@ -1,6 +1,7 @@
 """Memory API endpoints."""
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -23,7 +24,7 @@ async def create_memory(
     current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
     _csrf: None = Depends(require_csrf),
-):
+) -> dict[str, Any]:
     """Create a new memory item."""
     body = await request.json()
     data = service.create_memory(current_user, body, db_session)
@@ -36,7 +37,7 @@ async def list_memories(
     current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
     category: str | None = None,
-):
+) -> dict[str, Any]:
     """List memories for the current user."""
     data = service.list_memories(current_user, db_session, category=category)
     return success(data=data, request_id=getattr(request.state, "correlation_id", None))
@@ -50,7 +51,7 @@ async def get_memory(
     db_session: Session = Depends(get_db_session),
     agent_id: UUID | None = None,
     purpose: str | None = None,
-):
+) -> dict[str, Any]:
     """Get a memory by ID."""
     data = service.get_memory(
         current_user, memory_id, db_session,
@@ -66,7 +67,7 @@ async def update_memory(
     current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
     _csrf: None = Depends(require_csrf),
-):
+) -> dict[str, Any]:
     """Update a memory."""
     body = await request.json()
     data = service.update_memory(current_user, memory_id, body, db_session)
@@ -80,7 +81,7 @@ async def delete_memory(
     current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
     _csrf: None = Depends(require_csrf),
-):
+) -> dict[str, Any]:
     """Soft-delete a memory."""
     service.delete_memory(current_user, memory_id, db_session)
     return success(data=None, request_id=getattr(request.state, "correlation_id", None))
@@ -94,7 +95,7 @@ async def grant_consent_api(
     current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
     _csrf: None = Depends(require_csrf),
-):
+) -> dict[str, Any]:
     """Grant consent for an agent to access memories."""
     body = await request.json()
     data = grant_consent(
@@ -113,7 +114,7 @@ async def list_consents_api(
     request: Request,
     current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-):
+) -> dict[str, Any]:
     """List consent records for the current user."""
     data = list_consents(current_user.id, db_session)
     return success(data=data, request_id=getattr(request.state, "correlation_id", None))
@@ -126,7 +127,7 @@ async def revoke_consent_api(
     current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
     _csrf: None = Depends(require_csrf),
-):
+) -> dict[str, Any]:
     """Revoke consent. Takes effect immediately."""
     revoke_consent(current_user.id, consent_id, db_session)
     return success(data=None, request_id=getattr(request.state, "correlation_id", None))

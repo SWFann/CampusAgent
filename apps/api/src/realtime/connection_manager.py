@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import secrets
 from collections import OrderedDict
+from collections.abc import Callable
 from typing import Any
 from uuid import UUID
 
@@ -281,7 +282,9 @@ class ConnectionManager:
             # Connection may be broken — clean up
             await self.disconnect(connection_id)
 
-    def _make_handler(self, connection_id: str):
+    def _make_handler(
+        self, connection_id: str
+    ) -> Callable[[str, dict[str, Any]], Any]:
         """Create a pubsub handler for a connection."""
         async def _handler(channel: str, message: dict[str, Any]) -> None:
             await self.send_event_to_connection(connection_id, message)

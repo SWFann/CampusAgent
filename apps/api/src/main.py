@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -31,7 +32,7 @@ from .utils.metrics import MetricsMiddleware, RequestMetrics, register_metrics_e
 # Environment validation will be called in lifespan, not at module level
 
 
-def create_lifespan(app_settings: Settings):
+def create_lifespan(app_settings: Settings) -> Any:
     """Create a lifespan handler bound to one application configuration."""
 
     @asynccontextmanager
@@ -110,7 +111,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
 
     # Exception handlers
     @application.exception_handler(AppError)
-    async def app_error_handler(request: Request, exc: AppError):
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         """Handle known application errors with stable envelope."""
         return JSONResponse(
             status_code=exc.status_code,
@@ -123,7 +124,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         )
 
     @application.exception_handler(RequestValidationError)
-    async def validation_error_handler(request: Request, exc: RequestValidationError):
+    async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
         """Map Pydantic validation errors to a stable error code."""
         return JSONResponse(
             status_code=422,
@@ -136,7 +137,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         )
 
     @application.exception_handler(StarletteHTTPException)
-    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         """Map Starlette HTTP exceptions to stable error envelope."""
         return JSONResponse(
             status_code=exc.status_code,
@@ -148,7 +149,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         )
 
     @application.exception_handler(Exception)
-    async def generic_exception_handler(request: Request, exc: Exception):
+    async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         """Catch-all for unhandled exceptions.
 
         Returns a generic INTERNAL_ERROR without leaking internal details.
@@ -162,12 +163,12 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
 
     # Health check routes
     @application.get("/health/live", tags=["health"])
-    async def health_live():
+    async def health_live() -> dict[str, str]:
         """Liveness probe - check if process is alive."""
         return {"status": "ok", "service": current_settings.APP_NAME}
 
     @application.get("/health/ready", tags=["health"])
-    async def health_ready():
+    async def health_ready() -> dict[str, Any]:
         """Readiness probe - check if dependencies are ready."""
         # Database check — use the engine stored in app state.
         # If the engine hasn't been initialised (e.g. before lifespan),
@@ -233,7 +234,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     model_gateway_metrics = get_model_gateway_metrics()
 
     @application.get("/metrics/model-gateway", include_in_schema=False)
-    async def model_gateway_metrics_endpoint():
+    async def model_gateway_metrics_endpoint() -> Any:
         """Model gateway metrics (Prometheus-style, no sensitive labels)."""
         from fastapi.responses import PlainTextResponse
 
