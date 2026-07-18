@@ -324,32 +324,44 @@ def start_scene(
     vote_deadline: str | None = None,
 ) -> dict[str, Any]:
     _ensure_conversation_member(actor, conversation_id, session)
-    existing = _current_instance(conversation_id, session)
-    if existing is not None:
-        return _status(existing, actor, session)
-
-    participant_user_ids = [
-        p.participant_user_id
-        for p in _active_participants(conversation_id, session)
-        if p.participant_user_id is not None
-    ]
-    created = create_scene_instance(
-        actor,
-        {
-            "scene_key": "dorm_dinner",
-            "conversation_id": conversation_id,
-            "participant_user_ids": participant_user_ids,
-        },
-        session,
-    )
-    instance = session.get(SceneInstance, UUID(created["id"]))
-    assert instance is not None
-    instance.status = SceneState.COLLECTING_PRIVATE_INPUT.value
-    instance.current_phase = SceneState.COLLECTING_PRIVATE_INPUT.value
     city = city.strip()
     origin = origin.strip()
     if not city or not origin:
         raise ValueError("城市和校区/出发地点为必填项")
+
+    existing = _current_instance(conversation_id, session)
+    recoverable_draft = (
+        existing is not None
+        and existing.created_by == actor.id
+        and existing.status == SceneState.DRAFT.value
+        and not existing.public_context_json
+    )
+    if existing is not None and not recoverable_draft:
+        return _status(existing, actor, session)
+
+    instance = existing
+    created_new = False
+    if instance is None:
+        participant_user_ids = [
+            p.participant_user_id
+            for p in _active_participants(conversation_id, session)
+            if p.participant_user_id is not None
+        ]
+        created = create_scene_instance(
+            actor,
+            {
+                "scene_key": "dorm_dinner",
+                "conversation_id": conversation_id,
+                "participant_user_ids": participant_user_ids,
+            },
+            session,
+        )
+        instance = session.get(SceneInstance, UUID(created["id"]))
+        assert instance is not None
+        created_new = True
+
+    instance.status = SceneState.COLLECTING_PRIVATE_INPUT.value
+    instance.current_phase = SceneState.COLLECTING_PRIVATE_INPUT.value
     _save_public_context(instance, {
         "max_rounds": max(1, min(max_rounds, 10)),
         "current_round": 0,
@@ -360,14 +372,23 @@ def start_scene(
         "negotiations": [],
         "display_mode": "anonymous",
     })
-    _post_system_message(
-        conversation_id,
-        session,
-        content="已发起宿舍聚餐协商。请在场景卡片中选择参与或不参与。",
-        message_type=MessageType.SCENE_CARD.value,
-        payload={"scene_key": "dorm_dinner", "scene_id": str(instance.id)},
-    )
-    session.commit()
+    try:
+        _post_system_message(
+            conversation_id,
+            session,
+            content="已发起宿舍聚餐协商。请在场景卡片中选择参与或不参与。",
+            message_type=MessageType.SCENE_CARD.value,
+            payload={"scene_key": "dorm_dinner", "scene_id": str(instance.id)},
+        )
+        session.commit()
+    except Exception:
+        session.rollback()
+        if created_new:
+            persisted = session.get(SceneInstance, instance.id)
+            if persisted is not None:
+                session.delete(persisted)
+                session.commit()
+        raise
     session.refresh(instance)
     return _status(instance, actor, session)
 
@@ -375,6 +396,16 @@ def start_scene(
 def get_status(actor: User, conversation_id: UUID, session: Session) -> dict[str, Any]:
     _ensure_conversation_member(actor, conversation_id, session)
     instance = _current_instance(conversation_id, session)
+    if (
+        instance is not None
+        and instance.created_by == actor.id
+        and instance.status == SceneState.DRAFT.value
+        and not instance.public_context_json
+    ):
+        # A previous failed initialization left a recoverable shell. Present
+        # it as not started so the creator can submit the required fields and
+        # let ``start_scene`` initialize the same row safely.
+        instance = None
     if instance is None:
         definition = _dorm_definition(session)
         return {
