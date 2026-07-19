@@ -17,7 +17,25 @@ from src.modules.conversations.models import (
 )
 from src.modules.conversations.service import create_system_message
 from src.modules.scenes import chat_dorm_dinner
-from src.modules.scenes.models import SceneCandidate, SceneDefinition, SceneInstance
+from src.modules.scenes.dinner_search import (
+    AgentRestaurantProposal,
+    DebateOpening,
+    DebateRound,
+    DebateTurn,
+    DinnerCandidate,
+    NegotiationResult,
+    SearchEvidence,
+)
+from src.modules.scenes.models import (
+    ParticipantStatus as SceneParticipantStatus,
+)
+from src.modules.scenes.models import (
+    PrivateSubmission,
+    SceneCandidate,
+    SceneDefinition,
+    SceneInstance,
+    SceneParticipant,
+)
 from src.modules.users.models import GlobalRole, User, UserStatus
 from src.utils.errors import NotFoundError
 
@@ -228,3 +246,171 @@ def test_cannot_vote_after_chat_vote_is_closed(test_db_session: Session) -> None
             test_db_session,
             candidate_key="closed-candidate",
         )
+
+
+def test_run_debate_publishes_hosted_multi_agent_transcript(
+    monkeypatch: pytest.MonkeyPatch,
+    test_db_session: Session,
+) -> None:
+    actor, conversation, instance, _candidate = _create_chat_scene(
+        test_db_session,
+        scene_status="COLLECTING_PRIVATE_INPUT",
+        phase="COLLECTING_PRIVATE_INPUT",
+    )
+    bob = User(
+        email="chat-debate-bob@example.com",
+        password_hash="fake",
+        display_name="Bob",
+        global_role=GlobalRole.STUDENT.value,
+        status=UserStatus.ACTIVE.value,
+    )
+    test_db_session.add(bob)
+    test_db_session.flush()
+    test_db_session.add(
+        ConversationParticipant(
+            conversation_id=conversation.id,
+            participant_type=ParticipantType.USER.value,
+            participant_user_id=bob.id,
+            role=ConversationRole.MEMBER.value,
+        )
+    )
+    test_db_session.add_all(
+        [
+            SceneParticipant(
+                scene_instance_id=instance.id,
+                user_id=actor.id,
+                status=SceneParticipantStatus.ACCEPTED.value,
+                is_creator=True,
+            ),
+            SceneParticipant(
+                scene_instance_id=instance.id,
+                user_id=bob.id,
+                status=SceneParticipantStatus.ACCEPTED.value,
+                is_creator=False,
+            ),
+            PrivateSubmission(
+                scene_instance_id=instance.id,
+                user_id=actor.id,
+                encrypted_payload="encrypted",
+                capsule_json='{"notes":"想吃川菜","budget_max":60}',
+            ),
+            PrivateSubmission(
+                scene_instance_id=instance.id,
+                user_id=bob.id,
+                encrypted_payload="encrypted",
+                capsule_json='{"notes":"希望离宿舍近","budget_max":60}',
+            ),
+        ]
+    )
+    test_db_session.commit()
+    monkeypatch.setattr(chat_dorm_dinner.settings, "ENABLE_EXTERNAL_MODEL", True)
+
+    evidence = SearchEvidence(
+        title="校外川菜馆",
+        url="https://example.com/sichuan",
+        snippet="适合聚餐",
+        retrieved_at=chat_dorm_dinner.utc_now(),
+    )
+
+    class Provider:
+        searches: list[str] = []
+
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def search(self, query: str, limit: int = 10) -> list[SearchEvidence]:
+            self.searches.append(query)
+            return [evidence]
+
+        def negotiate(self, **_kwargs: object) -> NegotiationResult:
+            candidate = DinnerCandidate(
+                candidate_key="sichuan",
+                display_name="校外川菜馆",
+                address="学校西门外",
+                price_hint="人均 55 元",
+                business_hours_hint="晚餐营业",
+                public_reason="预算匹配，适合多人聚餐。",
+                source_urls=["https://example.com/sichuan"],
+                sources=[evidence],
+            )
+            return NegotiationResult(
+                opening=DebateOpening(speaker="主持人Agent", content="欢迎进入宿舍聚餐辩论。"),
+                agent_proposals=[
+                    AgentRestaurantProposal(
+                        agent_name="Alice Agent",
+                        preference_summary="想吃川菜，预算 60 内。",
+                        proposals=[candidate],
+                    )
+                ],
+                rounds=[
+                    DebateRound(
+                        round=1,
+                        turns=[
+                            DebateTurn(
+                                agent_name="Alice Agent",
+                                position="我支持校外川菜馆，因为预算和聚餐氛围都匹配。",
+                                stance="support",
+                                target_candidate_keys=["sichuan"],
+                                source_urls=["https://example.com/sichuan"],
+                            ),
+                            DebateTurn(
+                                agent_name="Bob Agent",
+                                position="我认可预算，但提醒要确认距离。",
+                                stance="challenge",
+                                target_candidate_keys=["sichuan"],
+                                source_urls=["https://example.com/sichuan"],
+                            ),
+                        ],
+                        host_summary="本轮保留校外川菜馆，距离需确认。",
+                    )
+                ],
+                agents=[],
+                coordinator_summary="最终协调Agent建议把校外川菜馆放入投票。",
+                candidates=[candidate],
+            )
+
+    monkeypatch.setattr(chat_dorm_dinner, "StepFunDinnerProvider", Provider)
+
+    result = chat_dorm_dinner.run_debate(actor, conversation.id, test_db_session, max_rounds=2)
+
+    phases = [turn["phase"] for turn in result["debate_turns"]]
+    assert phases == ["opening", "proposal", "debate", "debate", "host_summary", "coordinator_summary"]
+    assert result["debate_turns"][1]["proposals"][0]["display_name"] == "校外川菜馆"
+    assert result["debate_turns"][-1]["speaker"] == "最终协调Agent"
+    assert len(Provider.searches) >= 2
+    assert any("校外" in query or "周边" in query for query in Provider.searches)
+
+    messages = [
+        message.content
+        for message in conversation.messages
+        if message.message_type == MessageType.AGENT_PUBLIC.value
+    ]
+    assert any(content == "主持人Agent：欢迎进入宿舍聚餐辩论。" for content in messages)
+    assert any("Alice Agent 提案" in str(content) for content in messages)
+    assert any("Bob Agent：我认可预算" in str(content) for content in messages)
+    assert any("最终协调Agent：最终协调Agent建议" in str(content) for content in messages)
+
+
+def test_search_debate_evidence_filters_non_restaurant_pages() -> None:
+    now = chat_dorm_dinner.utc_now()
+
+    class Provider:
+        def search(self, query: str, limit: int = 10) -> list[SearchEvidence]:
+            return [
+                SearchEvidence(
+                    title="全景中的大学之最",
+                    url=f"https://example.com/campus-{query[-1]}",
+                    snippet="介绍大学校园风景",
+                    retrieved_at=now,
+                ),
+                SearchEvidence(
+                    title="学校附近火锅店",
+                    url="https://example.com/hotpot",
+                    snippet="人均 58 元，适合学生聚餐，晚餐营业",
+                    retrieved_at=now,
+                ),
+            ]
+
+    evidence = chat_dorm_dinner._search_debate_evidence(Provider(), ["query1", "query2"])  # type: ignore[arg-type]
+
+    assert [item.title for item in evidence] == ["学校附近火锅店"]

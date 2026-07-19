@@ -23,6 +23,7 @@ import { listMessages as fetchBackfill } from "@/lib/conversations";
 import {
   getDormDinnerChatStatus,
   canActOnDormDinner,
+  groupDormDinnerDebateTurns,
   isDormDinnerClosed,
   setDormDinnerParticipation,
   startDormDinnerChat,
@@ -33,6 +34,7 @@ import {
   endDormDinner,
   requestNextDormDinnerNegotiation,
   type DormDinnerChatStatus,
+  type DormDinnerDebateTurn,
 } from "@/lib/dormDinnerChat";
 import { formatDate } from "@/lib/utils";
 
@@ -202,6 +204,83 @@ function MessageBubble({
   );
 }
 
+function DebateTurnLine({ turn }: { turn: DormDinnerDebateTurn }) {
+  return (
+    <div style={{ padding: "6px 8px", background: "#fff", borderRadius: 6, border: "1px solid #ede9fe" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+        <strong style={{ fontSize: 12, color: "#4c1d95" }}>{turn.speaker}</strong>
+        {turn.stance && <span style={{ fontSize: 11, color: "#7c3aed" }}>{turn.stance}</span>}
+      </div>
+      <p style={{ margin: "3px 0 0", fontSize: 12, color: "#312e81", lineHeight: 1.5 }}>{turn.content}</p>
+      {(turn.source_urls ?? []).length > 0 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+          {turn.source_urls?.map((url) => (
+            <a key={url} href={url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>来源</a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DormDinnerDebateTranscript({
+  groups,
+}: {
+  groups: ReturnType<typeof groupDormDinnerDebateTurns>;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 8, padding: 8, background: "#ede9fe", borderRadius: 8 }}>
+      <strong style={{ fontSize: 13, color: "#4c1d95" }}>智能体辩论实录</strong>
+      {groups.opening && (
+        <div style={{ padding: 8, background: "#fff", borderRadius: 6 }}>
+          <strong style={{ fontSize: 12, color: "#5b21b6" }}>{groups.opening.speaker}</strong>
+          <p style={{ margin: "3px 0 0", fontSize: 12, color: "#312e81" }}>{groups.opening.content}</p>
+        </div>
+      )}
+      {groups.proposals.length > 0 && (
+        <div style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontSize: 12, color: "#5b21b6", fontWeight: 600 }}>各同学 Agent 提案</span>
+          {groups.proposals.map((proposal, index) => (
+            <div key={`${proposal.speaker}-${index}`} style={{ padding: 8, background: "#fff", borderRadius: 6 }}>
+              <strong style={{ fontSize: 12, color: "#4c1d95" }}>{proposal.speaker}</strong>
+              <p style={{ margin: "3px 0", fontSize: 12, color: "#312e81" }}>{proposal.content}</p>
+              {(proposal.proposals ?? []).map((candidate) => (
+                <div key={candidate.candidate_key ?? candidate.display_name} style={{ marginTop: 4, paddingTop: 4, borderTop: "1px solid #ede9fe" }}>
+                  <strong style={{ fontSize: 12 }}>{candidate.display_name}</strong>
+                  <p style={{ margin: "2px 0", fontSize: 11, color: "#6b7280" }}>
+                    {candidate.address ?? "地址未核实"} · {candidate.price_hint ?? "价格未核实"}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: "#374151" }}>{candidate.public_reason}</p>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+      {groups.rounds.map((roundGroup) => (
+        <div key={roundGroup.round} style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontSize: 12, color: "#5b21b6", fontWeight: 600 }}>第 {roundGroup.round} 轮辩论</span>
+          {roundGroup.turns.map((turn, index) => (
+            <DebateTurnLine key={`${turn.speaker}-${roundGroup.round}-${index}`} turn={turn} />
+          ))}
+          {roundGroup.hostSummary && (
+            <div style={{ padding: "6px 8px", background: "#faf5ff", borderRadius: 6, border: "1px solid #ddd6fe" }}>
+              <strong style={{ fontSize: 12, color: "#5b21b6" }}>{roundGroup.hostSummary.speaker}</strong>
+              <p style={{ margin: "3px 0 0", fontSize: 12, color: "#312e81" }}>{roundGroup.hostSummary.content}</p>
+            </div>
+          )}
+        </div>
+      ))}
+      {groups.coordinatorSummary && (
+        <div style={{ padding: 8, background: "#fff", borderRadius: 6, border: "1px solid #c4b5fd" }}>
+          <strong style={{ fontSize: 12, color: "#4c1d95" }}>{groups.coordinatorSummary.speaker}</strong>
+          <p style={{ margin: "3px 0 0", fontSize: 12, color: "#312e81" }}>{groups.coordinatorSummary.content}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DormDinnerChatCard({
   status,
   maxRounds,
@@ -248,6 +327,7 @@ function DormDinnerChatCard({
       return [...withoutNone, option];
     });
   };
+  const debateGroups = groupDormDinnerDebateTurns(status?.debate_turns ?? []);
   return (
     <section style={{ border: "1px solid #c4b5fd", background: "#f5f3ff", borderRadius: 10, padding: 12, marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -373,13 +453,7 @@ function DormDinnerChatCard({
               </div>
 
               {status.debate_turns.length > 0 && (
-                <div style={{ display: "grid", gap: 4 }}>
-                  {status.debate_turns.map((turn) => (
-                    <p key={turn.round} style={{ margin: 0, fontSize: 12, color: "#4c1d95" }}>
-                      {turn.speaker}：{turn.content}
-                    </p>
-                  ))}
-                </div>
+                <DormDinnerDebateTranscript groups={debateGroups} />
               )}
 
               {status.candidates.length > 0 && (

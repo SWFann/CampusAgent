@@ -1,5 +1,6 @@
 import {
   canActOnDormDinner,
+  groupDormDinnerDebateTurns,
   isDormDinnerClosed,
   type DormDinnerChatStatus,
 } from "@/lib/dormDinnerChat";
@@ -45,5 +46,29 @@ describe("dorm dinner chat state helpers", () => {
 
   it("disables active controls once voting is closed", () => {
     expect(canActOnDormDinner(status({ status: "VOTING_CLOSED", phase: "VOTING_CLOSED" }))).toBe(false);
+  });
+
+  it("groups hosted multi-agent debate transcript by phase and round", () => {
+    const grouped = groupDormDinnerDebateTurns([
+      { phase: "opening", round: 0, speaker: "主持人Agent", content: "开场" },
+      {
+        phase: "proposal",
+        round: 0,
+        speaker: "Alice Agent",
+        content: "提案",
+        proposals: [{ display_name: "校外川菜馆", candidate_key: "sichuan" }],
+      },
+      { phase: "debate", round: 1, speaker: "Alice Agent", content: "支持川菜馆" },
+      { phase: "debate", round: 1, speaker: "Bob Agent", content: "提醒距离" },
+      { phase: "host_summary", round: 1, speaker: "主持人Agent", content: "本轮小结" },
+      { phase: "coordinator_summary", round: 2, speaker: "最终协调Agent", content: "最终汇总" },
+    ]);
+
+    expect(grouped.opening?.content).toBe("开场");
+    expect(grouped.proposals[0].proposals?.[0].display_name).toBe("校外川菜馆");
+    expect(grouped.rounds[0].round).toBe(1);
+    expect(grouped.rounds[0].turns).toHaveLength(2);
+    expect(grouped.rounds[0].hostSummary?.content).toBe("本轮小结");
+    expect(grouped.coordinatorSummary?.speaker).toBe("最终协调Agent");
   });
 });

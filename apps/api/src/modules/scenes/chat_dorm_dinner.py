@@ -34,7 +34,7 @@ from ..conversations.models import (
 )
 from ..conversations.service import create_system_message
 from ..users.models import User
-from .dinner_search import DinnerSearchError, StepFunDinnerProvider
+from .dinner_search import DinnerCandidate, DinnerSearchError, SearchEvidence, StepFunDinnerProvider
 from .models import (
     ParticipantStatus,
     PrivateSubmission,
@@ -212,6 +212,78 @@ def _candidate_read(candidate: SceneCandidate) -> dict[str, Any]:
         "public_reason": candidate.public_reason,
         "rank": candidate.rank,
     }
+
+
+def _dinner_candidate_public(candidate: DinnerCandidate) -> dict[str, Any]:
+    return {
+        "candidate_key": candidate.candidate_key,
+        "display_name": candidate.display_name,
+        "address": candidate.address,
+        "price_hint": candidate.price_hint,
+        "business_hours_hint": candidate.business_hours_hint,
+        "public_reason": candidate.public_reason,
+        "risk_notice": candidate.risk_notice,
+        "source_urls": candidate.source_urls,
+        "sources": [source.model_dump(mode="json") for source in candidate.sources],
+    }
+
+
+def _proposal_source_urls(proposals: list[DinnerCandidate]) -> list[str]:
+    urls: list[str] = []
+    for proposal in proposals:
+        for url in proposal.source_urls:
+            if url not in urls:
+                urls.append(url)
+    return urls
+
+
+def _looks_like_restaurant_evidence(item: SearchEvidence) -> bool:
+    text = f"{item.title} {item.snippet} {item.content}".lower()
+    restaurant_keywords = (
+        "餐厅",
+        "餐馆",
+        "饭店",
+        "菜馆",
+        "酒楼",
+        "小馆",
+        "火锅",
+        "川菜",
+        "粤菜",
+        "烧烤",
+        "美食",
+        "人均",
+        "营业",
+        "聚餐",
+        "大众点评",
+        "美团",
+        "高德",
+    )
+    broad_page_markers = ("大学之最", "校园风景", "求学", "招生", "百科")
+    return any(keyword in text for keyword in restaurant_keywords) and not any(
+        marker in text for marker in broad_page_markers
+    )
+
+
+def _search_debate_evidence(
+    provider: StepFunDinnerProvider,
+    queries: list[str],
+    *,
+    per_query_limit: int = 4,
+    max_total: int = 12,
+) -> list[SearchEvidence]:
+    by_url: dict[str, SearchEvidence] = {}
+    seen_titles: set[str] = set()
+    for query in queries:
+        for item in provider.search(query, limit=per_query_limit):
+            normalized_title = item.title.strip()
+            if not _looks_like_restaurant_evidence(item) or normalized_title in seen_titles:
+                continue
+            if item.url not in by_url:
+                by_url[item.url] = item
+                seen_titles.add(normalized_title)
+            if len(by_url) >= max_total:
+                return list(by_url.values())
+    return list(by_url.values())
 
 
 def _ensure_participant_rows(instance: SceneInstance, session: Session) -> None:
@@ -567,12 +639,20 @@ def run_debate(
         api_key=settings.MODEL_GATEWAY_API_KEY,
         timeout_ms=settings.MODEL_GATEWAY_TIMEOUT_MS,
     )
-    query = f"{context.get('city', '')} {context.get('origin', '')} 附近 {context.get('topic', '聚餐')} 餐厅 推荐 价格 地址 营业时间"
+    city_text = str(context.get("city") or "")
+    origin_text = str(context.get("origin") or "")
+    topic_text = str(context.get("topic") or "聚餐")
+    queries = [
+        f"{city_text} {origin_text} 附近 {topic_text} 餐厅 推荐 价格 地址 营业时间",
+        f"{city_text} {origin_text} 校外 周边 学生聚餐 餐厅 人均 地址 营业时间",
+        f"{city_text} {origin_text} 附近 大众点评 美团 高德 餐厅 聚餐 人均",
+        f"{city_text} {origin_text} 黄埔大道 天河 石牌桥 岗顶 聚餐 餐厅 学生 人均",
+    ]
     try:
-        evidence = provider.search(query, limit=6)
+        evidence = _search_debate_evidence(provider, queries)
         negotiation = provider.negotiate(
-            city=str(context.get("city") or ""),
-            origin=str(context.get("origin") or ""),
+            city=city_text,
+            origin=origin_text,
             topic=str(context.get("topic") or "宿舍聚餐"),
             round_count=max_rounds,
             member_preferences=member_preferences,
@@ -588,30 +668,98 @@ def run_debate(
     session.query(SceneCandidate).filter(
         SceneCandidate.scene_instance_id == instance.id
     ).delete(synchronize_session=False)
-    turns = [
-        {
-            "round": turn.round,
-            "speaker": turn.agent_name,
-            "content": turn.position,
-            "search_summary": turn.search_summary,
-            "source_urls": turn.source_urls,
-        }
-        for turn in negotiation.agents
-    ]
-    turns.append({
-        "round": max_rounds,
-        "speaker": "聚餐协调Agent",
-        "content": negotiation.coordinator_summary,
-        "search_summary": "",
-        "source_urls": [],
-    })
-    for turn in turns:
+    turns: list[dict[str, Any]] = []
+    if negotiation.agent_proposals or negotiation.rounds:
+        turns.append({
+            "phase": "opening",
+            "round": 0,
+            "speaker": negotiation.opening.speaker,
+            "content": negotiation.opening.content,
+            "search_summary": "",
+            "source_urls": [],
+            "proposals": [],
+        })
+        for proposal in negotiation.agent_proposals:
+            proposal_names = "、".join(item.display_name for item in proposal.proposals) or "暂无可核验提案"
+            turns.append({
+                "phase": "proposal",
+                "round": 0,
+                "speaker": proposal.agent_name,
+                "content": f"偏好：{proposal.preference_summary}；提案：{proposal_names}",
+                "search_summary": proposal.preference_summary,
+                "source_urls": _proposal_source_urls(proposal.proposals),
+                "proposals": [_dinner_candidate_public(item) for item in proposal.proposals],
+            })
+        for debate_round in negotiation.rounds:
+            for debate_turn in debate_round.turns:
+                turns.append({
+                    "phase": "debate",
+                    "round": debate_round.round,
+                    "speaker": debate_turn.agent_name,
+                    "content": debate_turn.position,
+                    "stance": debate_turn.stance,
+                    "target_candidate_keys": debate_turn.target_candidate_keys,
+                    "search_summary": "",
+                    "source_urls": debate_turn.source_urls,
+                    "proposals": [],
+                })
+            if debate_round.host_summary:
+                turns.append({
+                    "phase": "host_summary",
+                    "round": debate_round.round,
+                    "speaker": "主持人Agent",
+                    "content": debate_round.host_summary,
+                    "search_summary": "",
+                    "source_urls": [],
+                    "proposals": [],
+                })
+        turns.append({
+            "phase": "coordinator_summary",
+            "round": max_rounds,
+            "speaker": "最终协调Agent",
+            "content": negotiation.coordinator_summary,
+            "search_summary": "",
+            "source_urls": [],
+            "proposals": [],
+        })
+    else:
+        turns = [
+            {
+                "phase": "debate",
+                "round": turn.round,
+                "speaker": turn.agent_name,
+                "content": turn.position,
+                "search_summary": turn.search_summary,
+                "source_urls": turn.source_urls,
+                "proposals": [],
+            }
+            for turn in negotiation.agents
+        ]
+        turns.append({
+            "phase": "coordinator_summary",
+            "round": max_rounds,
+            "speaker": "最终协调Agent",
+            "content": negotiation.coordinator_summary,
+            "search_summary": "",
+            "source_urls": [],
+            "proposals": [],
+        })
+    for message_turn in turns:
+        if message_turn["phase"] == "proposal":
+            message_content = f"{message_turn['speaker']} 提案：{message_turn['content']}"
+        else:
+            message_content = f"{message_turn['speaker']}：{message_turn['content']}"
         _post_system_message(
             conversation_id,
             session,
-            content=f"{turn['speaker']}：{turn['content']}",
+            content=message_content,
             message_type=MessageType.AGENT_PUBLIC.value,
-            payload={"scene_key": "dorm_dinner", "scene_id": str(instance.id), "round": turn["round"]},
+            payload={
+                "scene_key": "dorm_dinner",
+                "scene_id": str(instance.id),
+                "round": message_turn["round"],
+                "phase": message_turn["phase"],
+            },
         )
     for rank, candidate in enumerate(negotiation.candidates, start=1):
         session.add(SceneCandidate(

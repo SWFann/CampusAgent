@@ -27,11 +27,36 @@ export interface DormDinnerCandidate {
 }
 
 export interface DormDinnerDebateTurn {
+  phase?: "opening" | "proposal" | "debate" | "host_summary" | "coordinator_summary" | string;
   round: number;
   speaker: string;
   content: string;
   search_summary?: string;
   source_urls?: string[];
+  proposals?: Array<{
+    candidate_key?: string;
+    display_name?: string;
+    address?: string;
+    price_hint?: string;
+    business_hours_hint?: string;
+    public_reason?: string;
+    source_urls?: string[];
+  }>;
+  stance?: string;
+  target_candidate_keys?: string[];
+}
+
+export interface DormDinnerDebateRoundGroup {
+  round: number;
+  turns: DormDinnerDebateTurn[];
+  hostSummary: DormDinnerDebateTurn | null;
+}
+
+export interface DormDinnerDebateGroups {
+  opening: DormDinnerDebateTurn | null;
+  proposals: DormDinnerDebateTurn[];
+  rounds: DormDinnerDebateRoundGroup[];
+  coordinatorSummary: DormDinnerDebateTurn | null;
 }
 
 export interface DormDinnerChatStatus {
@@ -73,6 +98,47 @@ export function isDormDinnerClosed(status: DormDinnerChatStatus | null): boolean
 
 export function canActOnDormDinner(status: DormDinnerChatStatus | null): boolean {
   return Boolean(status?.scene_id) && status?.status !== "NOT_STARTED" && !isDormDinnerClosed(status);
+}
+
+export function groupDormDinnerDebateTurns(turns: DormDinnerDebateTurn[]): DormDinnerDebateGroups {
+  const grouped: DormDinnerDebateGroups = {
+    opening: null,
+    proposals: [],
+    rounds: [],
+    coordinatorSummary: null,
+  };
+  const roundMap = new Map<number, DormDinnerDebateRoundGroup>();
+  const getRound = (round: number): DormDinnerDebateRoundGroup => {
+    const normalizedRound = round || 1;
+    const existing = roundMap.get(normalizedRound);
+    if (existing) return existing;
+    const created = { round: normalizedRound, turns: [], hostSummary: null };
+    roundMap.set(normalizedRound, created);
+    grouped.rounds.push(created);
+    return created;
+  };
+
+  for (const turn of turns) {
+    switch (turn.phase) {
+      case "opening":
+        grouped.opening = turn;
+        break;
+      case "proposal":
+        grouped.proposals.push(turn);
+        break;
+      case "host_summary":
+        getRound(turn.round).hostSummary = turn;
+        break;
+      case "coordinator_summary":
+        grouped.coordinatorSummary = turn;
+        break;
+      default:
+        getRound(turn.round).turns.push(turn);
+        break;
+    }
+  }
+  grouped.rounds.sort((a, b) => a.round - b.round);
+  return grouped;
 }
 
 async function parseJson<T>(resp: Response): Promise<ApiResult<T>> {
