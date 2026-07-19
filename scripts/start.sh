@@ -335,7 +335,7 @@ start_servers() {
   log "Starting Web on http://localhost:${WEB_PORT}"
   (
     cd "$ROOT_DIR/apps/web"
-    NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}" corepack pnpm dev --port "$WEB_PORT"
+    NEXT_DIST_DIR=".next-${WEB_PORT}" NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}" corepack pnpm dev --port "$WEB_PORT"
   ) &
   WEB_PID=$!
 
