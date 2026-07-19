@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     # Model Gateway
     MODEL_GATEWAY_BASE_URL: str = "http://localhost:8001"
     MODEL_GATEWAY_MODEL: str = "step-3.7-flash"
-    MODEL_GATEWAY_TIMEOUT_MS: int = 30000
+    MODEL_GATEWAY_TIMEOUT_MS: int = 60000
     MODEL_GATEWAY_IS_EXTERNAL: bool = True
     MODEL_GATEWAY_API_KEY: SecretStr = SecretStr("")
 

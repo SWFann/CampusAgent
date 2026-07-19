@@ -64,6 +64,17 @@ export interface DormDinnerChatStatus {
   capabilities: { can_manage: boolean; can_start_debate: boolean; can_close: boolean };
 }
 
+const CLOSED_DORM_DINNER_STATUSES = new Set(["VOTING_CLOSED", "COMPLETED", "CANCELLED", "EXPIRED", "FAILED"]);
+
+export function isDormDinnerClosed(status: DormDinnerChatStatus | null): boolean {
+  if (!status) return false;
+  return CLOSED_DORM_DINNER_STATUSES.has(status.status) || CLOSED_DORM_DINNER_STATUSES.has(status.phase);
+}
+
+export function canActOnDormDinner(status: DormDinnerChatStatus | null): boolean {
+  return Boolean(status?.scene_id) && status?.status !== "NOT_STARTED" && !isDormDinnerClosed(status);
+}
+
 async function parseJson<T>(resp: Response): Promise<ApiResult<T>> {
   return resp.json();
 }

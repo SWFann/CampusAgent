@@ -50,12 +50,31 @@ class NegotiationResult(BaseModel):
     candidates: list[DinnerCandidate]
 
 
+def _loads_model_json(content: Any) -> dict[str, Any]:
+    if isinstance(content, dict):
+        return content
+    if not isinstance(content, str):
+        raise ValueError("model content is not JSON text")
+    text = content.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    parsed = json.loads(text)
+    if not isinstance(parsed, dict):
+        raise ValueError("model JSON root must be an object")
+    return parsed
+
+
 @dataclass(repr=False)
 class StepFunDinnerProvider:
     base_url: str
     model: str
     api_key: SecretStr | str
-    timeout_ms: int = 30_000
+    timeout_ms: int = 60_000
     transport: httpx.BaseTransport | None = None
 
     def __post_init__(self) -> None:
@@ -179,7 +198,7 @@ class StepFunDinnerProvider:
                 )
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
-            parsed = json.loads(content) if isinstance(content, str) else content
+            parsed = _loads_model_json(content)
         except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as exc:
             raise DinnerSearchError("智能体汇总暂时不可用，请稍后重试") from exc
 

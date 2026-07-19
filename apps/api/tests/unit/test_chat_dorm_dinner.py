@@ -7,10 +7,19 @@ from sqlalchemy.orm import Session
 
 from src.events.bus import DomainEvent, default_event_bus
 from src.modules.conversations.events import MessageCreated
-from src.modules.conversations.models import Conversation, ConversationType, MessageType
+from src.modules.conversations.models import (
+    Conversation,
+    ConversationParticipant,
+    ConversationRole,
+    ConversationType,
+    MessageType,
+    ParticipantType,
+)
 from src.modules.conversations.service import create_system_message
 from src.modules.scenes import chat_dorm_dinner
-from src.modules.scenes.models import SceneInstance
+from src.modules.scenes.models import SceneCandidate, SceneDefinition, SceneInstance
+from src.modules.users.models import GlobalRole, User, UserStatus
+from src.utils.errors import NotFoundError
 
 
 class _Actor:
@@ -130,3 +139,92 @@ def test_status_exposes_uninitialized_draft_as_not_started(monkeypatch: pytest.M
 
     assert result["scene_id"] is None
     assert result["status"] == "NOT_STARTED"
+
+
+def _create_chat_scene(
+    test_db_session: Session,
+    *,
+    scene_status: str,
+    phase: str,
+) -> tuple[User, Conversation, SceneInstance, SceneCandidate]:
+    actor = User(
+        email=f"chat-scene-{scene_status.lower()}@example.com",
+        password_hash="fake",
+        display_name="Alice",
+        global_role=GlobalRole.STUDENT.value,
+        status=UserStatus.ACTIVE.value,
+    )
+    test_db_session.add(actor)
+    test_db_session.flush()
+    conversation = Conversation(
+        type=ConversationType.GROUP.value,
+        title="Dorm chat",
+        created_by=actor.id,
+    )
+    test_db_session.add(conversation)
+    test_db_session.flush()
+    test_db_session.add(
+        ConversationParticipant(
+            conversation_id=conversation.id,
+            participant_type=ParticipantType.USER.value,
+            participant_user_id=actor.id,
+            role=ConversationRole.OWNER.value,
+        )
+    )
+    definition = SceneDefinition(
+        scene_key="dorm_dinner",
+        version="1.0.0",
+        name="宿舍聚餐",
+        enabled=True,
+    )
+    test_db_session.add(definition)
+    test_db_session.flush()
+    instance = SceneInstance(
+        definition_id=definition.id,
+        conversation_id=conversation.id,
+        created_by=actor.id,
+        status=scene_status,
+        current_phase=phase,
+        public_context_json='{"city":"广州","origin":"暨南大学","topic":"宿舍聚餐"}',
+    )
+    test_db_session.add(instance)
+    test_db_session.flush()
+    candidate = SceneCandidate(
+        scene_instance_id=instance.id,
+        candidate_key="closed-candidate",
+        display_name="已关闭候选",
+        status="ACTIVE",
+        rank=1,
+    )
+    test_db_session.add(candidate)
+    test_db_session.commit()
+    return actor, conversation, instance, candidate
+
+
+def test_closed_vote_is_not_returned_as_current_chat_scene(test_db_session: Session) -> None:
+    actor, conversation, _instance, _candidate = _create_chat_scene(
+        test_db_session,
+        scene_status="VOTING_CLOSED",
+        phase="VOTING_CLOSED",
+    )
+
+    result = chat_dorm_dinner.get_status(actor, conversation.id, test_db_session)
+
+    assert result["scene_id"] is None
+    assert result["status"] == "NOT_STARTED"
+
+
+def test_cannot_vote_after_chat_vote_is_closed(test_db_session: Session) -> None:
+    actor, conversation, _instance, _candidate = _create_chat_scene(
+        test_db_session,
+        scene_status="VOTING_CLOSED",
+        phase="VOTING_CLOSED",
+    )
+
+    with pytest.raises(NotFoundError):
+        chat_dorm_dinner.vote(
+            actor,
+            conversation.id,
+            test_db_session,
+            candidate_key="closed-candidate",
+        )

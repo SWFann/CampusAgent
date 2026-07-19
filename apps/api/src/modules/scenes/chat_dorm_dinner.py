@@ -49,6 +49,8 @@ from .models import (
 from .service import create_scene_instance, submit_private_preferences
 from .state_machine import TERMINAL_STATES, SceneState
 
+CHAT_SCENE_CLOSED_STATUSES = {"VOTING_CLOSED"}
+
 
 def _active_participants(conversation_id: UUID, session: Session) -> list[ConversationParticipant]:
     return (
@@ -103,7 +105,7 @@ def _dorm_definition(session: Session) -> SceneDefinition:
 
 
 def _current_instance(conversation_id: UUID, session: Session) -> SceneInstance | None:
-    terminal_values = {state.value for state in TERMINAL_STATES}
+    terminal_values = {state.value for state in TERMINAL_STATES} | CHAT_SCENE_CLOSED_STATUSES
     return (
         session.query(SceneInstance)
         .join(SceneDefinition, SceneInstance.definition_id == SceneDefinition.id)
@@ -567,7 +569,7 @@ def run_debate(
     )
     query = f"{context.get('city', '')} {context.get('origin', '')} 附近 {context.get('topic', '聚餐')} 餐厅 推荐 价格 地址 营业时间"
     try:
-        evidence = provider.search(query, limit=12)
+        evidence = provider.search(query, limit=6)
         negotiation = provider.negotiate(
             city=str(context.get("city") or ""),
             origin=str(context.get("origin") or ""),
@@ -603,6 +605,14 @@ def run_debate(
         "search_summary": "",
         "source_urls": [],
     })
+    for turn in turns:
+        _post_system_message(
+            conversation_id,
+            session,
+            content=f"{turn['speaker']}：{turn['content']}",
+            message_type=MessageType.AGENT_PUBLIC.value,
+            payload={"scene_key": "dorm_dinner", "scene_id": str(instance.id), "round": turn["round"]},
+        )
     for rank, candidate in enumerate(negotiation.candidates, start=1):
         session.add(SceneCandidate(
             scene_instance_id=instance.id,
@@ -662,7 +672,7 @@ def close_vote(actor: User, conversation_id: UUID, session: Session) -> dict[str
         message_type=MessageType.RESULT.value,
         payload={"scene_key": "dorm_dinner", "scene_id": str(instance.id)},
     )
-    return _status(instance, actor, session)
+    return get_status(actor, conversation_id, session)
 
 
 def end_scene(actor: User, conversation_id: UUID, session: Session) -> dict[str, Any]:
@@ -672,7 +682,6 @@ def end_scene(actor: User, conversation_id: UUID, session: Session) -> dict[str,
         raise NotFoundError("Dorm dinner scene")
     if instance.created_by != actor.id:
         raise AuthorizationError("只有聚餐发起人可以结束聚餐")
-    snapshot = _status(instance, actor, session)
     instance.status = SceneState.COMPLETED.value
     instance.current_phase = SceneState.COMPLETED.value
     instance.completed_at = utc_now()
@@ -684,8 +693,7 @@ def end_scene(actor: User, conversation_id: UUID, session: Session) -> dict[str,
         message_type=MessageType.RESULT.value,
         payload={"scene_key": "dorm_dinner", "scene_id": str(instance.id)},
     )
-    snapshot.update({"status": instance.status, "phase": instance.current_phase})
-    return snapshot
+    return get_status(actor, conversation_id, session)
 
 
 def vote(

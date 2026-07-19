@@ -22,6 +22,8 @@ import {
 import { listMessages as fetchBackfill } from "@/lib/conversations";
 import {
   getDormDinnerChatStatus,
+  canActOnDormDinner,
+  isDormDinnerClosed,
   setDormDinnerParticipation,
   startDormDinnerChat,
   startDormDinnerDebate,
@@ -225,7 +227,8 @@ function DormDinnerChatCard({
   actionLoading: boolean;
   actionError: string | null;
 }) {
-  const hasStarted = status?.scene_id !== null && status?.status !== "NOT_STARTED";
+  const sceneIsActive = canActOnDormDinner(status);
+  const sceneIsClosed = isDormDinnerClosed(status);
   const [budgetRange, setBudgetRange] = useState("30-60");
   const [preferredTime, setPreferredTime] = useState("18:00");
   const [city, setCity] = useState("");
@@ -260,141 +263,156 @@ function DormDinnerChatCard({
             <input
               type="number"
               min={1}
-              max={8}
+              max={10}
               value={maxRounds}
               onChange={(e) => setMaxRounds(Number(e.target.value))}
               style={{ width: 56, marginLeft: 6, padding: 4, border: "1px solid #c4b5fd", borderRadius: 4 }}
             />
           </label>
-          <button className="btn btn-sm btn-primary" onClick={() => onStart({ city, origin, topic })} disabled={actionLoading || hasStarted || !city.trim() || !origin.trim()}>
-            {hasStarted ? "已发起" : "发起"}
+          <button className="btn btn-sm btn-primary" onClick={() => onStart({ city, origin, topic })} disabled={actionLoading || sceneIsActive || !city.trim() || !origin.trim()}>
+            {sceneIsActive ? "进行中" : "发起新投票"}
           </button>
         </div>
       </div>
 
       {status && (
         <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-          {!hasStarted && (
+          {!sceneIsActive && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
               <label>城市<input aria-label="城市" value={city} onChange={(e) => setCity(e.target.value)} /></label>
               <label>校区/出发地点<input aria-label="校区/出发地点" value={origin} onChange={(e) => setOrigin(e.target.value)} /></label>
               <label>聚餐主题<input aria-label="聚餐主题" value={topic} onChange={(e) => setTopic(e.target.value)} /></label>
             </div>
           )}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
-            <span>阶段：{status.phase}</span>
-            <span>参与：{status.joined_count}</span>
-            <span>不参与：{status.skipped_count}</span>
-            <span>已提交：{status.submitted_count}/{status.joined_count}</span>
-            <span>辩论轮数：{status.current_round}/{status.max_rounds}</span>
-          </div>
+          {sceneIsClosed && (
+            <p style={{ margin: 0, fontSize: 12, color: "#6b21a8" }}>
+              上一轮投票已关闭，可以填写地点后发起新的宿舍聚餐投票。
+            </p>
+          )}
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-sm" onClick={() => onParticipate(true)} disabled={actionLoading}>
-              我参与
-            </button>
-            <button className="btn btn-sm" onClick={() => onParticipate(false)} disabled={actionLoading}>
-              我不参与
-            </button>
-            <button className="btn btn-sm btn-primary" onClick={onStartDebate} disabled={actionLoading || !status.ready_for_debate}>
-              开始智能体辩论
-            </button>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, padding: 8, background: "#fff", borderRadius: 6 }}>
-            <label style={{ fontSize: 12, color: "#4c1d95" }}>
-              预算
-              <select
-                value={budgetRange}
-                onChange={(e) => setBudgetRange(e.target.value)}
-                style={{ display: "block", width: "100%", marginTop: 4, padding: 6, border: "1px solid #ddd6fe", borderRadius: 4 }}
-              >
-                <option value="20-40">20-40 元</option>
-                <option value="30-60">30-60 元</option>
-                <option value="60-100">60-100 元</option>
-              </select>
-            </label>
-            <label style={{ fontSize: 12, color: "#4c1d95" }}>
-              时间
-              <select
-                value={preferredTime}
-                onChange={(e) => setPreferredTime(e.target.value)}
-                style={{ display: "block", width: "100%", marginTop: 4, padding: 6, border: "1px solid #ddd6fe", borderRadius: 4 }}
-              >
-                <option value="17:00">17:00</option>
-                <option value="18:00">18:00</option>
-                <option value="19:00">19:00</option>
-                <option value="20:00">20:00</option>
-              </select>
-            </label>
-            <div style={{ fontSize: 12, color: "#4c1d95" }}>
-              饮食限制
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                {dietaryOptions.map((option) => (
-                  <label key={option} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <input
-                      type="checkbox"
-                      checked={dietaryRestrictions.includes(option)}
-                      onChange={() => toggleDietary(option)}
-                    />
-                    {option}
-                  </label>
-                ))}
+          {sceneIsActive && (
+            <>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
+                <span>阶段：{status.phase}</span>
+                <span>参与：{status.joined_count}</span>
+                <span>不参与：{status.skipped_count}</span>
+                <span>已提交：{status.submitted_count}/{status.joined_count}</span>
+                <span>辩论轮数：{status.current_round}/{status.max_rounds}</span>
               </div>
-            </div>
-            <button
-              className="btn btn-sm btn-primary"
-              onClick={() => onSubmitPreferences({
-                budget_range: budgetRange,
-                dietary_restrictions: dietaryRestrictions,
-                preferred_time: preferredTime,
-                notes,
-              })}
-              disabled={actionLoading || status.my_participation === "DECLINED"}
-              style={{ alignSelf: "end" }}
-            >
-              提交我的偏好
-            </button>
-            <label style={{ gridColumn: "1 / -1", fontSize: 12, color: "#4c1d95" }}>
-              补充需求（仅本人和智能体可见）
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} style={{ display: "block", width: "100%" }} />
-            </label>
-          </div>
 
-          {status.debate_turns.length > 0 && (
-            <div style={{ display: "grid", gap: 4 }}>
-              {status.debate_turns.map((turn) => (
-                <p key={turn.round} style={{ margin: 0, fontSize: 12, color: "#4c1d95" }}>
-                  {turn.speaker}：{turn.content}
-                </p>
-              ))}
-            </div>
-          )}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button className="btn btn-sm" onClick={() => onParticipate(true)} disabled={actionLoading}>
+                  我参与
+                </button>
+                <button className="btn btn-sm" onClick={() => onParticipate(false)} disabled={actionLoading}>
+                  我不参与
+                </button>
+                <button className="btn btn-sm btn-primary" onClick={onStartDebate} disabled={actionLoading || !status.ready_for_debate}>
+                  开始智能体辩论
+                </button>
+              </div>
 
-          {status.candidates.length > 0 && (
-            <div style={{ display: "grid", gap: 6 }}>
-              {status.candidates.map((candidate) => (
-                <div key={candidate.candidate_key} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: 8, background: "#fff", borderRadius: 6 }}>
-                  <div>
-                    <strong>{candidate.display_name}</strong>
-                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>{candidate.public_reason}</p>
-                    <p style={{ margin: "2px 0", fontSize: 11 }}>{candidate.public_metadata?.address ?? "地址未核实"} · {candidate.public_metadata?.price_hint ?? "价格未核实"}</p>
-                    {(candidate.public_metadata?.sources ?? []).map((source) => (
-                      <a key={source.url} href={source.url} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 11 }}>{source.title}</a>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, padding: 8, background: "#fff", borderRadius: 6 }}>
+                <label style={{ fontSize: 12, color: "#4c1d95" }}>
+                  预算
+                  <select
+                    value={budgetRange}
+                    onChange={(e) => setBudgetRange(e.target.value)}
+                    style={{ display: "block", width: "100%", marginTop: 4, padding: 6, border: "1px solid #ddd6fe", borderRadius: 4 }}
+                  >
+                    <option value="20-40">20-40 元</option>
+                    <option value="30-60">30-60 元</option>
+                    <option value="60-100">60-100 元</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: 12, color: "#4c1d95" }}>
+                  时间
+                  <select
+                    value={preferredTime}
+                    onChange={(e) => setPreferredTime(e.target.value)}
+                    style={{ display: "block", width: "100%", marginTop: 4, padding: 6, border: "1px solid #ddd6fe", borderRadius: 4 }}
+                  >
+                    <option value="17:00">17:00</option>
+                    <option value="18:00">18:00</option>
+                    <option value="19:00">19:00</option>
+                    <option value="20:00">20:00</option>
+                  </select>
+                </label>
+                <div style={{ fontSize: 12, color: "#4c1d95" }}>
+                  饮食限制
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                    {dietaryOptions.map((option) => (
+                      <label key={option} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <input
+                          type="checkbox"
+                          checked={dietaryRestrictions.includes(option)}
+                          onChange={() => toggleDietary(option)}
+                        />
+                        {option}
+                      </label>
                     ))}
-                    <small>信息可能变化，请到店前确认</small>
                   </div>
-                  <button className="btn btn-sm" onClick={() => onVote(candidate.candidate_key)} disabled={actionLoading}>
-                    投票
-                  </button>
                 </div>
-              ))}
-            </div>
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => onSubmitPreferences({
+                    budget_range: budgetRange,
+                    dietary_restrictions: dietaryRestrictions,
+                    preferred_time: preferredTime,
+                    notes,
+                  })}
+                  disabled={actionLoading || status.my_participation === "DECLINED"}
+                  style={{ alignSelf: "end" }}
+                >
+                  提交我的偏好
+                </button>
+                <label style={{ gridColumn: "1 / -1", fontSize: 12, color: "#4c1d95" }}>
+                  补充需求（仅本人和智能体可见）
+                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} style={{ display: "block", width: "100%" }} />
+                </label>
+              </div>
+
+              {status.debate_turns.length > 0 && (
+                <div style={{ display: "grid", gap: 4 }}>
+                  {status.debate_turns.map((turn) => (
+                    <p key={turn.round} style={{ margin: 0, fontSize: 12, color: "#4c1d95" }}>
+                      {turn.speaker}：{turn.content}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {status.candidates.length > 0 && (
+                <div style={{ display: "grid", gap: 6 }}>
+                  {status.candidates.map((candidate) => (
+                    <div key={candidate.candidate_key} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: 8, background: "#fff", borderRadius: 6 }}>
+                      <div>
+                        <strong>{candidate.display_name}</strong>
+                        <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>{candidate.public_reason}</p>
+                        <p style={{ margin: "2px 0", fontSize: 11 }}>{candidate.public_metadata?.address ?? "地址未核实"} · {candidate.public_metadata?.price_hint ?? "价格未核实"}</p>
+                        {(candidate.public_metadata?.sources ?? []).map((source) => (
+                          <a key={source.url} href={source.url} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 11 }}>{source.title}</a>
+                        ))}
+                        <small>信息可能变化，请到店前确认</small>
+                      </div>
+                      <button className="btn btn-sm" onClick={() => onVote(candidate.candidate_key)} disabled={actionLoading}>
+                        投票
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {status.candidates.length > 0 && (
+                <button className="btn btn-sm" onClick={onRequestNext} disabled={actionLoading}>
+                  都不同意，请求下一次协商（已有 {status.next_negotiation_requests} 人）
+                </button>
+              )}
+            </>
           )}
-          {status.candidates.length > 0 && (
-            <button className="btn btn-sm" onClick={onRequestNext} disabled={actionLoading}>
-              都不同意，请求下一次协商（已有 {status.next_negotiation_requests} 人）
-            </button>
+          {!sceneIsActive && !sceneIsClosed && (
+            <div style={{ padding: 8, background: "#fff", borderRadius: 6, fontSize: 12, color: "#6b21a8" }}>
+              <span>填写城市和校区/出发地点后，即可在群聊里发起一条新的聚餐投票卡片。</span>
+            </div>
           )}
           {actionError && <p style={{ color: "#b91c1c", margin: 0, fontSize: 12 }}>{actionError}</p>}
         </div>
@@ -584,39 +602,12 @@ export default function ConversationDetailPage() {
     const unsubEvents = client.onEvent((event: ServerEvent) => {
       if (event.event === "message.created") {
         const data = event.data;
-        const messageId = data.message_id as string;
         const convId = data.conversation_id as string;
 
         // Only handle events，用途：this conversation
         if (convId !== conversationId) return;
 
-        // Dedup by message_id (business idempotency)
-        if (processedMessageIds.current.has(messageId)) return;
-        processedMessageIds.current.add(messageId);
-
-        const newMessage: Message = {
-          id: messageId,
-          conversation_id: convId,
-          sender_type: data.sender_type as Message["sender_type"],
-          sender_user_id: (data.sender_user_id as string) ?? null,
-          sender_agent_id: (data.sender_agent_id as string) ?? null,
-          message_type: data.message_type as Message["message_type"],
-          content: (data.content as string) ?? null,
-          status: "ACTIVE",
-          sequence: 0,
-          created_at: data.created_at as string,
-          deleted_at: null,
-        };
-
-        setMessages((prev) => {
-          // Insert and sort by created_at
-          const updated = [...prev, newMessage];
-          return updated.sort(
-            (a, b) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime()
-          );
-        });
+        void fetchMessages(1, false);
         if (["SCENE_CARD", "AGENT_PUBLIC", "VOTE", "RESULT"].includes(String(data.message_type))) {
           void fetchDormDinner();
         }
@@ -645,7 +636,7 @@ export default function ConversationDetailPage() {
       unsubEvents();
       client.unsubscribe(conversationId);
     };
-  }, [conversationId, fetchParticipants, fetchConversation, fetchDormDinner, backfillMessages]);
+  }, [conversationId, fetchMessages, fetchParticipants, fetchConversation, fetchDormDinner, backfillMessages]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
