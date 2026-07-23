@@ -160,6 +160,9 @@ class ModelGatewayService:
         external: optional external OpenAI-compatible provider.
         routing_policy: optional custom routing policy (else built from the
             providers above).
+        allow_fallback: whether provider failures may degrade to a local rule/mock
+            provider. User-selected personal routes disable this so errors remain
+            attributable to the configured provider.
     """
 
     def __init__(
@@ -170,6 +173,7 @@ class ModelGatewayService:
         local_node: Any | None = None,
         external: Any | None = None,
         routing_policy: RoutingPolicy | None = None,
+        allow_fallback: bool = True,
     ) -> None:
         self._mock = mock or MockProvider()
         self._rule = rule or RuleProvider()
@@ -180,6 +184,7 @@ class ModelGatewayService:
                 self._mock, self._rule, local_node=local_node, external=external
             )
             self._policy = RoutingPolicy(candidates)
+        self._allow_fallback = allow_fallback
         self._metrics = get_model_gateway_metrics()
 
     @property
@@ -361,6 +366,8 @@ class ModelGatewayService:
             result: ChatResponse = provider.chat(request)
             return result
         except ModelTimeoutError:
+            if not self._allow_fallback:
+                raise
             fallback = self._policy.select_for_fallback(
                 request, exclude={provider.name}
             )
@@ -376,6 +383,8 @@ class ModelGatewayService:
             )
             return fallback.chat(request)
         except ModelGatewayError:
+            if not self._allow_fallback:
+                raise
             fallback = self._policy.select_for_fallback(
                 request, exclude={provider.name}
             )

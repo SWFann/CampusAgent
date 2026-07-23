@@ -38,15 +38,10 @@ function Find-FreePort($Port) {
     return $Port
 }
 
-Require-Command "conda" "Install Conda and create the CampusAgent environment."
+Require-Command "uv" "Install uv from https://docs.astral.sh/uv/."
 Require-Command "corepack" "Install Node.js >= 18."
 Require-Command "node" "Install Node.js >= 18."
 Require-Command "git" "Install Git."
-
-$envList = conda env list | Out-String
-if ($envList -notmatch "(?m)^CampusAgent\s+") {
-    throw "Conda env 'CampusAgent' was not found."
-}
 
 if ($Mode -eq "auto") {
     if ((Get-Command docker -ErrorAction SilentlyContinue) -and ((docker compose version) 2>$null)) {
@@ -68,6 +63,8 @@ if (-not (Test-Path ".env")) {
 }
 
 New-Item -ItemType Directory -Force ".local" | Out-Null
+$env:UV_CACHE_DIR = Join-Path $Root ".local/uv-cache"
+$env:UV_PYTHON_INSTALL_DIR = Join-Path $Root ".local/uv-python"
 
 Get-Content ".env" | ForEach-Object {
     $line = $_.Trim()
@@ -105,10 +102,10 @@ if ($Smoke) {
     if (-not $NoInstall) {
         Write-Step "Installing dependencies if needed..."
         corepack pnpm install --frozen-lockfile
-        conda run -n CampusAgent python -m pip install -r apps/api/requirements.lock
+        uv sync --project apps/api --extra dev --frozen
     }
     Write-Step "Running demo smoke test..."
-    conda run -n CampusAgent python scripts/demo/run_demo_smoke.py
+    uv run --project apps/api --extra dev --frozen python scripts/demo/run_demo_smoke.py
     exit $LASTEXITCODE
 }
 
@@ -127,7 +124,7 @@ if (Test-PortInUse $WebPort) {
 if (-not $NoInstall) {
     Write-Step "Installing dependencies if needed..."
     corepack pnpm install --frozen-lockfile
-    conda run -n CampusAgent python -m pip install -r apps/api/requirements.lock
+    uv sync --project apps/api --extra dev --frozen
 }
 
 if ($Mode -eq "docker") {
@@ -140,16 +137,16 @@ if ($Mode -eq "docker") {
 
 Write-Step "Running database migrations..."
 Push-Location "apps/api"
-conda run -n CampusAgent alembic -c alembic.ini upgrade head
+uv run --project . --extra dev --frozen alembic -c alembic.ini upgrade head
 Pop-Location
 
 if (-not $NoSeed) {
     Write-Step "Seeding demo data..."
-    conda run -n CampusAgent python scripts/demo/seed_demo.py --json
+    uv run --project apps/api --extra dev --frozen python scripts/demo/seed_demo.py --json
 }
 
 Write-Step "Starting API on http://localhost:$ApiPort"
-$api = Start-Process -FilePath "conda" -ArgumentList @("run", "-n", "CampusAgent", "uvicorn", "src.main:app", "--app-dir", "apps/api", "--reload", "--port", "$ApiPort") -PassThru -NoNewWindow
+$api = Start-Process -FilePath "uv" -ArgumentList @("run", "--project", "apps/api", "--extra", "dev", "--frozen", "uvicorn", "src.main:app", "--app-dir", "apps/api", "--reload", "--port", "$ApiPort") -PassThru -NoNewWindow
 
 Write-Step "Starting Web on http://localhost:$WebPort"
 $webArgs = @("pnpm", "--filter", "@campus-agent/web", "dev", "--port", "$WebPort")

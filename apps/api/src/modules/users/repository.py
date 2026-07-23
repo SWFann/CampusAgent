@@ -57,3 +57,10 @@ class StudentProfileRepository(BaseRepository[StudentProfile]):
     def student_no_exists(self, student_no: str) -> bool:
         """Check if a student number is already registered."""
         return self.get_by_student_no(student_no) is not None
+
+    def phone_number_exists(self, phone_number: str) -> bool:
+        """Check whether a phone number is already bound to a student."""
+        stmt = select(StudentProfile.id).where(
+            StudentProfile.phone_number == phone_number
+        )
+        return self._session.execute(stmt).scalar_one_or_none() is not None

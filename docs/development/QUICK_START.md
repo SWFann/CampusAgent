@@ -14,7 +14,7 @@
 | 工具 | 最低版本 | 推荐版本 | 检查命令 |
 |------|---------|---------|---------|
 | Node.js | 18.x LTS | 20.x LTS | `node --version` |
-| Python | 3.11 | 3.11 或 3.12 | `python3 --version` |
+| uv | 0.5 | 最新稳定版 | `uv --version` |
 | Git | 2.40 | 最新稳定版 | `git --version` |
 | pnpm | 8.x | 8.15.0 | `corepack pnpm --version` |
 
@@ -44,24 +44,16 @@ cd campus-agent
 
 ---
 
-## 第二步：配置 Conda 虚拟环境
+## 第二步：同步 uv 项目环境
 
-### 激活虚拟环境
-
-```bash
-conda activate CampusAgent
-```
-
-### 验证环境
+无需安装或激活 Conda，uv 会根据 `.python-version` 与 `uv.lock` 创建 `apps/api/.venv`。
 
 ```bash
-python --version
-# 应显示 Python 3.11.15
+uv sync --project apps/api --extra dev --frozen
+uv run --project apps/api --extra dev --frozen python --version
 ```
 
-**重要**：所有后端 Python 代码必须在 `CampusAgent` 虚拟环境中运行。
-
-详见：[Python 虚拟环境说明](../../README.md#python-虚拟环境)
+**重要**：不要使用裸 `pip install` 或系统 Python 执行后端命令。优先使用 `make` 目标或 `uv run --project apps/api`。
 
 ---
 
@@ -79,7 +71,7 @@ corepack pnpm install --frozen-lockfile
 ### 安装后端依赖
 
 ```bash
-conda run -n CampusAgent python -m pip install -r apps/api/requirements.lock
+uv sync --project apps/api --extra dev --frozen
 ```
 
 这会安装所有后端依赖（FastAPI, SQLAlchemy 等）。
@@ -130,7 +122,7 @@ FIELD_ENCRYPTION_KEY=dev-encryption-key-change-in-production
 make docker-up
 
 # 启动开发服务
-corepack pnpm dev
+make dev
 ```
 
 ### 选项 B：本地安装服务
@@ -139,7 +131,7 @@ corepack pnpm dev
 
 ```bash
 # 启动开发服务
-corepack pnpm dev
+make dev
 ```
 
 这会启动：
@@ -194,7 +186,7 @@ corepack pnpm --filter @campus-agent/web test -- --runInBand
 ### 仅后端测试
 
 ```bash
-conda run -n CampusAgent python -m pytest apps/api/tests -q -p no:cacheprovider
+uv run --project apps/api --extra dev --frozen python -m pytest apps/api/tests -q -p no:cacheprovider
 ```
 
 ---

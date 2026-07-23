@@ -150,6 +150,16 @@ class OrganizationMembershipRepository(BaseRepository[OrganizationMembership]):
         )
         return list(self._session.execute(stmt).scalars().all())
 
+    def list_by_org_status(
+        self, organization_id: UUID, status: str
+    ) -> list[OrganizationMembership]:
+        """List memberships in an organization for one lifecycle status."""
+        stmt = select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == organization_id,
+            OrganizationMembership.status == status,
+        )
+        return list(self._session.execute(stmt).scalars().all())
+
     def list_active_by_user(self, user_id: UUID) -> list[OrganizationMembership]:
         """List all ACTIVE memberships for a user."""
         stmt = select(OrganizationMembership).where(

@@ -5,6 +5,7 @@ Privacy:
   (PrivateSubmissionResponse) never echoes the raw payload.
 - Only capsule-derived metadata and status are returned.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -38,6 +39,7 @@ class SceneDefinitionRead(BaseModel):
 
 class SceneInstanceCreate(BaseModel):
     scene_key: str = Field(..., min_length=1, max_length=50)
+    organization_id: UUID | None = None
     conversation_id: UUID | None = None
     public_context: dict[str, Any] | None = None
     participant_user_ids: list[UUID] = Field(..., min_length=1)
@@ -54,6 +56,7 @@ class SceneInstanceRead(BaseModel):
     current_phase: str
     created_by: UUID
     conversation_id: UUID | None = None
+    organization_id: UUID | None = None
     public_context: dict[str, Any] | None = None
     expires_at: datetime | None = None
     completed_at: datetime | None = None
@@ -63,6 +66,8 @@ class SceneInstanceRead(BaseModel):
     updated_at: datetime
     participant_count: int = 0
     submitted_count: int = 0
+    participant_status: str | None = None
+    is_creator: bool = False
 
     model_config = {"from_attributes": True, "extra": "forbid"}
 
@@ -74,11 +79,13 @@ class SceneInstanceStatus(BaseModel):
     status: str
     current_phase: str
     progress: dict[str, int] = Field(default_factory=dict)
-    privacy: dict[str, bool] = Field(default_factory=lambda: {
-        "raw_preferences_visible": False,
-        "individual_scores_visible": False,
-        "debate_visible": False,
-    })
+    privacy: dict[str, bool] = Field(
+        default_factory=lambda: {
+            "raw_preferences_visible": False,
+            "individual_scores_visible": False,
+            "debate_visible": False,
+        }
+    )
 
     model_config = {"extra": "forbid"}
 

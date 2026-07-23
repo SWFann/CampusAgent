@@ -7,6 +7,7 @@ Privacy:
 - Repository methods return ORM objects; the service layer is responsible
   for stripping sensitive fields before returning to the API.
 """
+
 from __future__ import annotations
 
 from uuid import UUID
@@ -61,9 +62,7 @@ class SceneDefinitionRepository:
 
     def list_all(self) -> list[SceneDefinition]:
         return (
-            self._session.query(SceneDefinition)
-            .order_by(SceneDefinition.created_at.desc())
-            .all()
+            self._session.query(SceneDefinition).order_by(SceneDefinition.created_at.desc()).all()
         )
 
     def set_enabled(self, definition_id: UUID, enabled: bool) -> None:
@@ -88,9 +87,7 @@ class SceneInstanceRepository:
 
     def get_by_idempotency_key(self, key: str) -> SceneInstance | None:
         return (
-            self._session.query(SceneInstance)
-            .filter(SceneInstance.idempotency_key == key)
-            .first()
+            self._session.query(SceneInstance).filter(SceneInstance.idempotency_key == key).first()
         )
 
     def list_by_creator(self, user_id: UUID, *, limit: int = 50) -> list[SceneInstance]:
@@ -98,6 +95,20 @@ class SceneInstanceRepository:
             self._session.query(SceneInstance)
             .filter(SceneInstance.created_by == user_id)
             .order_by(SceneInstance.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+    def list_by_participant(self, user_id: UUID, *, limit: int = 100) -> list[SceneInstance]:
+        """List scenes visible to a user through their participant record."""
+        return (
+            self._session.query(SceneInstance)
+            .join(SceneParticipant, SceneParticipant.scene_instance_id == SceneInstance.id)
+            .filter(
+                SceneParticipant.user_id == user_id,
+                SceneParticipant.status != ParticipantStatus.DECLINED.value,
+            )
+            .order_by(SceneInstance.updated_at.desc())
             .limit(limit)
             .all()
         )
@@ -191,9 +202,7 @@ class SceneParticipantRepository:
     def get_by_id(self, participant_id: UUID) -> SceneParticipant | None:
         return self._session.get(SceneParticipant, participant_id)
 
-    def get_by_instance_and_user(
-        self, instance_id: UUID, user_id: UUID
-    ) -> SceneParticipant | None:
+    def get_by_instance_and_user(self, instance_id: UUID, user_id: UUID) -> SceneParticipant | None:
         return (
             self._session.query(SceneParticipant)
             .filter(
@@ -255,9 +264,7 @@ class PrivateSubmissionRepository:
     def get_by_id(self, submission_id: UUID) -> PrivateSubmission | None:
         return self._session.get(PrivateSubmission, submission_id)
 
-    def get_for_owner(
-        self, instance_id: UUID, user_id: UUID
-    ) -> PrivateSubmission | None:
+    def get_for_owner(self, instance_id: UUID, user_id: UUID) -> PrivateSubmission | None:
         """Get a user's submission (including encrypted_payload).
 
         Only the service layer should call this, and only when acting on
@@ -401,9 +408,7 @@ class SceneVoteRepository:
         self._session.flush()
         return vote
 
-    def get_by_instance_and_user(
-        self, instance_id: UUID, user_id: UUID
-    ) -> SceneVote | None:
+    def get_by_instance_and_user(self, instance_id: UUID, user_id: UUID) -> SceneVote | None:
         return (
             self._session.query(SceneVote)
             .filter(
@@ -415,17 +420,11 @@ class SceneVoteRepository:
 
     def list_by_instance(self, instance_id: UUID) -> list[SceneVote]:
         return (
-            self._session.query(SceneVote)
-            .filter(SceneVote.scene_instance_id == instance_id)
-            .all()
+            self._session.query(SceneVote).filter(SceneVote.scene_instance_id == instance_id).all()
         )
 
     def list_by_candidate(self, candidate_id: UUID) -> list[SceneVote]:
-        return (
-            self._session.query(SceneVote)
-            .filter(SceneVote.candidate_id == candidate_id)
-            .all()
-        )
+        return self._session.query(SceneVote).filter(SceneVote.candidate_id == candidate_id).all()
 
     def count_by_instance(self, instance_id: UUID) -> int:
         return (

@@ -24,6 +24,7 @@ export async function register(payload: {
   password: string;
   display_name: string;
   student_no: string;
+  phone_number?: string;
   organization_ids?: string[];
 }): Promise<ApiResult<{ id: string; email: string; display_name: string; global_role: string }>> {
   const resp = await fetch(`${API_BASE}/auth/register`, {

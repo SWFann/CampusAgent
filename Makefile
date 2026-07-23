@@ -9,10 +9,17 @@ GREEN := \033[0;32m
 YELLOW := \033[1;33m
 NC := \033[0m # No Color
 
+# Keep uv's interpreter, cache, and virtual environment inside the repository.
+UV ?= uv
+UV_ENV := UV_CACHE_DIR=$(CURDIR)/.local/uv-cache UV_PYTHON_INSTALL_DIR=$(CURDIR)/.local/uv-python
+UV_RUN := $(UV_ENV) $(UV) run --project apps/api --extra dev --frozen
+UV_RUN_API := $(UV_ENV) $(UV) run --project . --extra dev --frozen
+UV_SYNC := $(UV_ENV) $(UV) sync --project apps/api --extra dev --frozen
+
 help: ## Show this help message
 	@echo "$(BLUE)CampusAgent Development Commands$(NC)"
 	@echo ""
-	@echo "$(YELLOW)⚠️  重要提示：所有后端命令必须在 CampusAgent Conda 环境中运行$(NC)"
+	@echo "$(YELLOW)Python 依赖由 uv 隔离到 apps/api/.venv$(NC)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"; printf "$(YELLOW)Usage:$(NC) make $(GREEN)<target>$(NC)\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(BLUE)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
@@ -32,7 +39,7 @@ dev: ## Start all development services
 	@echo "Starting Next.js dev server..."
 	@cd apps/web && pnpm dev &
 	@echo "Starting FastAPI dev server..."
-	@cd apps/api && conda run -n CampusAgent uvicorn src.main:app --reload --port 8000 &
+	@cd apps/api && $(UV_RUN_API) uvicorn src.main:app --reload --port 8000 &
 	@echo "$(GREEN)Development servers started$(NC)"
 	@echo "  - Web: http://localhost:3000"
 	@echo "  - API: http://localhost:8000"
@@ -42,12 +49,12 @@ dev: ## Start all development services
 test: ## Run all tests
 	@echo "$(GREEN)Running all tests...$(NC)"
 	@cd apps/web && pnpm test
-	@cd apps/api && conda run -n CampusAgent pytest
+	@cd apps/api && $(UV_RUN_API) pytest
 
 test-watch: ## Run tests in watch mode
 	@echo "$(GREEN)Running tests in watch mode...$(NC)"
 	@cd apps/web && pnpm test:watch
-	@cd apps/api && conda run -n CampusAgent pytest -v --tb=short
+	@cd apps/api && $(UV_RUN_API) pytest -v --tb=short
 
 # Code quality
 lint: ## Run linting
@@ -55,14 +62,14 @@ lint: ## Run linting
 	@echo "Frontend (ESLint)..."
 	@cd apps/web && pnpm lint
 	@echo "Backend (Ruff)..."
-	@cd apps/api && conda run -n CampusAgent ruff check .
+	@cd apps/api && $(UV_RUN_API) ruff check .
 
 typecheck: ## Run type checking
 	@echo "$(GREEN)Running type checks...$(NC)"
 	@echo "Frontend (TypeScript)..."
 	@cd apps/web && pnpm typecheck
 	@echo "Backend (mypy)..."
-	@cd apps/api && conda run -n CampusAgent mypy .
+	@cd apps/api && $(UV_RUN_API) mypy .
 
 # Build
 build: ## Build all applications
@@ -82,7 +89,7 @@ clean: ## Clean build artifacts
 install: ## Install all dependencies
 	@echo "$(GREEN)Installing dependencies...$(NC)"
 	@corepack pnpm install --frozen-lockfile
-	@conda run -n CampusAgent python -m pip install -r apps/api/requirements.lock
+	@$(UV_SYNC)
 	@echo "$(GREEN)Installation complete$(NC)"
 
 # Setup (first time)
@@ -136,24 +143,24 @@ docker-health: ## Check health of all Docker services
 # Database
 db-migrate: ## Run database migrations (upgrade head)
 	@echo "$(GREEN)Running migrations...$(NC)"
-	@cd apps/api && conda run -n CampusAgent alembic -c alembic.ini upgrade head
+	@cd apps/api && $(UV_RUN_API) alembic -c alembic.ini upgrade head
 	@echo "$(GREEN)Migrations complete$(NC)"
 
 db-downgrade: ## Downgrade database to base
 	@echo "$(YELLOW)Downgrading database to base...$(NC)"
-	@cd apps/api && conda run -n CampusAgent alembic -c alembic.ini downgrade base
+	@cd apps/api && $(UV_RUN_API) alembic -c alembic.ini downgrade base
 	@echo "$(GREEN)Downgrade complete$(NC)"
 
 db-revision: ## Create a new migration revision (usage: make db-revision m="description")
 	@echo "$(GREEN)Creating new migration...$(NC)"
-	@cd apps/api && conda run -n CampusAgent alembic -c alembic.ini revision -m "$(m)"
+	@cd apps/api && $(UV_RUN_API) alembic -c alembic.ini revision -m "$(m)"
 	@echo "$(GREEN)Migration created$(NC)"
 
 # Code formatting
 format: ## Format all code
 	@echo "$(GREEN)Formatting code...$(NC)"
 	@cd apps/web && pnpm exec prettier --write .
-	@cd apps/api && conda run -n CampusAgent ruff format .
+	@cd apps/api && $(UV_RUN_API) ruff format .
 	@echo "$(GREEN)Formatting complete$(NC)"
 
 # ----------------------------------------------------------------
@@ -166,9 +173,9 @@ validate: validate-api validate-web ## Run all validation (API + Web)
 
 validate-api: ## Validate API: ruff + mypy + pytest (no Docker required)
 	@echo "$(BLUE)Validating API...$(NC)"
-	cd apps/api && conda run -n CampusAgent ruff check . --no-cache
-	cd apps/api && conda run -n CampusAgent mypy src tests --no-incremental
-	cd apps/api && conda run -n CampusAgent python -m pytest tests -q -p no:cacheprovider
+	cd apps/api && $(UV_RUN_API) ruff check . --no-cache
+	cd apps/api && $(UV_RUN_API) mypy src tests --no-incremental
+	cd apps/api && $(UV_RUN_API) python -m pytest tests -q -p no:cacheprovider
 	@echo "$(GREEN)API validation passed.$(NC)"
 
 validate-web: ## Validate Web: lint + typecheck + test + build (no Docker required)
@@ -182,26 +189,26 @@ validate-web: ## Validate Web: lint + typecheck + test + build (no Docker requir
 # Demo data — seed / reset / smoke (no Docker required, uses SQLite in-memory).
 demo-reset: ## Reset demo data (deletes demo namespace only, fail-closed in production)
 	@echo "$(YELLOW)Resetting demo data...$(NC)"
-	conda run -n CampusAgent python scripts/demo/reset_demo.py
+	$(UV_RUN) python scripts/demo/reset_demo.py
 	@echo "$(GREEN)Demo data reset complete.$(NC)"
 
 demo-seed: ## Seed demo data (idempotent, safe to re-run)
 	@echo "$(GREEN)Seeding demo data...$(NC)"
-	conda run -n CampusAgent python scripts/demo/seed_demo.py
+	$(UV_RUN) python scripts/demo/seed_demo.py
 	@echo "$(GREEN)Demo data seeded.$(NC)"
 
 demo-smoke: ## Run in-process demo smoke test (11 steps, no Docker/server required)
 	@echo "$(BLUE)Running demo smoke test...$(NC)"
-	conda run -n CampusAgent python scripts/demo/run_demo_smoke.py
+	$(UV_RUN) python scripts/demo/run_demo_smoke.py
 	@echo "$(GREEN)Demo smoke test passed.$(NC)"
 
 # Release candidate checks.
 release-check: ## Check release candidate readiness (docs, secrets, contracts)
 	@echo "$(BLUE)Running release candidate checks...$(NC)"
-	conda run -n CampusAgent python scripts/release/check_release_candidate.py
+	$(UV_RUN) python scripts/release/check_release_candidate.py
 	@echo "$(GREEN)Release candidate checks passed.$(NC)"
 
 release-evidence: ## Collect release evidence (git, pytest, pnpm, pip summaries)
 	@echo "$(BLUE)Collecting release evidence...$(NC)"
-	conda run -n CampusAgent python scripts/release/collect_evidence.py
+	$(UV_RUN) python scripts/release/collect_evidence.py
 	@echo "$(GREEN)Release evidence collected.$(NC)"

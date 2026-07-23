@@ -2,10 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies first (better layer caching)
-# Use locked dependencies for reproducibility (consistent with CI/Makefile)
-COPY requirements.lock .
-RUN pip install --no-cache-dir -r requirements.lock
+# Install the exact uv-locked production dependencies into /app/.venv.
+# This remains fully isolated inside the image and never touches host Python.
+COPY --from=ghcr.io/astral-sh/uv:0.11.29 /uv /uvx /bin/
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/app/.venv/bin:$PATH"
+COPY pyproject.toml uv.lock .python-version ./
+RUN uv sync --frozen --no-dev
 
 # Copy application source
 COPY src/ ./src/

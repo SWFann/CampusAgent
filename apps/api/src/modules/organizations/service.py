@@ -148,9 +148,7 @@ def _org_to_read(org: Organization) -> dict[str, Any]:
     }
 
 
-def _membership_to_read(
-    membership: OrganizationMembership, user: User
-) -> dict[str, Any]:
+def _membership_to_read(membership: OrganizationMembership, user: User) -> dict[str, Any]:
     """Convert a membership + user to a safe member read dict.
 
     Returns only: user_id, display_name, avatar_url, global_role, role,
@@ -163,12 +161,8 @@ def _membership_to_read(
         "global_role": user.global_role,
         "role": membership.role,
         "status": membership.status,
-        "joined_at": membership.joined_at.isoformat()
-        if membership.joined_at
-        else None,
-        "created_at": membership.created_at.isoformat()
-        if membership.created_at
-        else None,
+        "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
+        "created_at": membership.created_at.isoformat() if membership.created_at else None,
     }
 
 
@@ -192,9 +186,7 @@ def create_organization(
     """
     _validate_org_type(data["type"])
     _validate_visibility(data.get("visibility", OrganizationVisibility.PUBLIC.value))
-    _validate_join_policy(
-        data.get("join_policy", OrganizationJoinPolicy.INVITE_ONLY.value)
-    )
+    _validate_join_policy(data.get("join_policy", OrganizationJoinPolicy.INVITE_ONLY.value))
 
     # Validate parent if provided
     parent_id = data.get("parent_id")
@@ -221,9 +213,7 @@ def create_organization(
         parent_id=UUID(str(parent_id)) if parent_id else None,
         description=data.get("description"),
         visibility=data.get("visibility", OrganizationVisibility.PUBLIC.value),
-        join_policy=data.get(
-            "join_policy", OrganizationJoinPolicy.INVITE_ONLY.value
-        ),
+        join_policy=data.get("join_policy", OrganizationJoinPolicy.INVITE_ONLY.value),
         capacity=data.get("capacity"),
         created_by=actor.id,
     )
@@ -273,9 +263,7 @@ def list_organizations(
     """
     repo = OrganizationRepository(session)
     offset = (page - 1) * page_size
-    orgs = repo.list_active(
-        org_type=org_type, limit=page_size, offset=offset
-    )
+    orgs = repo.list_active(org_type=org_type, limit=page_size, offset=offset)
 
     # Filter by visibility
     visible_orgs: list[Organization] = []
@@ -288,6 +276,11 @@ def list_organizations(
     items = []
     for org in visible_orgs:
         member_count = repo.count_active_members(org.id)
+        current_membership = (
+            OrganizationMembershipRepository(session).get_by_org_user(org.id, actor.id)
+            if actor is not None
+            else None
+        )
         items.append(
             {
                 "id": str(org.id),
@@ -296,6 +289,15 @@ def list_organizations(
                 "visibility": org.visibility,
                 "status": org.status,
                 "member_count": member_count,
+                "description": org.description,
+                "parent_id": str(org.parent_id) if org.parent_id else None,
+                "join_policy": org.join_policy,
+                "capacity": org.capacity,
+                "created_by": str(org.created_by),
+                "current_role": current_membership.role if current_membership else None,
+                "current_membership_status": (
+                    current_membership.status if current_membership else None
+                ),
             }
         )
 
@@ -366,9 +368,7 @@ def update_organization(
         org.join_policy = data["join_policy"]
     if "capacity" in data and data["capacity"] is not None:
         if data["capacity"] < 1:
-            raise OrganizationInvalidJoinPolicyError(
-                message="容量必须大于等于 1"
-            )
+            raise OrganizationInvalidJoinPolicyError(message="容量必须大于等于 1")
         org.capacity = data["capacity"]
 
     session.commit()
@@ -444,8 +444,9 @@ def add_member(
         raise OrganizationPermissionDeniedError(message="无权添加成员")
 
     # ADMIN cannot add OWNER
-    if target_role == OrganizationRole.OWNER.value and not permission_service.can_transfer_ownership(
-        actor, actor_membership
+    if (
+        target_role == OrganizationRole.OWNER.value
+        and not permission_service.can_transfer_ownership(actor, actor_membership)
     ):
         raise OrganizationPermissionDeniedError(
             message="无权添加 OWNER，只有 OWNER 或 SYSTEM_ADMIN 可以转让所有权"
@@ -503,10 +504,104 @@ def add_member(
     return _membership_to_read(membership, target_user)
 
 
+def invite_member(
+    actor: User,
+    organization_id: UUID,
+    target_user_id: UUID,
+    target_role: str,
+    session: Session,
+) -> dict[str, Any]:
+    """Invite a campus user while keeping acceptance under their control."""
+    _validate_role(target_role)
+    if target_role == OrganizationRole.OWNER.value:
+        raise OrganizationPermissionDeniedError(message="不能通过邀请直接设置负责人")
+
+    org = OrganizationRepository(session).get_active_by_id(organization_id)
+    if org is None:
+        raise OrganizationNotFoundError()
+
+    actor_membership = _get_membership(session, org.id, actor)
+    if not permission_service.can_add_member(actor, actor_membership, target_role):
+        raise OrganizationPermissionDeniedError(message="无权邀请成员")
+
+    target_user = _get_user_by_id(session, target_user_id)
+    mem_repo = OrganizationMembershipRepository(session)
+    existing = mem_repo.get_by_org_user(org.id, target_user_id)
+    if existing is not None and existing.status in {
+        MembershipStatus.ACTIVE.value,
+        MembershipStatus.PENDING.value,
+        MembershipStatus.INVITED.value,
+    }:
+        raise OrganizationMemberAlreadyExistsError(message="用户已加入、受邀或正在申请")
+
+    if existing is None:
+        membership = OrganizationMembership(
+            organization_id=org.id,
+            user_id=target_user_id,
+            role=target_role,
+            status=MembershipStatus.INVITED.value,
+            invited_by=actor.id,
+        )
+        session.add(membership)
+    else:
+        membership = existing
+        membership.role = target_role
+        membership.status = MembershipStatus.INVITED.value
+        membership.invited_by = actor.id
+        membership.joined_at = None
+        membership.left_at = None
+
+    session.commit()
+    session.refresh(membership)
+    return _membership_to_read(membership, target_user)
+
+
+def decide_invitation(
+    actor: User,
+    organization_id: UUID,
+    decision: str,
+    session: Session,
+) -> dict[str, Any] | None:
+    """Accept or decline the current user's pending invitation."""
+    org = OrganizationRepository(session).get_active_by_id(organization_id)
+    if org is None:
+        raise OrganizationNotFoundError()
+
+    membership = OrganizationMembershipRepository(session).get_by_org_user(org.id, actor.id)
+    if membership is None or membership.status != MembershipStatus.INVITED.value:
+        from ...utils.errors import NotFoundError
+
+        raise NotFoundError("待处理邀请")
+
+    if decision == "ACCEPT":
+        _check_capacity(session, org)
+        membership.status = MembershipStatus.ACTIVE.value
+        membership.joined_at = utc_now()
+        membership.left_at = None
+        session.commit()
+        session.refresh(membership)
+        return _membership_to_read(membership, actor)
+
+    if decision == "DECLINE":
+        membership.status = MembershipStatus.REMOVED.value
+        membership.left_at = utc_now()
+        session.commit()
+        return None
+
+    from ...utils.errors import AppError
+
+    raise AppError(
+        code="ORG_INVALID_INVITATION_DECISION",
+        message="邀请处理决定无效",
+        status_code=400,
+    )
+
+
 def list_members(
     actor: User,
     organization_id: UUID,
     session: Session,
+    status_filter: str = MembershipStatus.ACTIVE.value,
 ) -> dict[str, Any]:
     """List active members of an organization.
 
@@ -523,7 +618,21 @@ def list_members(
         raise OrganizationPermissionDeniedError(message="无权查看成员列表")
 
     mem_repo = OrganizationMembershipRepository(session)
-    memberships = mem_repo.list_active_by_org(org.id)
+    if status_filter not in {status.value for status in MembershipStatus}:
+        from ...utils.errors import AppError
+
+        raise AppError(
+            code="ORG_INVALID_MEMBERSHIP_STATUS",
+            message="成员状态筛选无效",
+            status_code=400,
+        )
+
+    if status_filter != MembershipStatus.ACTIVE.value and not permission_service.can_add_member(
+        actor, membership, OrganizationRole.MEMBER.value
+    ):
+        raise OrganizationPermissionDeniedError(message="无权查看待处理成员申请")
+
+    memberships = mem_repo.list_by_org_status(org.id, status_filter)
 
     members = []
     for m in memberships:
@@ -532,6 +641,57 @@ def list_members(
             members.append(_membership_to_read(m, user))
 
     return {"members": members, "total": len(members)}
+
+
+def review_member_request(
+    actor: User,
+    organization_id: UUID,
+    target_user_id: UUID,
+    decision: str,
+    target_role: str,
+    session: Session,
+) -> dict[str, Any] | None:
+    """Approve or reject a pending organization join request."""
+    _validate_role(target_role)
+    org = OrganizationRepository(session).get_active_by_id(organization_id)
+    if org is None:
+        raise OrganizationNotFoundError()
+
+    actor_membership = _get_membership(session, org.id, actor)
+    if not permission_service.can_add_member(actor, actor_membership, target_role):
+        raise OrganizationPermissionDeniedError(message="无权审核成员申请")
+
+    mem_repo = OrganizationMembershipRepository(session)
+    target_membership = mem_repo.get_by_org_user(org.id, target_user_id)
+    if target_membership is None or target_membership.status != MembershipStatus.PENDING.value:
+        from ...utils.errors import NotFoundError
+
+        raise NotFoundError("待审核申请")
+
+    if decision == "APPROVE":
+        _check_capacity(session, org)
+        target_membership.status = MembershipStatus.ACTIVE.value
+        target_membership.role = target_role
+        target_membership.joined_at = utc_now()
+        target_membership.invited_by = actor.id
+        session.commit()
+        session.refresh(target_membership)
+        target_user = _get_user_by_id(session, target_user_id)
+        return _membership_to_read(target_membership, target_user)
+
+    if decision == "REJECT":
+        target_membership.status = MembershipStatus.REMOVED.value
+        target_membership.left_at = utc_now()
+        session.commit()
+        return None
+
+    from ...utils.errors import AppError
+
+    raise AppError(
+        code="ORG_INVALID_REVIEW_DECISION",
+        message="审核决定无效",
+        status_code=400,
+    )
 
 
 def update_member_role(
@@ -558,9 +718,9 @@ def update_member_role(
         raise OrganizationNotFoundError()
 
     actor_membership = _get_membership(session, org.id, actor)
-    target_membership = OrganizationMembershipRepository(
-        session
-    ).get_active_by_org_user(org.id, target_user_id)
+    target_membership = OrganizationMembershipRepository(session).get_active_by_org_user(
+        org.id, target_user_id
+    )
     if target_membership is None:
         from ...utils.errors import NotFoundError
 
@@ -583,15 +743,10 @@ def update_member_role(
 
     # Last OWNER protection: cannot demote the last OWNER
     mem_repo = OrganizationMembershipRepository(session)
-    if (
-        old_role == OrganizationRole.OWNER.value
-        and new_role != OrganizationRole.OWNER.value
-    ):
+    if old_role == OrganizationRole.OWNER.value and new_role != OrganizationRole.OWNER.value:
         owner_count = mem_repo.count_active_owners(org.id)
         if owner_count <= 1:
-            raise OrganizationLastOwnerError(
-                message="最后一个所有者不能降级"
-            )
+            raise OrganizationLastOwnerError(message="最后一个所有者不能降级")
 
     target_membership.role = new_role
     session.commit()
@@ -609,6 +764,42 @@ def update_member_role(
             occurred_at=utc_now(),
         )
     )
+
+    target_user = _get_user_by_id(session, target_user_id)
+    return _membership_to_read(target_membership, target_user)
+
+
+def transfer_ownership(
+    actor: User,
+    organization_id: UUID,
+    target_user_id: UUID,
+    session: Session,
+) -> dict[str, Any]:
+    """Atomically transfer ownership and keep the previous owner as ADMIN."""
+    org = OrganizationRepository(session).get_active_by_id(organization_id)
+    if org is None:
+        raise OrganizationNotFoundError()
+
+    actor_membership = _get_membership(session, org.id, actor)
+    if not permission_service.can_transfer_ownership(actor, actor_membership):
+        raise OrganizationPermissionDeniedError(message="只有当前负责人可以转让群体")
+    if actor_membership is None or actor_membership.role != OrganizationRole.OWNER.value:
+        raise OrganizationPermissionDeniedError(message="当前账号不是该群体负责人")
+    if target_user_id == actor.id:
+        raise OrganizationPermissionDeniedError(message="你已经是该群体负责人")
+
+    target_membership = OrganizationMembershipRepository(session).get_active_by_org_user(
+        org.id, target_user_id
+    )
+    if target_membership is None:
+        from ...utils.errors import NotFoundError
+
+        raise NotFoundError("目标成员")
+
+    actor_membership.role = OrganizationRole.ADMIN.value
+    target_membership.role = OrganizationRole.OWNER.value
+    session.commit()
+    session.refresh(target_membership)
 
     target_user = _get_user_by_id(session, target_user_id)
     return _membership_to_read(target_membership, target_user)
@@ -634,17 +825,15 @@ def remove_member(
         raise OrganizationNotFoundError()
 
     actor_membership = _get_membership(session, org.id, actor)
-    target_membership = OrganizationMembershipRepository(
-        session
-    ).get_active_by_org_user(org.id, target_user_id)
+    target_membership = OrganizationMembershipRepository(session).get_active_by_org_user(
+        org.id, target_user_id
+    )
     if target_membership is None:
         from ...utils.errors import NotFoundError
 
         raise NotFoundError("用户")
 
-    if not permission_service.can_remove_member(
-        actor, actor_membership, target_membership
-    ):
+    if not permission_service.can_remove_member(actor, actor_membership, target_membership):
         raise OrganizationPermissionDeniedError(message="无权移除成员")
 
     # Last OWNER protection
@@ -652,9 +841,7 @@ def remove_member(
     if target_membership.role == OrganizationRole.OWNER.value:
         owner_count = mem_repo.count_active_owners(org.id)
         if owner_count <= 1:
-            raise OrganizationLastOwnerError(
-                message="最后一个所有者不能被移除"
-            )
+            raise OrganizationLastOwnerError(message="最后一个所有者不能被移除")
 
     target_membership.status = MembershipStatus.REMOVED.value
     target_membership.left_at = utc_now()
@@ -790,17 +977,13 @@ def leave_organization(
     mem_repo = OrganizationMembershipRepository(session)
     membership = mem_repo.get_active_by_org_user(org.id, actor.id)
     if membership is None:
-        raise OrganizationPermissionDeniedError(
-            message="你不是该组织的成员"
-        )
+        raise OrganizationPermissionDeniedError(message="你不是该组织的成员")
 
     # Last OWNER protection
     if membership.role == OrganizationRole.OWNER.value:
         owner_count = mem_repo.count_active_owners(org.id)
         if owner_count <= 1:
-            raise OrganizationLastOwnerError(
-                message="最后一个所有者不能退出"
-            )
+            raise OrganizationLastOwnerError(message="最后一个所有者不能退出")
 
     membership.status = MembershipStatus.LEFT.value
     membership.left_at = utc_now()

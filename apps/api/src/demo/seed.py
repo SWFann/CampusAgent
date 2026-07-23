@@ -132,9 +132,7 @@ def _seed_users(session: Session) -> tuple[dict[str, User], dict[str, int]]:
                 user.deleted_at = None
             updated += 1
 
-            stmt_p = select(StudentProfile).where(
-                StudentProfile.user_id == user.id
-            )
+            stmt_p = select(StudentProfile).where(StudentProfile.user_id == user.id)
             existing_profile = session.execute(stmt_p).scalar_one_or_none()
             if existing_profile is None:
                 existing_profile = StudentProfile(
@@ -170,9 +168,16 @@ def _seed_organizations(
     created = 0
 
     admin_user = users["admin"]
+    legacy_names = {"project": "2312", "lab": "wnds"}
     for demo_org in DEMO_ORGANIZATIONS:
         stmt = select(Organization).where(Organization.slug == demo_org.slug)
         org = session.execute(stmt).scalar_one_or_none()
+        if org is None and demo_org.key in legacy_names:
+            org = session.execute(
+                select(Organization).where(Organization.name == legacy_names[demo_org.key])
+            ).scalar_one_or_none()
+            if org is not None:
+                org.slug = demo_org.slug
 
         parent_id = None
         if demo_org.parent_key is not None:
@@ -333,6 +338,7 @@ def _seed_dinner_scene(
     session: Session,
     users: dict[str, User],
     conversation: Conversation | None,
+    organizations: dict[str, Organization],
 ) -> dict[str, int]:
     """Run the demo dorm-dinner scene to COMPLETED idempotently."""
     from ..modules.scenes.repository import SceneInstanceRepository
@@ -346,15 +352,16 @@ def _seed_dinner_scene(
 
     creator_key = DEMO_SCENE_PARTICIPANT_KEYS[0]
     creator = users[creator_key]
-    participant_ids = [
-        users[key].id for key in DEMO_SCENE_PARTICIPANT_KEYS if key in users
-    ]
+    participant_ids = [users[key].id for key in DEMO_SCENE_PARTICIPANT_KEYS if key in users]
 
     data: dict[str, Any] = {
         "scene_key": "dorm_dinner",
         "participant_user_ids": participant_ids,
         "idempotency_key": DEMO_SCENE_IDEMPOTENCY_KEY,
     }
+    dorm = organizations.get("dorm")
+    if dorm is not None:
+        data["organization_id"] = dorm.id
     if conversation is not None:
         data["conversation_id"] = conversation.id
 
@@ -453,7 +460,7 @@ def seed_demo(session: Session) -> dict[str, Any]:
     orgs, org_counts = _seed_organizations(session, users)
     member_counts = _seed_memberships(session, users, orgs)
     conversation, conv_counts = _seed_conversation(session, users)
-    scene_counts = _seed_dinner_scene(session, users, conversation)
+    scene_counts = _seed_dinner_scene(session, users, conversation, orgs)
 
     summary: dict[str, Any] = {
         "users_created": user_counts["users_created"],

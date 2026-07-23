@@ -71,6 +71,7 @@ def register_user(
     password: str,
     display_name: str,
     student_no: str,
+    phone_number: str | None = None,
     session: Session,
     settings: Settings,
 ) -> RegistrationResult:
@@ -85,6 +86,7 @@ def register_user(
         password: Plaintext password.
         display_name: Display name.
         student_no: Student number.
+        phone_number: Optional phone number used for account security.
         session: SQLAlchemy session.
         settings: Application settings.
 
@@ -97,6 +99,11 @@ def register_user(
     """
     # Normalise email
     email_normalised = email.lower().strip()
+    phone_normalised = (
+        phone_number.replace(" ", "").replace("-", "").strip()
+        if phone_number
+        else None
+    )
 
     # Validate password strength
     validate_password_strength(
@@ -113,6 +120,8 @@ def register_user(
     profile_repo = StudentProfileRepository(session)
     if profile_repo.student_no_exists(student_no):
         raise UserAlreadyExistsError(message="学号已被注册")
+    if phone_normalised and profile_repo.phone_number_exists(phone_normalised):
+        raise UserAlreadyExistsError(message="手机号已被绑定")
 
     # Create User
     user = User(
@@ -129,6 +138,8 @@ def register_user(
     profile = StudentProfile(
         user_id=user.id,
         student_no=student_no,
+        phone_number=phone_normalised,
+        agent_code=f"campusagent{student_no}",
     )
     session.add(profile)
 

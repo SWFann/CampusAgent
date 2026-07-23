@@ -74,8 +74,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Model Gateway
-    MODEL_GATEWAY_BASE_URL: str = "http://localhost:8001"
-    MODEL_GATEWAY_MODEL: str = "step-3.7-flash"
+    MODEL_GATEWAY_BASE_URL: str = "https://api.stepfun.com/v1"
+    MODEL_GATEWAY_MODEL: str = "step-3.5-flash"
     MODEL_GATEWAY_TIMEOUT_MS: int = 60000
     MODEL_GATEWAY_IS_EXTERNAL: bool = True
     MODEL_GATEWAY_API_KEY: SecretStr = SecretStr("")
@@ -109,18 +109,15 @@ class Settings(BaseSettings):
             api_key_val = self.MODEL_GATEWAY_API_KEY.get_secret_value()
             if not api_key_val or api_key_val.strip() == "":
                 raise ValueError(
-                    "MODEL_GATEWAY_API_KEY must be non-empty when "
-                    "ENABLE_EXTERNAL_MODEL is True"
+                    "MODEL_GATEWAY_API_KEY must be non-empty when ENABLE_EXTERNAL_MODEL is True"
                 )
             if not self.MODEL_GATEWAY_BASE_URL.strip():
                 raise ValueError(
-                    "MODEL_GATEWAY_BASE_URL must be non-empty when "
-                    "ENABLE_EXTERNAL_MODEL is True"
+                    "MODEL_GATEWAY_BASE_URL must be non-empty when ENABLE_EXTERNAL_MODEL is True"
                 )
             if not self.MODEL_GATEWAY_MODEL.strip():
                 raise ValueError(
-                    "MODEL_GATEWAY_MODEL must be non-empty when "
-                    "ENABLE_EXTERNAL_MODEL is True"
+                    "MODEL_GATEWAY_MODEL must be non-empty when ENABLE_EXTERNAL_MODEL is True"
                 )
             if self.MODEL_GATEWAY_TIMEOUT_MS <= 0:
                 raise ValueError("MODEL_GATEWAY_TIMEOUT_MS must be positive")
@@ -132,13 +129,9 @@ class Settings(BaseSettings):
         # --- APP_SECRET ---
         app_secret_val = self.APP_SECRET.get_secret_value()
         if app_secret_val == _DEV_APP_SECRET:
-            raise ValueError(
-                "APP_SECRET must not be the development default in production"
-            )
+            raise ValueError("APP_SECRET must not be the development default in production")
         if len(app_secret_val) < 32:
-            raise ValueError(
-                "APP_SECRET must be at least 32 characters in production"
-            )
+            raise ValueError("APP_SECRET must be at least 32 characters in production")
 
         # --- FIELD_ENCRYPTION_KEY ---
         enc_key_val = self.FIELD_ENCRYPTION_KEY.get_secret_value()
@@ -147,21 +140,15 @@ class Settings(BaseSettings):
                 "FIELD_ENCRYPTION_KEY must not be the development default in production"
             )
         if len(enc_key_val) < 32:
-            raise ValueError(
-                "FIELD_ENCRYPTION_KEY must be at least 32 characters in production"
-            )
+            raise ValueError("FIELD_ENCRYPTION_KEY must be at least 32 characters in production")
 
         # --- LOG_PROMPT_CONTENT ---
         if self.LOG_PROMPT_CONTENT:
-            raise ValueError(
-                "LOG_PROMPT_CONTENT must be False in production"
-            )
+            raise ValueError("LOG_PROMPT_CONTENT must be False in production")
 
         # --- DB_ECHO_SQL ---
         if self.DB_ECHO_SQL:
-            raise ValueError(
-                "DB_ECHO_SQL must be False in production"
-            )
+            raise ValueError("DB_ECHO_SQL must be False in production")
 
         return self
 

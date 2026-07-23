@@ -122,6 +122,44 @@ class TestOpenAICompatibleChat:
         with pytest.raises(ExternalProviderError):
             provider.chat(req)
 
+    def test_non_200_exposes_only_safe_upstream_error_code(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                429,
+                json={
+                    "error": {
+                        "message": "sensitive provider message",
+                        "type": "insufficient_quota",
+                        "code": "insufficient_quota",
+                    }
+                },
+            )
+
+        provider = OpenAICompatibleProvider(
+            base_url="http://test-node.example/v1",
+            model="test-model",
+            api_key="secret-key",
+            max_retries=0,
+            transport=_make_transport(handler),
+        )
+        req = ChatRequest(
+            messages=[ChatMessage(role="user", content="hi")],
+            privacy_context=PrivacyContext(
+                data_classification=DataClassification.P0,
+                purpose="test",
+                allow_external=True,
+            ),
+            purpose="test",
+        )
+
+        with pytest.raises(ExternalProviderError) as exc_info:
+            provider.chat(req)
+
+        assert exc_info.value.details["status"] == 429
+        assert exc_info.value.details["upstream_code"] == "insufficient_quota"
+        assert exc_info.value.details["upstream_type"] == "insufficient_quota"
+        assert "message" not in exc_info.value.details
+
     def test_malformed_json_raises_external_error(self):
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, content=b"not json", headers={"content-type": "application/json"})

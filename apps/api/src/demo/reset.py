@@ -74,16 +74,15 @@ def _collect_demo_user_ids(session: Session) -> list[Any]:
 
 
 def _collect_demo_org_ids(session: Session) -> list[Any]:
-    stmt = select(Organization.id).where(
-        Organization.slug.like(f"%{DEMO_ORG_SLUG_SUFFIX}")
-    )
+    stmt = select(Organization.id).where(Organization.slug.like(f"%{DEMO_ORG_SLUG_SUFFIX}"))
     return list(session.execute(stmt).scalars().all())
 
 
-def _collect_demo_scene_ids(session: Session) -> list[Any]:
-    stmt = select(SceneInstance.id).where(
-        SceneInstance.idempotency_key == DEMO_SCENE_IDEMPOTENCY_KEY
-    )
+def _collect_demo_scene_ids(session: Session, demo_org_ids: list[Any]) -> list[Any]:
+    criteria = SceneInstance.idempotency_key == DEMO_SCENE_IDEMPOTENCY_KEY
+    if demo_org_ids:
+        criteria = criteria | SceneInstance.organization_id.in_(demo_org_ids)
+    stmt = select(SceneInstance.id).where(criteria)
     return list(session.execute(stmt).scalars().all())
 
 
@@ -93,9 +92,7 @@ def _collect_demo_conversation_ids(
 ) -> list[Any]:
     if not demo_user_ids:
         return []
-    created_stmt = select(Conversation.id).where(
-        Conversation.created_by.in_(demo_user_ids)
-    )
+    created_stmt = select(Conversation.id).where(Conversation.created_by.in_(demo_user_ids))
     participated_stmt = select(ConversationParticipant.conversation_id).where(
         ConversationParticipant.participant_user_id.in_(demo_user_ids)
     )
@@ -115,35 +112,17 @@ def _delete_scene_graph(session: Session, scene_ids: list[Any]) -> tuple[int, in
 
     deleted_preferences = _delete_count(
         session,
-        delete(PrivateSubmission).where(
-            PrivateSubmission.scene_instance_id.in_(scene_ids)
-        ),
+        delete(PrivateSubmission).where(PrivateSubmission.scene_instance_id.in_(scene_ids)),
     )
+    session.execute(delete(SceneVote).where(SceneVote.scene_instance_id.in_(scene_ids)))
+    session.execute(delete(SceneResult).where(SceneResult.scene_instance_id.in_(scene_ids)))
+    session.execute(delete(SceneCandidate).where(SceneCandidate.scene_instance_id.in_(scene_ids)))
     session.execute(
-        delete(SceneVote).where(
-            SceneVote.scene_instance_id.in_(scene_ids)
-        )
-    )
-    session.execute(
-        delete(SceneResult).where(
-            SceneResult.scene_instance_id.in_(scene_ids)
-        )
-    )
-    session.execute(
-        delete(SceneCandidate).where(
-            SceneCandidate.scene_instance_id.in_(scene_ids)
-        )
-    )
-    session.execute(
-        delete(SceneParticipant).where(
-            SceneParticipant.scene_instance_id.in_(scene_ids)
-        )
+        delete(SceneParticipant).where(SceneParticipant.scene_instance_id.in_(scene_ids))
     )
     deleted_scenes = _delete_count(
         session,
-        delete(SceneInstance).where(
-            SceneInstance.id.in_(scene_ids)
-        ),
+        delete(SceneInstance).where(SceneInstance.id.in_(scene_ids)),
     )
     return deleted_preferences, deleted_scenes
 
@@ -167,7 +146,7 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
 
     demo_user_ids = _collect_demo_user_ids(session)
     demo_org_ids = _collect_demo_org_ids(session)
-    demo_scene_ids = _collect_demo_scene_ids(session)
+    demo_scene_ids = _collect_demo_scene_ids(session, demo_org_ids)
     demo_conv_ids = _collect_demo_conversation_ids(session, demo_user_ids)
 
     deleted_preferences = 0
@@ -192,10 +171,10 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
         # (e.g. missing idempotency_key on prior seed runs).
         extra_scene_ids = list(
             session.execute(
-                select(SceneInstance.id).where(
-                    SceneInstance.conversation_id.in_(demo_conv_ids)
-                )
-            ).scalars().all()
+                select(SceneInstance.id).where(SceneInstance.conversation_id.in_(demo_conv_ids))
+            )
+            .scalars()
+            .all()
         )
         preferences_count, scenes_count = _delete_scene_graph(
             session,
@@ -212,9 +191,7 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
                 ConversationParticipant.conversation_id.in_(demo_conv_ids)
             )
         )
-        session.execute(
-            delete(Conversation).where(Conversation.id.in_(demo_conv_ids))
-        )
+        session.execute(delete(Conversation).where(Conversation.id.in_(demo_conv_ids)))
 
     # 3. Memberships for demo orgs or demo users.
     if demo_org_ids:
@@ -225,9 +202,7 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
         )
     if demo_user_ids:
         session.execute(
-            delete(OrganizationMembership).where(
-                OrganizationMembership.user_id.in_(demo_user_ids)
-            )
+            delete(OrganizationMembership).where(OrganizationMembership.user_id.in_(demo_user_ids))
         )
 
     # 4. Demo organisations.
@@ -241,25 +216,17 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
         # Still delete any stray org with the demo slug suffix.
         deleted_organizations = _delete_count(
             session,
-            delete(Organization).where(
-                Organization.slug.like(f"%{DEMO_ORG_SLUG_SUFFIX}")
-            ),
+            delete(Organization).where(Organization.slug.like(f"%{DEMO_ORG_SLUG_SUFFIX}")),
         )
 
     # 5. Agent runs and agents owned by demo users.
     if demo_user_ids:
-        session.execute(
-            delete(AgentRun).where(AgentRun.actor_user_id.in_(demo_user_ids))
-        )
-        session.execute(
-            delete(Agent).where(Agent.owner_user_id.in_(demo_user_ids))
-        )
+        session.execute(delete(AgentRun).where(AgentRun.actor_user_id.in_(demo_user_ids)))
+        session.execute(delete(Agent).where(Agent.owner_user_id.in_(demo_user_ids)))
 
     # 6. Audit logs authored by demo users (metadata only, safe to clear).
     if demo_user_ids:
-        session.execute(
-            delete(AuditLog).where(AuditLog.actor_user_id.in_(demo_user_ids))
-        )
+        session.execute(delete(AuditLog).where(AuditLog.actor_user_id.in_(demo_user_ids)))
 
     # 7. Refresh tokens and auth sessions for demo users.
     if demo_user_ids:
@@ -271,9 +238,7 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
         )
         deleted_sessions += _delete_count(
             session,
-            delete(RefreshToken).where(
-                RefreshToken.user_id.in_(demo_user_ids)
-            ),
+            delete(RefreshToken).where(RefreshToken.user_id.in_(demo_user_ids)),
         )
         deleted_sessions += _delete_count(
             session,
@@ -283,11 +248,7 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
     # 8. Student profiles and users.
     deleted_users = 0
     if demo_user_ids:
-        session.execute(
-            delete(StudentProfile).where(
-                StudentProfile.user_id.in_(demo_user_ids)
-            )
-        )
+        session.execute(delete(StudentProfile).where(StudentProfile.user_id.in_(demo_user_ids)))
         deleted_users = _delete_count(
             session,
             delete(User).where(User.id.in_(demo_user_ids)),
@@ -315,23 +276,25 @@ def get_demo_status(session: Session) -> dict[str, Any]:
     emails = demo_emails()
     user_count = 0
     if emails:
-        user_rows = session.execute(
-            select(User).where(User.email.in_(emails))
-        ).scalars().all()
+        user_rows = session.execute(select(User).where(User.email.in_(emails))).scalars().all()
         user_count = len(user_rows)
 
-    org_rows = session.execute(
-        select(Organization).where(
-            Organization.slug.like(f"%{DEMO_ORG_SLUG_SUFFIX}")
+    org_rows = (
+        session.execute(
+            select(Organization).where(Organization.slug.like(f"%{DEMO_ORG_SLUG_SUFFIX}"))
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     org_count = len(org_rows)
 
-    scene_rows = session.execute(
-        select(SceneInstance).where(
-            SceneInstance.idempotency_key == DEMO_SCENE_IDEMPOTENCY_KEY
+    scene_rows = (
+        session.execute(
+            select(SceneInstance).where(SceneInstance.idempotency_key == DEMO_SCENE_IDEMPOTENCY_KEY)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     scene_count = len(scene_rows)
 
     return {

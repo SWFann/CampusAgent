@@ -47,20 +47,23 @@ describe('HomePage', () => {
     })
   })
 
-  it('renders welcome message for authenticated user', async () => {
+  it('renders the personalized today heading for an authenticated user', async () => {
     mockAuthenticated()
     render(<HomePage />)
     await waitFor(() => {
-      expect(screen.getByText(/欢迎/)).toBeInTheDocument()
+      expect(screen.getByText('你好！测试用户')).toBeInTheDocument()
     })
   })
 
-  it('shows empty states when no data is available', async () => {
+  it('shows the complete platform capability overview', async () => {
     mockAuthenticated()
     render(<HomePage />)
     // Wait for auth to load and page to render
     await waitFor(() => {
-      expect(screen.getByText(/欢迎/)).toBeInTheDocument()
+      expect(screen.getAllByText('个人工作台').length).toBeGreaterThan(0)
+      expect(screen.getByText('重要信息，不再淹没')).toBeInTheDocument()
+      expect(screen.getByText('少跑一步，进度清楚')).toBeInTheDocument()
+      expect(screen.getByText('让不同声音形成共识')).toBeInTheDocument()
     })
   })
 })

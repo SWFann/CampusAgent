@@ -59,6 +59,7 @@ def register(
         password=body.password,
         display_name=body.display_name,
         student_no=body.student_no,
+        phone_number=body.phone_number,
         session=db_session,
         settings=settings,
     )

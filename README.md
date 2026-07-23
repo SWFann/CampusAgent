@@ -118,40 +118,33 @@ CampusAgent/
 
 | 工具 | 版本 | 用途 |
 |---|---|---|
-| Python | 3.11.15 | 后端 FastAPI |
-| Conda | 任意现代版本 | Python 环境管理（环境名 `CampusAgent`）|
+| uv | >= 0.5 | Python 版本、虚拟环境与依赖管理 |
+| Python | 3.11.15 | 由 uv 按 `apps/api/.python-version` 管理 |
 | Node.js | >= 18.18 | 前端 Next.js |
 | corepack/pnpm | pnpm >= 8 | 前端包管理 |
 | Docker（可选）| 任意现代版本 | 容器化部署 PostgreSQL/Redis/Mock Model |
 | Git | >= 2.30 | 版本控制 |
 
-### Python 虚拟环境
+### Python 环境（uv）
 
-本项目使用 **Conda 虚拟环境** 管理 Python 依赖，确保环境隔离和一致性。
-
-- **环境名称**：`CampusAgent`
-- **Python 版本**：3.11.15
-- **环境位置**：`conda env list` 查看（Windows 示例：`D:\Conda\Soft\envs\CampusAgent`）
+后端统一由 **uv** 管理。虚拟环境位于 `apps/api/.venv`，缓存与 uv 可选下载的 Python 运行时位于仓库 `.local/`，不向系统 Python 安装任何依赖。
 
 ```bash
-# 激活虚拟环境（后端开发前必须执行）
-conda activate CampusAgent
+# 创建/同步项目环境（含开发依赖）
+uv sync --project apps/api --extra dev --frozen
 
-# 验证环境
-python --version  # 应显示 Python 3.11.15
-
-# 停用环境
-conda deactivate
+# 在项目环境中运行 Python，无需手动激活
+uv run --project apps/api --extra dev --frozen python --version
 ```
 
-⚠️ **所有后端 Python 代码必须在 `CampusAgent` 虚拟环境中运行**：启动服务、运行测试、安装依赖、执行迁移前均需先激活环境。
+不要使用裸 `python`、`pip install` 或全局环境安装后端依赖。`Makefile` 和启动脚本已统一调用 uv。
 
 ### 已安装的核心依赖
 
 - fastapi 0.139.0、uvicorn 0.51.0、pydantic 2.13.4
 - sqlalchemy 2.0.51、alembic 1.18.5、redis 8.0.1
 
-详细说明请参阅 [Conda 环境文档](docs/development/CONDA_ENV.md)。
+详细说明请参阅 [uv 环境文档](docs/development/UV_ENV.md)。
 
 ## 快速开始
 
@@ -207,8 +200,8 @@ cd CampusAgent
 # 2. 安装前端依赖
 corepack pnpm install --frozen-lockfile
 
-# 3. 安装后端依赖
-conda run -n CampusAgent pip install -r apps/api/requirements.lock
+# 3. 按锁文件同步后端项目环境
+uv sync --project apps/api --extra dev --frozen
 
 # 4. 复制环境变量
 cp .env.example .env
@@ -218,7 +211,7 @@ make docker-up
 # 或: docker compose up -d postgres redis mock-model
 
 # 6. 运行数据库迁移
-cd apps/api && conda run -n CampusAgent alembic upgrade head && cd ../..
+(cd apps/api && uv run --project . --extra dev --frozen alembic -c alembic.ini upgrade head)
 
 # 7. 种子演示数据
 make demo-seed
@@ -237,7 +230,7 @@ make dev
 ```bash
 # 1. 安装依赖
 corepack pnpm install --frozen-lockfile
-conda run -n CampusAgent pip install -r apps/api/requirements.lock
+uv sync --project apps/api --extra dev --frozen
 
 # 2. 验证后端（ruff + mypy + pytest）
 make validate-api
@@ -262,7 +255,7 @@ make validate-api    # ruff + mypy + pytest
 make validate-web    # lint + typecheck + test + build
 
 # 依赖一致性检查
-conda run -n CampusAgent pip check
+uv run --project apps/api --extra dev --frozen python -m pip check
 
 # Release Candidate 检查
 make release-check

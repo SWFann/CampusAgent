@@ -83,6 +83,23 @@ def _add_json_only_instruction(payload: dict[str, Any]) -> dict[str, Any]:
     return retry_payload
 
 
+def _safe_upstream_error_details(resp: httpx.Response, host_hash: str) -> dict[str, Any]:
+    """Keep only non-sensitive machine-readable upstream error metadata."""
+    details: dict[str, Any] = {"host_hash": host_hash, "status": resp.status_code}
+    try:
+        payload = resp.json()
+    except Exception:
+        return details
+    error = payload.get("error") if isinstance(payload, dict) else None
+    if not isinstance(error, dict):
+        return details
+    for source_key, target_key in (("code", "upstream_code"), ("type", "upstream_type")):
+        value = error.get(source_key)
+        if isinstance(value, str) and 0 < len(value) <= 80:
+            details[target_key] = value
+    return details
+
+
 class OpenAICompatibleProvider:
     """HTTP adapter for OpenAI-compatible endpoints (vLLM / llama.cpp).
 
@@ -250,7 +267,7 @@ class OpenAICompatibleProvider:
             self._error_count += 1
             raise ExternalProviderError(
                 message="外部模型供应商返回错误",
-                details={"host_hash": self._host_hash, "status": resp.status_code},
+                details=_safe_upstream_error_details(resp, self._host_hash),
             )
 
         try:

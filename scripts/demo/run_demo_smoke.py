@@ -5,7 +5,7 @@ Runs the full product main path in-process (no Docker, no running
 server required) so a demo operator can verify the system is healthy
 before a live demo:
 
-    conda run -n CampusAgent python scripts/demo/run_demo_smoke.py
+    uv run --project apps/api --extra dev --frozen python scripts/demo/run_demo_smoke.py
 
 Main path exercised:
   1. reset + seed demo data (service layer, like the CLI)
@@ -96,7 +96,6 @@ def run_smoke() -> SmokeResult:
 
     # Import after env is set up.
     from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
     from sqlalchemy.pool import StaticPool
 
     from src.db.base import Base

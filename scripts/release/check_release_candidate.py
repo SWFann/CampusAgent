@@ -15,7 +15,7 @@ Checks performed:
 
 Usage::
 
-    conda run -n CampusAgent python scripts/release/check_release_candidate.py [--root .] [--verbose]
+    uv run --project apps/api --extra dev --frozen python scripts/release/check_release_candidate.py [--root .] [--verbose]
 
 Exit code:
 - 0: all checks passed.

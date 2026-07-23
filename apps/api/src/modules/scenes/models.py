@@ -7,6 +7,7 @@ Privacy:
 - No private payload, capsule, or individual score is ever stored in
   plaintext or returned via repr.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -65,9 +66,7 @@ class SceneDefinition(Base):
     version: Mapped[str] = mapped_column(String(20), nullable=False, default="1.0.0")
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    enabled: Mapped[bool] = mapped_column(
-        default=True, nullable=False
-    )
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
     capabilities_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utc_now, nullable=False)
 
@@ -103,6 +102,9 @@ class SceneInstance(Base):
     conversation_id: Mapped[UUID | None] = mapped_column(
         Uuid, ForeignKey("conversations.id"), nullable=True, index=True
     )
+    organization_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=True, index=True
+    )
     created_by: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("users.id"), nullable=False, index=True
     )
@@ -116,9 +118,7 @@ class SceneInstance(Base):
     cancelled_at: Mapped[datetime | None] = mapped_column(nullable=True)
     failed_reason_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utc_now, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(
-        default=utc_now, onupdate=utc_now, nullable=False
-    )
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now, nullable=False)
 
     definition: Mapped[SceneDefinition] = relationship(back_populates="instances")
     participants: Mapped[list[SceneParticipant]] = relationship(
@@ -158,9 +158,7 @@ class SceneParticipant(Base):
     scene_instance_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("scene_instances.id"), nullable=False, index=True
     )
-    user_id: Mapped[UUID] = mapped_column(
-        Uuid, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False, index=True)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=ParticipantStatus.INVITED.value
     )
@@ -200,18 +198,14 @@ class PrivateSubmission(Base):
     scene_instance_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("scene_instances.id"), nullable=False, index=True
     )
-    user_id: Mapped[UUID] = mapped_column(
-        Uuid, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False, index=True)
     encrypted_payload: Mapped[str] = mapped_column(Text, nullable=False)
     capsule_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     payload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utc_now, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(
-        default=utc_now, onupdate=utc_now, nullable=False
-    )
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now, nullable=False)
 
     instance: Mapped[SceneInstance] = relationship(back_populates="submissions")
 
@@ -274,9 +268,7 @@ class SceneVote(Base):
     scene_instance_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("scene_instances.id"), nullable=False, index=True
     )
-    user_id: Mapped[UUID] = mapped_column(
-        Uuid, ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False, index=True)
     candidate_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("scene_candidates.id"), nullable=False, index=True
     )
@@ -287,10 +279,7 @@ class SceneVote(Base):
     instance: Mapped[SceneInstance] = relationship(back_populates="votes")
 
     def __repr__(self) -> str:
-        return (
-            f"<SceneVote id={self.id} user_id={self.user_id} "
-            f"vote={self.vote_value}>"
-        )
+        return f"<SceneVote id={self.id} user_id={self.user_id} vote={self.vote_value}>"
 
 
 # ---------------------------------------------------------------------------

@@ -2,11 +2,34 @@
 
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export function TopBar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const sectionTitle = pathname === "/"
+    ? "首页"
+    : pathname.startsWith("/workspace/tasks")
+      ? "Agent 任务"
+    : pathname.startsWith("/workspace")
+      ? "个人工作台"
+    : pathname.startsWith("/conversations")
+      ? "消息与通知"
+      : pathname.startsWith("/organizations") || pathname.startsWith("/contacts")
+        ? "组织与群体"
+        : pathname.startsWith("/scenes")
+          ? "协作空间"
+          : pathname.startsWith("/agents")
+            ? "我的 Agent"
+            : pathname.startsWith("/memory") || pathname.startsWith("/preferences")
+              ? "个人知识库"
+              : pathname.startsWith("/settings")
+                ? "设置与安全"
+              : pathname.startsWith("/admin")
+                ? "管理"
+                : "校园工作台";
 
   const handleLogout = async () => {
     await logout();
@@ -14,21 +37,16 @@ export function TopBar() {
   };
 
   return (
-    <header
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "var(--space-sm) var(--space-lg)",
-        borderBottom: "1px solid var(--color-border)",
-        background: "var(--color-surface)",
-        minHeight: 48,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)" }}>
+    <header className="campus-topbar">
+      <div className="campus-window-controls" aria-hidden="true"><span /><span /><span /></div>
+      <div className="campus-topbar-title">
+        <strong>{sectionTitle}</strong>
+      </div>
+      <div className="campus-topbar-actions">
+        <span className="campus-service-state"><i aria-hidden="true" />服务正常</span>
         {user && (
-          <>
-            <span style={{ fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-medium)" }}>
+          <div className="campus-topbar-profile">
+            <span>
               {user.display_name}
             </span>
             {user.global_role && (
@@ -37,16 +55,14 @@ export function TopBar() {
                 variant={user.global_role.toUpperCase().includes("ADMIN") ? "danger" : "info"}
               />
             )}
-          </>
+          </div>
         )}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)" }}>
         <button
-          className="btn btn-sm"
+          className="campus-logout-button"
           onClick={handleLogout}
           aria-label="退出登录"
         >
-          退出登录
+          <span>退出</span><i aria-hidden="true">↗</i>
         </button>
       </div>
     </header>
