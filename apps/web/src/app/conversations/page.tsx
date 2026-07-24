@@ -10,6 +10,7 @@ import {
   type ConversationListItem,
 } from "@/lib/conversations";
 import { listContacts, type ContactItem } from "@/lib/contacts";
+import { searchDirectory, type DirectoryUserResult } from "@/lib/directory";
 import { formatDate } from "@/lib/utils";
 
 type NoticeCategory = "all" | "important" | "todo" | "unread" | "official" | "course" | "service" | "collaboration";
@@ -134,7 +135,10 @@ function ConversationsContent() {
   const [createType, setCreateType] = useState<"private" | "group">("private");
   const [targetUserId, setTargetUserId] = useState("");
   const [groupTitle, setGroupTitle] = useState("");
-  const [participantIds, setParticipantIds] = useState("");
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
+  const [memberSearchResults, setMemberSearchResults] = useState<DirectoryUserResult[]>([]);
+  const [memberSearchLoading, setMemberSearchLoading] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState<DirectoryUserResult[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [organizationContext, setOrganizationContext] = useState<{ id: string; name: string } | null>(null);
@@ -206,6 +210,45 @@ function ConversationsContent() {
     setShowDetail(true);
   };
 
+  const handleMemberSearch = async () => {
+    const query = memberSearchQuery.trim();
+    setActionError(null);
+
+    if (query.length < 2) {
+      setMemberSearchResults([]);
+      setActionError("请输入至少 2 个字再搜索成员");
+      return;
+    }
+
+    setMemberSearchLoading(true);
+    try {
+      const result = await searchDirectory(query, "users", 8);
+      if (result.success && result.data) {
+        const selectedIds = new Set(selectedMembers.map((member) => member.id));
+        setMemberSearchResults(
+          result.data.users.filter((user) => !selectedIds.has(user.id))
+        );
+      } else {
+        setActionError(result.error?.message ?? "搜索成员失败");
+      }
+    } catch {
+      setActionError("网络错误");
+    } finally {
+      setMemberSearchLoading(false);
+    }
+  };
+
+  const addSelectedMember = (member: DirectoryUserResult) => {
+    setSelectedMembers((current) => (
+      current.some((item) => item.id === member.id) ? current : [...current, member]
+    ));
+    setMemberSearchResults((current) => current.filter((item) => item.id !== member.id));
+  };
+
+  const removeSelectedMember = (memberId: string) => {
+    setSelectedMembers((current) => current.filter((member) => member.id !== memberId));
+  };
+
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setActionError(null);
@@ -223,17 +266,22 @@ function ConversationsContent() {
           void fetchConversations();
         }
       } else {
-        const ids = participantIds.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
-        if (ids.length === 0) {
-          setActionError("请至少填写一位参与者");
+        if (selectedMembers.length === 0) {
+          setActionError("请至少选择一位成员");
           return;
         }
-        const result = await createGroupConversation({ title: groupTitle.trim() || undefined, participant_user_ids: ids });
-        if (!result.success) setActionError(result.error?.message ?? "创建群聊失败");
-        else {
+        const result = await createGroupConversation({
+          title: groupTitle.trim() || undefined,
+          participant_user_ids: selectedMembers.map((member) => member.id),
+        });
+        if (!result.success) {
+          setActionError(result.error?.message ?? "创建群聊失败");
+        } else {
           setShowCreate(false);
           setGroupTitle("");
-          setParticipantIds("");
+          setMemberSearchQuery("");
+          setMemberSearchResults([]);
+          setSelectedMembers([]);
           void fetchConversations();
         }
       }
@@ -388,14 +436,133 @@ function ConversationsContent() {
               {createType === "private" ? (
                 <label><span>选择联系人</span>{contacts.length > 0 ? <select value={targetUserId} onChange={(event) => setTargetUserId(event.target.value)}>{contacts.map((contact) => <option key={contact.user.id} value={contact.user.id}>{contact.user.display_name}</option>)}</select> : <input value={targetUserId} onChange={(event) => setTargetUserId(event.target.value)} placeholder="输入用户 ID" />}</label>
               ) : (
-                <><label><span>群聊名称</span><input value={groupTitle} onChange={(event) => setGroupTitle(event.target.value)} placeholder="例如：课程项目讨论组" /></label><label><span>参与者用户 ID</span><input value={participantIds} onChange={(event) => setParticipantIds(event.target.value)} placeholder="使用逗号或空格分隔" /></label></>
-              )}
+                <>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 14, color: "#374151" }}>群聊标题（可选）</label>
+                <input
+                  aria-label="群聊标题（可选）"
+                  type="text"
+                  value={groupTitle}
+                  onChange={(e) => setGroupTitle(e.target.value)}
+                  placeholder="群聊名称"
+                  style={{ width: "100%", padding: 8, boxSizing: "border-box", borderRadius: 4, border: "1px solid #d1d5db" }}
+                />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 14, color: "#374151" }}>搜索成员</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    aria-label="搜索成员"
+                    type="search"
+                    value={memberSearchQuery}
+                    onChange={(e) => setMemberSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleMemberSearch();
+                      }
+                    }}
+                    placeholder="输入同学姓名或关键词"
+                    style={{ flex: 1, padding: 8, boxSizing: "border-box", borderRadius: 4, border: "1px solid #d1d5db" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleMemberSearch()}
+                    disabled={memberSearchLoading || memberSearchQuery.trim().length < 2}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 6,
+                      border: "1px solid #d1d5db",
+                      background: memberSearchLoading || memberSearchQuery.trim().length < 2 ? "#e5e7eb" : "#fff",
+                      cursor: memberSearchLoading || memberSearchQuery.trim().length < 2 ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {memberSearchLoading ? "搜索中..." : "搜索"}
+                  </button>
+                </div>
+
+                {memberSearchResults.length > 0 && (
+                  <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+                    {memberSearchResults.map((member) => (
+                      <div
+                        key={member.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          padding: 8,
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 6,
+                          background: "#fff",
+                        }}
+                      >
+                        <span style={{ fontSize: 14 }}>{member.display_name}</span>
+                        <button
+                          type="button"
+                          aria-label={`添加 ${member.display_name}`}
+                          onClick={() => addSelectedMember(member)}
+                          style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid #3b82f6", background: "#eff6ff", color: "#1d4ed8", cursor: "pointer" }}
+                        >
+                          添加
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <label style={{ fontSize: 14, color: "#374151" }}>已选成员</label>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>{selectedMembers.length} 人</span>
+                </div>
+                {selectedMembers.length > 0 ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {selectedMembers.map((member) => (
+                      <span
+                        key={member.id}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "4px 8px",
+                          border: "1px solid #bfdbfe",
+                          borderRadius: 999,
+                          background: "#eff6ff",
+                          color: "#1e40af",
+                          fontSize: 14,
+                        }}
+                      >
+                        {member.display_name}
+                        <button
+                          type="button"
+                          aria-label={`移除 ${member.display_name}`}
+                          onClick={() => removeSelectedMember(member.id)}
+                          style={{ border: "none", background: "transparent", color: "#1d4ed8", cursor: "pointer", padding: 0 }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, color: "#6b7280", fontSize: 14 }}>还没有选择成员，先搜索同学再添加。</p>
+                )}
+              </div>
+            </>
+          )}
+
               {actionError && <p role="alert">{actionError}</p>}
-              <footer><button type="button" onClick={() => setShowCreate(false)}>取消</button><button type="submit" disabled={actionLoading}>{actionLoading ? "正在创建…" : "确认创建"}</button></footer>
+              <footer>
+                <button type="button" onClick={() => setShowCreate(false)}>取消</button>
+                <button type="submit" disabled={actionLoading}>{actionLoading ? "正在创建…" : "确认创建"}</button>
+              </footer>
             </form>
           </section>
         </div>
       )}
+
     </div>
   );
 }

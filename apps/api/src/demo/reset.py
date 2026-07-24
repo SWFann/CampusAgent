@@ -78,12 +78,60 @@ def _collect_demo_org_ids(session: Session) -> list[Any]:
     return list(session.execute(stmt).scalars().all())
 
 
-def _collect_demo_scene_ids(session: Session, demo_org_ids: list[Any]) -> list[Any]:
-    criteria = SceneInstance.idempotency_key == DEMO_SCENE_IDEMPOTENCY_KEY
+def _collect_demo_scene_ids(
+    session: Session,
+    demo_user_ids: list[Any],
+    demo_org_ids: list[Any],
+) -> list[Any]:
+    """Collect seed and local-trial scenes owned by the demo namespace."""
+    scene_ids = set(
+        session.execute(
+            select(SceneInstance.id).where(
+                SceneInstance.idempotency_key == DEMO_SCENE_IDEMPOTENCY_KEY
+            )
+        ).scalars().all()
+    )
+
+    if demo_user_ids:
+        scene_ids.update(
+            session.execute(
+                select(SceneInstance.id).where(
+                    SceneInstance.created_by.in_(demo_user_ids)
+                )
+            ).scalars().all()
+        )
+        scene_ids.update(
+            session.execute(
+                select(SceneParticipant.scene_instance_id).where(
+                    SceneParticipant.user_id.in_(demo_user_ids)
+                )
+            ).scalars().all()
+        )
+        scene_ids.update(
+            session.execute(
+                select(PrivateSubmission.scene_instance_id).where(
+                    PrivateSubmission.user_id.in_(demo_user_ids)
+                )
+            ).scalars().all()
+        )
+        scene_ids.update(
+            session.execute(
+                select(SceneVote.scene_instance_id).where(
+                    SceneVote.user_id.in_(demo_user_ids)
+                )
+            ).scalars().all()
+        )
+
     if demo_org_ids:
-        criteria = criteria | SceneInstance.organization_id.in_(demo_org_ids)
-    stmt = select(SceneInstance.id).where(criteria)
-    return list(session.execute(stmt).scalars().all())
+        scene_ids.update(
+            session.execute(
+                select(SceneInstance.id).where(
+                    SceneInstance.organization_id.in_(demo_org_ids)
+                )
+            ).scalars().all()
+        )
+
+    return list(scene_ids)
 
 
 def _collect_demo_conversation_ids(
@@ -146,7 +194,7 @@ def reset_demo(session: Session, settings: Settings) -> dict[str, Any]:
 
     demo_user_ids = _collect_demo_user_ids(session)
     demo_org_ids = _collect_demo_org_ids(session)
-    demo_scene_ids = _collect_demo_scene_ids(session, demo_org_ids)
+    demo_scene_ids = _collect_demo_scene_ids(session, demo_user_ids, demo_org_ids)
     demo_conv_ids = _collect_demo_conversation_ids(session, demo_user_ids)
 
     deleted_preferences = 0

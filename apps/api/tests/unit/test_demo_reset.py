@@ -26,7 +26,7 @@ from src.demo.reset import get_demo_status, reset_demo
 from src.demo.security import DemoResetForbiddenError
 from src.demo.seed import seed_demo
 from src.modules.organizations.models import Organization
-from src.modules.scenes.models import SceneInstance
+from src.modules.scenes.models import SceneDefinition, SceneInstance
 from src.modules.scenes.plugins import DormDinnerPlugin
 from src.modules.scenes.registry import get_scene_registry, reset_scene_registry
 from src.modules.users.models import User
@@ -203,6 +203,36 @@ class TestResetPreservesNonDemo:
             )
         ).scalars().all()
         assert len(remaining) == 0
+
+    def test_reset_deletes_user_created_demo_scenes_without_seed_key(
+        self, test_db_session: Session
+    ) -> None:
+        """Reset removes demo-user-created scenes from local manual trials."""
+        seed_demo(test_db_session)
+        test_db_session.commit()
+
+        demo_user = test_db_session.execute(
+            select(User).where(User.email == "demo_alice@example.com")
+        ).scalar_one()
+        definition = test_db_session.execute(
+            select(SceneDefinition).where(SceneDefinition.scene_key == "dorm_dinner")
+        ).scalar_one()
+        manual_scene = SceneInstance(
+            definition_id=definition.id,
+            created_by=demo_user.id,
+            status="DRAFT",
+            current_phase="DRAFT",
+            idempotency_key=None,
+        )
+        test_db_session.add(manual_scene)
+        test_db_session.commit()
+
+        settings = _make_test_settings(env="test")
+        summary = reset_demo(test_db_session, settings)
+        test_db_session.commit()
+
+        assert summary["deleted_scenes"] >= 2
+        assert test_db_session.get(SceneInstance, manual_scene.id) is None
 
     def test_reset_summary_keys(self, test_db_session: Session) -> None:
         seed_demo(test_db_session)
