@@ -18,12 +18,18 @@ still catching gross regressions.
 
 from __future__ import annotations
 
+import os
 import time
 
 import pytest
 from starlette.testclient import TestClient
 
 from tests.unit.helpers_p4 import register_and_login, set_auth_cookies
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("RUN_PERFORMANCE_TESTS") != "1",
+    reason="Performance budgets are opt-in because shared CI runners are noisy.",
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
