@@ -563,9 +563,10 @@ def chat_with_personal_agent(
         thread = WorkspaceThread(owner_user_id=user.id, title="新的个人任务")
         repo.create_thread(thread)
     else:
-        thread = repo.get_thread(thread_id, user.id)
-        if thread is None:
+        existing_thread = repo.get_thread(thread_id, user.id)
+        if existing_thread is None:
             raise WorkspaceThreadNotFoundError()
+        thread = existing_thread
 
     encryption = get_encryption_service()
     had_messages = bool(thread.messages)

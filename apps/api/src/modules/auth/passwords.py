@@ -20,6 +20,7 @@ Design principles:
 
 from __future__ import annotations
 
+import os
 import re
 
 import bcrypt
@@ -33,6 +34,7 @@ from .exceptions import WeakPasswordError
 
 # Bcrypt hash prefix for detecting bcrypt hashes.
 _BCRYPT_PREFIX = b"$2"
+_TEST_BCRYPT_ROUNDS = 4
 
 
 def hash_password(password: str) -> str:
@@ -48,7 +50,11 @@ def hash_password(password: str) -> str:
         Each call produces a different hash due to random salt generation.
     """
     password_bytes = password.encode("utf-8")
-    salt = bcrypt.gensalt()
+    salt = (
+        bcrypt.gensalt(rounds=_TEST_BCRYPT_ROUNDS)
+        if os.getenv("APP_ENV") == "test"
+        else bcrypt.gensalt()
+    )
     hashed = bcrypt.hashpw(password_bytes, salt)
     return hashed.decode("utf-8")
 

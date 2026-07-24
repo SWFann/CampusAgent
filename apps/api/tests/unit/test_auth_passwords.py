@@ -49,6 +49,11 @@ class TestHashPassword:
         hashed = hash_password("MySecure123")
         assert hashed.startswith("$2")
 
+    def test_hash_uses_test_cost_in_test_environment(self):
+        """Test environment uses a low bcrypt cost to keep the suite stable."""
+        hashed = hash_password("MySecure123")
+        assert hashed.startswith("$2b$04$")
+
 
 # ---------------------------------------------------------------------------
 # 2. verify_password
