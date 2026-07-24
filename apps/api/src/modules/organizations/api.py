@@ -31,8 +31,12 @@ from ..users.models import User
 from . import service
 from .schemas import (
     OrganizationCreateRequest,
+    OrganizationInvitationDecisionRequest,
+    OrganizationInvitationRequest,
     OrganizationMemberAddRequest,
+    OrganizationMemberReviewRequest,
     OrganizationMemberUpdateRequest,
+    OrganizationOwnershipTransferRequest,
     OrganizationUpdateRequest,
 )
 
@@ -175,9 +179,7 @@ def delete_organization(
 # ---------------------------------------------------------------------------
 
 
-@router.post(
-    "/{organization_id}/members", status_code=status.HTTP_201_CREATED
-)
+@router.post("/{organization_id}/members", status_code=status.HTTP_201_CREATED)
 def add_member(
     organization_id: UUID,
     body: OrganizationMemberAddRequest,
@@ -195,8 +197,73 @@ def add_member(
         target_role=body.role,
         session=db_session,
     )
-    response.headers["Location"] = (
-        f"/api/v1/organizations/{organization_id}/members/{body.user_id}"
+    response.headers["Location"] = f"/api/v1/organizations/{organization_id}/members/{body.user_id}"
+    return success(
+        data=result,
+        request_id=getattr(http_request.state, "request_id", None),
+    )
+
+
+@router.post("/{organization_id}/invitations", status_code=status.HTTP_201_CREATED)
+def invite_member(
+    organization_id: UUID,
+    body: OrganizationInvitationRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, Any]:
+    """Invite a campus user to join an organization."""
+    result = service.invite_member(
+        actor=current_user,
+        organization_id=organization_id,
+        target_user_id=body.user_id,
+        target_role=body.role,
+        session=db_session,
+    )
+    return success(
+        data=result,
+        request_id=getattr(http_request.state, "request_id", None),
+    )
+
+
+@router.post("/{organization_id}/invitation", status_code=status.HTTP_200_OK)
+def decide_invitation(
+    organization_id: UUID,
+    body: OrganizationInvitationDecisionRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, Any]:
+    """Accept or decline the current user's organization invitation."""
+    result = service.decide_invitation(
+        actor=current_user,
+        organization_id=organization_id,
+        decision=body.decision,
+        session=db_session,
+    )
+    return success(
+        data={"decision": body.decision, "member": result},
+        request_id=getattr(http_request.state, "request_id", None),
+    )
+
+
+@router.post("/{organization_id}/ownership-transfer", status_code=status.HTTP_200_OK)
+def transfer_ownership(
+    organization_id: UUID,
+    body: OrganizationOwnershipTransferRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, Any]:
+    """Transfer ownership to another active member."""
+    result = service.transfer_ownership(
+        actor=current_user,
+        organization_id=organization_id,
+        target_user_id=body.user_id,
+        session=db_session,
     )
     return success(
         data=result,
@@ -209,23 +276,51 @@ def add_member(
 # ---------------------------------------------------------------------------
 
 
-@router.get(
-    "/{organization_id}/members", status_code=status.HTTP_200_OK
-)
+@router.get("/{organization_id}/members", status_code=status.HTTP_200_OK)
 def list_members(
     organization_id: UUID,
     http_request: Request,
     current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
+    status_filter: str = "ACTIVE",
 ) -> dict[str, Any]:
     """List members of an organization. Auth required."""
     result = service.list_members(
         actor=current_user,
         organization_id=organization_id,
         session=db_session,
+        status_filter=status_filter,
     )
     return success(
         data=result,
+        request_id=getattr(http_request.state, "request_id", None),
+    )
+
+
+@router.post(
+    "/{organization_id}/members/{user_id}/review",
+    status_code=status.HTTP_200_OK,
+)
+def review_member_request(
+    organization_id: UUID,
+    user_id: UUID,
+    body: OrganizationMemberReviewRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, Any]:
+    """Approve or reject a pending membership request."""
+    result = service.review_member_request(
+        actor=current_user,
+        organization_id=organization_id,
+        target_user_id=user_id,
+        decision=body.decision,
+        target_role=body.role,
+        session=db_session,
+    )
+    return success(
+        data={"decision": body.decision, "member": result},
         request_id=getattr(http_request.state, "request_id", None),
     )
 
@@ -235,9 +330,7 @@ def list_members(
 # ---------------------------------------------------------------------------
 
 
-@router.patch(
-    "/{organization_id}/members/{user_id}", status_code=status.HTTP_200_OK
-)
+@router.patch("/{organization_id}/members/{user_id}", status_code=status.HTTP_200_OK)
 def update_member_role(
     organization_id: UUID,
     user_id: UUID,
@@ -293,9 +386,7 @@ def remove_member(
 # ---------------------------------------------------------------------------
 
 
-@router.post(
-    "/{organization_id}/join", status_code=status.HTTP_201_CREATED
-)
+@router.post("/{organization_id}/join", status_code=status.HTTP_201_CREATED)
 def join_organization(
     organization_id: UUID,
     http_request: Request,
@@ -320,9 +411,7 @@ def join_organization(
 # ---------------------------------------------------------------------------
 
 
-@router.post(
-    "/{organization_id}/leave", status_code=status.HTTP_204_NO_CONTENT
-)
+@router.post("/{organization_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
 def leave_organization(
     organization_id: UUID,
     http_request: Request,

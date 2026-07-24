@@ -63,16 +63,20 @@ def create_lifespan(app_settings: Settings) -> Any:
 
         # Register domain event handlers
         from .modules.agents.handlers import register_personal_agent_handler
+
         register_personal_agent_handler()
 
         # Register scene plugins (P9)
-        from .modules.scenes.plugins import DormDinnerPlugin
+        from .modules.scenes.plugins import DormDinnerPlugin, campus_structured_plugins
         from .modules.scenes.registry import get_scene_registry
 
         scene_registry = get_scene_registry()
         # Plugin may already be registered in hot-reload scenarios.
         with suppress(Exception):
             scene_registry.register(DormDinnerPlugin())
+        for plugin in campus_structured_plugins():
+            with suppress(Exception):
+                scene_registry.register(plugin)
 
         yield
 
@@ -134,21 +138,29 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         )
 
     @application.exception_handler(RequestValidationError)
-    async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_error_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
         """Map Pydantic validation errors to a stable error code.
 
         Error details may contain non-JSON-serializable values (e.g. bytes
         from form-encoded bodies). We coerce them to safe strings so the
         envelope can always be serialized (P12-04 hardening).
         """
+
         def _coerce(obj: Any) -> Any:
             if isinstance(obj, bytes):
                 try:
                     return obj.decode("utf-8")
                 except UnicodeDecodeError:
                     return f"<{len(obj)} bytes>"
+            if isinstance(obj, BaseException):
+                return str(obj)
             if isinstance(obj, dict):
-                return {k: _coerce(v) for k, v in obj.items()}
+                return {
+                    key: "<redacted>" if key == "input" else _coerce(value)
+                    for key, value in obj.items()
+                }
             if isinstance(obj, list):
                 return [_coerce(v) for v in obj]
             if isinstance(obj, tuple):

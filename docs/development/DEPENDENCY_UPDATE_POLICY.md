@@ -4,7 +4,7 @@
 
 本文档定义 CampusAgent 项目的依赖管理和更新策略。
 
-**最后更新**：2026-07-14
+**最后更新**：2026-07-20
 
 ---
 
@@ -24,7 +24,7 @@
 |----|------|------|
 | dev-dependencies | 开发依赖 | ESLint, Prettier, Testing 库 |
 | production-dependencies | 生产依赖 | React, Next.js 等 |
-| all-dependencies | 所有 pip 包 | FastAPI, SQLAlchemy 等 |
+| all-dependencies | 所有 Python 包 | FastAPI, SQLAlchemy 等 |
 
 ---
 
@@ -46,7 +46,7 @@
    pnpm outdated
 
    # 后端
-   cd apps/api && pip list --outdated
+   uv tree --project apps/api --outdated
    ```
 
 2. **更新依赖**
@@ -56,7 +56,9 @@
    pnpm update
 
    # 后端
-   cd apps/api && pip install --upgrade <package>
+   # 先修改 apps/api/pyproject.toml 中的版本范围，再更新锁文件
+   uv lock --project apps/api --upgrade-package <package>
+   uv sync --project apps/api --extra dev --frozen
    ```
 
 3. **运行测试**
@@ -70,7 +72,7 @@
 
    ```bash
    git add pnpm-lock.yaml
-   git add apps/api/requirements.txt
+   git add apps/api/pyproject.toml apps/api/uv.lock
    git commit -m "chore(deps): update <package> to v<version>"
    ```
 
@@ -84,11 +86,13 @@
 - **何时更新**：每次依赖变更后
 - **评审规则**：PR 中需要审查锁文件变更
 
-### requirements.txt
+### apps/api/uv.lock
 
 - **提交到 Git**：是
 - **何时更新**：每次依赖变更后
 - **评审规则**：PR 中需要审查锁文件变更
+
+`pyproject.toml` 声明直接依赖，`uv.lock` 锁定完整依赖图。禁止使用系统 `pip install` 修改宿主 Python 环境。
 
 ---
 
@@ -152,7 +156,7 @@
 - **GitHub Dependabot**：自动检测安全漏洞
 - **Snyk**：（可选）深度安全扫描
 - **npm audit**：前端依赖检查
-- **pip-audit**：后端依赖检查
+- **uv**：后端依赖解析、锁定与环境同步
 
 ---
 

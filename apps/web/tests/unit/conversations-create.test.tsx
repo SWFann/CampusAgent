@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import ConversationsPage from "@/app/conversations/page";
 import { createGroupConversation, listConversations } from "@/lib/conversations";
 import { listContacts } from "@/lib/contacts";
@@ -17,6 +18,10 @@ jest.mock("@/lib/contacts", () => ({
 
 jest.mock("@/lib/directory", () => ({
   searchDirectory: jest.fn(),
+}));
+
+jest.mock("@/components/app/AppShell", () => ({
+  AppShell: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 describe("ConversationsPage group creation", () => {
@@ -66,15 +71,15 @@ describe("ConversationsPage group creation", () => {
     const user = userEvent.setup();
     render(<ConversationsPage />);
 
-    await user.click(await screen.findByText("新建会话"));
-    await user.click(screen.getByLabelText("群聊"));
+    await user.click(await screen.findByText("发起沟通"));
+    await user.click(screen.getByText("创建群聊"));
     await user.type(screen.getByLabelText("群聊标题（可选）"), "测试群聊");
     await user.type(screen.getByLabelText("搜索成员"), "Alice");
     await user.click(screen.getByRole("button", { name: "搜索" }));
     await user.click(await screen.findByRole("button", { name: "添加 Alice Chen" }));
 
     expect(screen.getByText("Alice Chen")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "创建" }));
+    await user.click(screen.getByRole("button", { name: "确认创建" }));
 
     await waitFor(() => {
       expect(createGroupConversation).toHaveBeenCalledWith({

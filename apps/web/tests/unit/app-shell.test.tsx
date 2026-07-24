@@ -91,12 +91,12 @@ describe("NavRail", () => {
     );
 
     await screen.findByText("首页");
-    expect(screen.getByText("消息")).toBeInTheDocument();
-    expect(screen.getByText("组织")).toBeInTheDocument();
-    expect(screen.getByText("智能体")).toBeInTheDocument();
-    expect(screen.getByText("记忆中心")).toBeInTheDocument();
-    expect(screen.getByText("场景")).toBeInTheDocument();
-    expect(screen.getByText("私密偏好")).toBeInTheDocument();
+    expect(screen.getByText("个人工作台")).toBeInTheDocument();
+    expect(screen.getByText("消息与通知")).toBeInTheDocument();
+    expect(screen.getByText("组织与群体")).toBeInTheDocument();
+    expect(screen.getByText("协作空间")).toBeInTheDocument();
+    expect(screen.getByText("我的 Agent")).toBeInTheDocument();
+    expect(screen.getByText("个人知识库")).toBeInTheDocument();
   });
 
   it("does not render token in the DOM", async () => {

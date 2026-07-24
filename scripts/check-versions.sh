@@ -54,25 +54,32 @@ check_version "Node.js" "node --version" "v18" "$NODE_VERSION"
 PNPM_VERSION=$(pnpm --version 2>/dev/null || echo "")
 if [ -z "$PNPM_VERSION" ]; then
     echo -e "检查 pnpm... ${RED}✗ 未安装${NC} (推荐)"
-    echo -e "  ${YELLOW}安装: npm install -g pnpm${NC}"
+    echo -e "  ${YELLOW}启用: corepack enable${NC}"
     ((ERRORS++))
 else
     echo -e "检查 pnpm... ${GREEN}✓${NC} $PNPM_VERSION"
 fi
 
-# 2. Python
+# 2. Python / uv
 echo ""
 echo "【后端工具链】"
-PYTHON_VERSION=$(python3 --version 2>&1 | grep -oP '[\d\.]+' || echo "")
-check_version "Python" "python3 --version" "3.11" "$PYTHON_VERSION"
-
-PIP_VERSION=$(pip --version 2>/dev/null | grep -oP '[\d\.]+' | head -1 || echo "")
-if [ -z "$PIP_VERSION" ]; then
-    echo -e "检查 pip... ${RED}✗ 未安装${NC}"
+UV_VERSION=$(uv --version 2>/dev/null || echo "")
+if [ -z "$UV_VERSION" ]; then
+    echo -e "检查 uv... ${RED}✗ 未安装${NC}"
     ((ERRORS++))
 else
-    echo -e "检查 pip... ${GREEN}✓${NC} $PIP_VERSION"
+    echo -e "检查 uv... ${GREEN}✓${NC} $UV_VERSION"
 fi
+
+if [ -n "$UV_VERSION" ]; then
+    ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    export UV_CACHE_DIR="${UV_CACHE_DIR:-$ROOT_DIR/.local/uv-cache}"
+    export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-$ROOT_DIR/.local/uv-python}"
+    PYTHON_VERSION=$(uv run --project "$ROOT_DIR/apps/api" --extra dev --frozen python --version 2>&1 || echo "")
+else
+    PYTHON_VERSION=""
+fi
+check_version "项目 Python" "uv run python --version" "3.11" "$PYTHON_VERSION"
 
 # 3. Docker
 echo ""
@@ -111,7 +118,7 @@ else
     echo ""
     echo "安装建议："
     echo "  - Node.js: https://nodejs.org/"
-    echo "  - Python: https://www.python.org/downloads/"
+    echo "  - uv: https://docs.astral.sh/uv/getting-started/installation/"
     echo "  - Docker: https://docs.docker.com/get-docker/"
     echo "  - Git: https://git-scm.com/downloads/"
     exit 1

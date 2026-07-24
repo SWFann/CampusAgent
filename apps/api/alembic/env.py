@@ -136,16 +136,10 @@ def run_migrations_online() -> None:
             context.run_migrations()
 
 
-# Determine which mode to run in.
-# When env.py is imported directly (e.g. by tests), there is no Alembic
-# context configured.  In that case we skip the migration runner so the
-# module can be safely imported for inspection.
-try:
-    if context.is_offline_mode():
-        run_migrations_offline()
-    else:
-        run_migrations_online()
-except Exception:
-    # No Alembic context is configured — this happens when env.py is
-    # imported outside of an ``alembic`` command.  Silently skip.
-    pass
+# Alembic imports this module only with a configured migration context.
+# Do not swallow migration errors: a failed schema change must fail the
+# command instead of leaving a partially upgraded database behind.
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()

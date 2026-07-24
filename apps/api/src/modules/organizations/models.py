@@ -43,6 +43,7 @@ class OrganizationType(StrEnum):
     DORM = "DORM"
     CLUB = "CLUB"
     COURSE = "COURSE"
+    LAB = "LAB"
     TEAM = "TEAM"
     OTHER = "OTHER"
 

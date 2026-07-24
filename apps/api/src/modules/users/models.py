@@ -125,6 +125,12 @@ class StudentProfile(Base):
         Uuid, ForeignKey("users.id"), unique=True, nullable=False
     )
     student_no: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    phone_number: Mapped[str | None] = mapped_column(
+        String(24), unique=True, nullable=True
+    )
+    agent_code: Mapped[str | None] = mapped_column(
+        String(80), unique=True, nullable=True
+    )
     enrollment_year: Mapped[int | None] = mapped_column(nullable=True)
     major_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True)

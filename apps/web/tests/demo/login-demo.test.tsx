@@ -78,7 +78,7 @@ describe("LoginPage demo picker", () => {
     const aliceButton = screen.getByText("陈同学").closest("button")!;
     fireEvent.click(aliceButton);
 
-    const emailInput = screen.getByLabelText("邮箱") as HTMLInputElement;
+    const emailInput = screen.getByLabelText("暨南大学账号") as HTMLInputElement;
     expect(emailInput.value).toBe("demo_alice@example.com");
   });
 
@@ -160,5 +160,63 @@ describe("LoginPage demo picker", () => {
     const bobButton = screen.getByText("林同学").closest("button")!;
     fireEvent.click(bobButton);
     expect(bobButton).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("reveals the selected person's identity and purpose", () => {
+    render(<LoginPage />);
+    expect(screen.queryByText("演示管理员 · 学校管理员")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("演示管理员").closest("button")!);
+
+    expect(screen.getByText("演示管理员 · 学校管理员")).toBeInTheDocument();
+    expect(screen.getByText(/^管理员 — 可访问管理后台/)).toBeInTheDocument();
+  });
+
+  it("switches only the auth panel to the new student application", () => {
+    render(<LoginPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "新生申请" }));
+
+    expect(screen.getByRole("heading", { name: "听见真实的声音， 一起做更好的选择。" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "开启你的 CampusAgent" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "登录 CampusAgent" })).not.toBeInTheDocument();
+  });
+
+  it("previews the allocated agent code from the student number", () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByRole("button", { name: "新生申请" }));
+
+    fireEvent.change(screen.getByLabelText("暨南大学账号（学号）"), { target: { value: "20261234" } });
+
+    expect(screen.getByText("campusagent20261234")).toBeInTheDocument();
+  });
+
+  it("submits the phone number and campus identity through registration", async () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByRole("button", { name: "新生申请" }));
+
+    fireEvent.change(screen.getByLabelText("姓名"), { target: { value: "周同学" } });
+    fireEvent.change(screen.getByLabelText("暨南大学账号（学号）"), { target: { value: "20261234" } });
+    fireEvent.change(screen.getByLabelText("绑定手机"), { target: { value: "138 0013-8000" } });
+    fireEvent.change(screen.getByLabelText("设置密码"), { target: { value: "SecurePass123" } });
+    fireEvent.change(screen.getByLabelText("确认密码"), { target: { value: "SecurePass123" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "提交新生申请" }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v1/auth/register"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            email: "20261234@jnu.edu.cn",
+            password: "SecurePass123",
+            display_name: "周同学",
+            student_no: "20261234",
+            phone_number: "13800138000",
+          }),
+        }),
+      );
+    });
   });
 });

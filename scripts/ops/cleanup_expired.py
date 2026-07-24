@@ -9,7 +9,7 @@ Runs the existing cleanup functions in sequence:
 
 Usage::
 
-    conda run -n CampusAgent python scripts/ops/cleanup_expired.py [--dry-run] [--limit 100]
+    uv run --project apps/api --extra dev --frozen python scripts/ops/cleanup_expired.py [--dry-run] [--limit 100]
 
 In ``--dry-run`` mode the script reports what *would* be cleaned without
 committing.  This script is safe to run from a cron job or a Celery beat

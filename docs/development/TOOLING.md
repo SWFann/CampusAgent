@@ -59,12 +59,12 @@ tsc --version
 ### Python
 
 - **最低版本**：3.11
-- **推荐版本**：3.11.x 或 3.12.x
-- **项目 Conda 环境**：3.11.15 ✅
+- **项目锁定版本**：3.11.15
+- **环境位置**：`apps/api/.venv`（由 uv 管理）
 
 **验证命令**：
 ```bash
-conda run -n CampusAgent python --version
+uv run --project apps/api --extra dev --frozen python --version
 ```
 
 **说明**：
@@ -72,20 +72,17 @@ conda run -n CampusAgent python --version
 - 推荐 3.11+ 以获得性能改进
 - 版本高于最低要求即可
 
-### pip
+### uv
 
-- **最低版本**：23.0.0
+- **最低版本**：0.5
 - **推荐版本**：最新稳定版
 
 **验证命令**：
 ```bash
-conda run -n CampusAgent python -m pip --version
+uv --version
 ```
 
-### Poetry（可选）
-
-- **版本**：1.7.x+
-- **用途**：Python 依赖管理（如果项目选择使用）
+`uv.lock` 是后端唯一锁文件。禁止对系统 Python 或用户 site-packages 执行 `pip install`。
 
 ---
 

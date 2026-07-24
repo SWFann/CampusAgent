@@ -27,15 +27,19 @@ def _register_payload(
     password: str = "SecurePass123",
     display_name: str = "张三",
     student_no: str = "20260001",
+    phone_number: str | None = None,
 ) -> dict:
     """Return a valid register request payload."""
-    return {
+    payload = {
         "email": email,
         "password": password,
         "display_name": display_name,
         "student_no": student_no,
         "organization_ids": [],
     }
+    if phone_number is not None:
+        payload["phone_number"] = phone_number
+    return payload
 
 
 def _extract_cookies(set_cookie_headers: list[str]) -> dict[str, dict[str, str]]:
@@ -91,6 +95,26 @@ class TestRegisterSuccess:
         data_str = str(body)
         assert "access_token" not in data_str.lower() or body.get("data", {}).get("access_token") is None
         assert "refresh_token" not in str(body.get("data", {})).lower()
+
+    def test_phone_and_agent_code_are_stored_but_not_exposed(
+        self, db_client: TestClient, test_session_factory
+    ):
+        """Private phone and deterministic agent code stay in the student profile."""
+        from src.modules.users.models import StudentProfile
+
+        resp = db_client.post(
+            "/api/v1/auth/register",
+            json=_register_payload(phone_number="138 0013-8000"),
+        )
+        assert resp.status_code == 201
+        assert "phone" not in str(resp.json()).lower()
+
+        with test_session_factory() as session:
+            profile = session.query(StudentProfile).filter_by(
+                student_no="20260001"
+            ).one()
+            assert profile.phone_number == "13800138000"
+            assert profile.agent_code == "campusagent20260001"
 
     def test_register_sets_three_cookies(self, db_client: TestClient):
         """Three auth cookies are set: access_token, refresh_token, csrf_token."""
@@ -168,6 +192,25 @@ class TestRegisterDuplicate:
         assert resp2.status_code == 409
         body = resp2.json()
         assert body["error"]["code"] == "USER_ALREADY_EXISTS"
+
+    def test_duplicate_phone_returns_409(self, db_client: TestClient):
+        """One phone number cannot be bound to multiple student identities."""
+        resp1 = db_client.post(
+            "/api/v1/auth/register",
+            json=_register_payload(phone_number="13800138000"),
+        )
+        assert resp1.status_code == 201
+
+        resp2 = db_client.post(
+            "/api/v1/auth/register",
+            json=_register_payload(
+                email="phone-owner@example.edu",
+                student_no="20260009",
+                phone_number="13800138000",
+            ),
+        )
+        assert resp2.status_code == 409
+        assert resp2.json()["error"]["code"] == "USER_ALREADY_EXISTS"
 
 
 # ---------------------------------------------------------------------------

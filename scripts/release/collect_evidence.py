@@ -10,7 +10,7 @@ Evidence collected:
 - ``git status --short --branch``  (working tree state)
 - ``git log -1 --oneline``         (baseline commit)
 - ``git diff HEAD --check``        (whitespace/conflict markers)
-- ``pip check``                    (dependency conflicts)
+- ``uv pip check``                 (dependency conflicts)
 - ``ruff check``                   (lint)
 - ``mypy``                         (type check)
 - ``pytest`` summary               (test count)
@@ -20,7 +20,7 @@ Evidence collected:
 
 Usage::
 
-    conda run -n CampusAgent python scripts/release/collect_evidence.py [--root .] [--json] [--output artifacts/release-evidence/]
+    uv run --project apps/api --extra dev --frozen python scripts/release/collect_evidence.py [--root .] [--json] [--output artifacts/release-evidence/]
 
 Exit code:
 - 0 if all commands ran (regardless of individual pass/fail).
@@ -181,40 +181,43 @@ def collect_git_evidence(root: Path) -> list[CommandResult]:
 
 
 def collect_python_evidence(root: Path) -> list[CommandResult]:
-    """Collect Python/backend evidence via conda run."""
-    conda = shutil.which("conda")
-    if not conda:
-        result = CommandResult("pip_check", "conda", 127, "", "conda not found", 0.0)
-        result.mark_skipped("conda not found")
+    """Collect Python/backend evidence from the uv-managed environment."""
+    uv = shutil.which("uv")
+    if not uv:
+        result = CommandResult("uv_pip_check", "uv", 127, "", "uv not found", 0.0)
+        result.mark_skipped("uv not found")
         return [result]
 
-    api_dir = root / "apps" / "api"
+    uv_prefix = ["uv", "run", "--project", "apps/api", "--extra", "dev", "--frozen"]
+    uv_env = {
+        "UV_CACHE_DIR": str(root / ".local" / "uv-cache"),
+        "UV_PYTHON_INSTALL_DIR": str(root / ".local" / "uv-python"),
+    }
     results: list[CommandResult] = []
 
     results.append(
         run_command(
-            "pip_check",
-            ["conda", "run", "-n", "CampusAgent", "pip", "check"],
+            "uv_pip_check",
+            [*uv_prefix, "uv", "pip", "check"],
             cwd=root,
             timeout=120,
+            env=uv_env,
         )
     )
     results.append(
         run_command(
             "ruff_check",
-            ["conda", "run", "-n", "CampusAgent", "ruff", "check", "apps/api", "--no-cache"],
+            [*uv_prefix, "ruff", "check", "apps/api", "--no-cache"],
             cwd=root,
             timeout=120,
+            env=uv_env,
         )
     )
     results.append(
         run_command(
             "mypy",
             [
-                "conda",
-                "run",
-                "-n",
-                "CampusAgent",
+                *uv_prefix,
                 "mypy",
                 "apps/api/src",
                 "apps/api/tests",
@@ -222,16 +225,14 @@ def collect_python_evidence(root: Path) -> list[CommandResult]:
             ],
             cwd=root,
             timeout=300,
+            env=uv_env,
         )
     )
     results.append(
         run_command(
             "pytest",
             [
-                "conda",
-                "run",
-                "-n",
-                "CampusAgent",
+                *uv_prefix,
                 "python",
                 "-m",
                 "pytest",
@@ -242,6 +243,7 @@ def collect_python_evidence(root: Path) -> list[CommandResult]:
             ],
             cwd=root,
             timeout=600,
+            env=uv_env,
         )
     )
     return results
@@ -320,18 +322,32 @@ def collect_tooling_evidence(root: Path) -> list[CommandResult]:
 
 def collect_demo_evidence(root: Path) -> list[CommandResult]:
     """Run the demo smoke test."""
-    conda = shutil.which("conda")
-    if not conda:
-        r = CommandResult("demo_smoke", "conda", 127, "", "conda not found", 0.0)
-        r.mark_skipped("conda not found")
+    uv = shutil.which("uv")
+    if not uv:
+        r = CommandResult("demo_smoke", "uv", 127, "", "uv not found", 0.0)
+        r.mark_skipped("uv not found")
         return [r]
 
     return [
         run_command(
             "demo_smoke",
-            ["conda", "run", "-n", "CampusAgent", "python", "scripts/demo/run_demo_smoke.py"],
+            [
+                "uv",
+                "run",
+                "--project",
+                "apps/api",
+                "--extra",
+                "dev",
+                "--frozen",
+                "python",
+                "scripts/demo/run_demo_smoke.py",
+            ],
             cwd=root,
             timeout=120,
+            env={
+                "UV_CACHE_DIR": str(root / ".local" / "uv-cache"),
+                "UV_PYTHON_INSTALL_DIR": str(root / ".local" / "uv-python"),
+            },
         )
     ]
 

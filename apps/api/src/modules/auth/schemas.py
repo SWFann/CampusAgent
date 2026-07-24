@@ -28,6 +28,13 @@ class RegisterRequest(BaseModel):
     password: str = Field(description="密码强度由服务层校验")
     display_name: str = Field(min_length=1, max_length=100)
     student_no: str = Field(min_length=1, max_length=50)
+    phone_number: str | None = Field(
+        default=None,
+        min_length=7,
+        max_length=24,
+        pattern=r"^\+?[0-9][0-9 -]{5,22}[0-9]$",
+        description="绑定手机，仅用于账号安全与本人通知",
+    )
     organization_ids: list[UUID] = Field(
         default_factory=list,
         description="P3 接受但不创建成员关系",

@@ -8,17 +8,17 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -k -n web,api \"corepack pnpm --filter @campus-agent/web dev\" \"conda run -n CampusAgent uvicorn src.main:app --app-dir apps/api --reload --port 8000\"",
+    "dev": "concurrently -k -n web,api \"corepack pnpm --filter @campus-agent/web dev\" \"uv run --project apps/api --extra dev --frozen uvicorn src.main:app --app-dir apps/api --reload --port 8000\"",
     "build": "corepack pnpm --filter @campus-agent/web build",
     "test": "corepack pnpm run test:web && corepack pnpm run test:api",
     "test:web": "corepack pnpm --filter @campus-agent/web test -- --runInBand",
-    "test:api": "conda run -n CampusAgent python -m pytest apps/api/tests -q -p no:cacheprovider",
+    "test:api": "uv run --project apps/api --extra dev --frozen python -m pytest apps/api/tests -q -p no:cacheprovider",
     "lint": "corepack pnpm run lint:web && corepack pnpm run lint:api",
     "lint:web": "corepack pnpm --filter @campus-agent/web lint",
-    "lint:api": "conda run -n CampusAgent ruff check apps/api --no-cache",
+    "lint:api": "uv run --project apps/api --extra dev --frozen ruff check apps/api --no-cache",
     "typecheck": "corepack pnpm run typecheck:web && corepack pnpm run typecheck:api",
     "typecheck:web": "corepack pnpm --filter @campus-agent/web typecheck",
-    "typecheck:api": "conda run -n CampusAgent mypy apps/api/src apps/api/tests --no-incremental",
+    "typecheck:api": "uv run --project apps/api --extra dev --frozen mypy apps/api/src apps/api/tests --no-incremental",
     "test:e2e": "corepack pnpm --filter @campus-agent/web test:e2e",
     "seed": "node -e \"console.log('Seed data is deferred until the P2 database baseline.')\""
   },

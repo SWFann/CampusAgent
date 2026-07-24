@@ -77,6 +77,13 @@ class OrganizationListItem(BaseModel):
     visibility: str
     status: str
     member_count: int = 0
+    description: str | None = None
+    parent_id: UUID | None = None
+    join_policy: str | None = None
+    capacity: int | None = None
+    created_by: UUID | None = None
+    current_role: str | None = None
+    current_membership_status: str | None = None
 
 
 class OrganizationListResponse(BaseModel):
@@ -104,6 +111,32 @@ class OrganizationMemberUpdateRequest(BaseModel):
     """PATCH /api/v1/organizations/{id}/members/{user_id} request body."""
 
     role: str = Field(..., max_length=40)
+
+
+class OrganizationMemberReviewRequest(BaseModel):
+    """Approve or reject a pending join request."""
+
+    decision: str = Field(..., pattern="^(APPROVE|REJECT)$")
+    role: str = Field(default="MEMBER", max_length=40)
+
+
+class OrganizationInvitationRequest(BaseModel):
+    """Invite a campus user without immediately activating membership."""
+
+    user_id: UUID
+    role: str = Field(default="MEMBER", max_length=40)
+
+
+class OrganizationInvitationDecisionRequest(BaseModel):
+    """Accept or decline the current user's invitation."""
+
+    decision: str = Field(..., pattern="^(ACCEPT|DECLINE)$")
+
+
+class OrganizationOwnershipTransferRequest(BaseModel):
+    """Transfer the OWNER role to an active member."""
+
+    user_id: UUID
 
 
 class OrganizationMemberRead(BaseModel):

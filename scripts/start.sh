@@ -2,6 +2,8 @@
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$ROOT_DIR/.local/uv-cache}"
+export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-$ROOT_DIR/.local/uv-python}"
 WEB_PORT="${WEB_PORT:-3000}"
 API_PORT="${API_PORT:-8000}"
 WEB_PORT_EXPLICIT=0
@@ -117,8 +119,7 @@ parse_args() {
 }
 
 require_base_tools() {
-  have conda || fail "Conda is required. Create/activate the CampusAgent env first."
-  conda env list | awk '{print $1}' | grep -qx "CampusAgent" || fail "Conda env 'CampusAgent' was not found."
+  have uv || fail "uv is required. Install it from https://docs.astral.sh/uv/."
   have corepack || fail "corepack is required for pnpm. Install Node.js >= 18."
   have node || fail "Node.js is required."
   have git || fail "git is required."
@@ -186,7 +187,7 @@ install_deps() {
   fi
   log "Installing dependencies if needed..."
   corepack pnpm install --frozen-lockfile
-  conda run -n CampusAgent python -m pip install -r apps/api/requirements.lock
+  uv sync --project apps/api --extra dev --frozen
 }
 
 start_dependencies() {
@@ -247,7 +248,7 @@ run_migrations() {
   if [[ "$MODE" == "docker" ]]; then
     log "Waiting for PostgreSQL to be ready..."
     local waited=0
-    while ! DATABASE_URL="$DATABASE_URL" conda run -n CampusAgent python - <<'PY' >/dev/null 2>&1
+    while ! DATABASE_URL="$DATABASE_URL" uv run --project "$ROOT_DIR/apps/api" --extra dev --frozen python - <<'PY' >/dev/null 2>&1
 from sqlalchemy import create_engine, text
 import os
 
@@ -268,7 +269,7 @@ PY
   log "Running database migrations..."
   (
     cd "$ROOT_DIR/apps/api"
-    conda run -n CampusAgent alembic -c alembic.ini upgrade head
+    uv run --project . --extra dev --frozen alembic -c alembic.ini upgrade head
   )
 }
 
@@ -277,12 +278,12 @@ seed_demo() {
     return
   fi
   log "Seeding demo data..."
-  conda run -n CampusAgent python scripts/demo/seed_demo.py --json
+  uv run --project apps/api --extra dev --frozen python scripts/demo/seed_demo.py --json
 }
 
 run_smoke() {
   log "Running demo smoke test..."
-  conda run -n CampusAgent python scripts/demo/run_demo_smoke.py
+  uv run --project apps/api --extra dev --frozen python scripts/demo/run_demo_smoke.py
 }
 
 check_ports() {
@@ -328,7 +329,7 @@ start_servers() {
   log "Starting API on http://localhost:${API_PORT}"
   (
     cd "$ROOT_DIR/apps/api"
-    conda run -n CampusAgent uvicorn src.main:app --reload --port "$API_PORT"
+    uv run --project . --extra dev --frozen uvicorn src.main:app --reload --port "$API_PORT"
   ) &
   API_PID=$!
 

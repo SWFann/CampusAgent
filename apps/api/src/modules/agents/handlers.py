@@ -4,6 +4,7 @@ P6-02: Listens for UserRegistered events and creates a personal agent.
 - Idempotent: skips if agent already exists.
 - Handler failures are logged but don't break registration.
 """
+
 from __future__ import annotations
 
 import logging

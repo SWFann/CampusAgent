@@ -16,6 +16,7 @@ Privacy:
 - Admin cannot read submission content.
 - Events only contain counts and IDs — never private data.
 """
+
 from __future__ import annotations
 
 import json
@@ -30,6 +31,7 @@ from sqlalchemy.orm import Session
 from ...db.time import utc_now
 from ...events.bus import default_event_bus
 from ..audit.service import log_audit
+from ..organizations.repository import OrganizationMembershipRepository, OrganizationRepository
 from ..users.models import User
 from .events import (
     SceneCancelled,
@@ -170,7 +172,7 @@ def create_scene_instance(
         instance_repo = SceneInstanceRepository(session)
         existing = instance_repo.get_by_idempotency_key(idempotency_key)
         if existing is not None:
-            return _instance_to_read(existing, session)
+            return _instance_to_read(existing, session, viewer_user_id=user.id)
 
     # Get or create the SceneDefinition row.
     defn_repo = SceneDefinitionRepository(session)
@@ -186,15 +188,33 @@ def create_scene_instance(
         )
         defn_repo.create(definition)
 
+    organization_id_raw = data.get("organization_id")
+    organization_id = UUID(str(organization_id_raw)) if organization_id_raw else None
+    participant_user_ids = [UUID(str(uid)) for uid in data.get("participant_user_ids", [])]
+    if organization_id is not None:
+        organization = OrganizationRepository(session).get_active_by_id(organization_id)
+        membership_repo = OrganizationMembershipRepository(session)
+        actor_membership = membership_repo.get_active_by_org_user(organization_id, user.id)
+        if organization is None or actor_membership is None:
+            raise ScenePermissionDeniedError(
+                details={"reason": "active_organization_member_required"}
+            )
+        participant_user_ids = [
+            membership.user_id for membership in membership_repo.list_active_by_org(organization_id)
+        ]
+
     # Create the instance.
     instance_repo = SceneInstanceRepository(session)
     instance = SceneInstance(
         definition_id=definition.id,
         conversation_id=data.get("conversation_id"),
+        organization_id=organization_id,
         created_by=user.id,
         status=SceneState.DRAFT.value,
         current_phase=SceneState.DRAFT.value,
-        public_context_json=json.dumps(data["public_context"]) if data.get("public_context") else None,
+        public_context_json=json.dumps(data["public_context"])
+        if data.get("public_context")
+        else None,
         idempotency_key=idempotency_key,
         expires_at=data.get("expires_at"),
     )
@@ -212,7 +232,7 @@ def create_scene_instance(
     part_repo.create(creator)
 
     # Add other participants (INVITED).
-    for uid in data.get("participant_user_ids", []):
+    for uid in participant_user_ids:
         if uid == user.id:
             continue  # Creator already added
         participant = SceneParticipant(
@@ -246,7 +266,7 @@ def create_scene_instance(
         session=session,
     )
 
-    return _instance_to_read(instance, session)
+    return _instance_to_read(instance, session, viewer_user_id=user.id)
 
 
 def get_scene_instance(
@@ -267,11 +287,9 @@ def get_scene_instance(
     part_repo = SceneParticipantRepository(session)
     participant = part_repo.get_by_instance_and_user(instance_id, user.id)
     if participant is None:
-        raise ScenePermissionDeniedError(
-            details={"reason": "not_a_participant"}
-        )
+        raise ScenePermissionDeniedError(details={"reason": "not_a_participant"})
 
-    return _instance_to_read(instance, session)
+    return _instance_to_read(instance, session, viewer_user_id=user.id)
 
 
 def list_my_scenes(
@@ -280,11 +298,11 @@ def list_my_scenes(
     *,
     limit: int = 50,
 ) -> dict[str, Any]:
-    """List scenes created by the user."""
+    """List scene instances the user can access as a participant."""
     instance_repo = SceneInstanceRepository(session)
-    instances = instance_repo.list_by_creator(user.id, limit=limit)
+    instances = instance_repo.list_by_participant(user.id, limit=limit)
     return {
-        "scenes": [_instance_to_read(i, session) for i in instances],
+        "scenes": [_instance_to_read(i, session, viewer_user_id=user.id) for i in instances],
         "total": len(instances),
     }
 
@@ -317,9 +335,7 @@ def transition_state(
 
     # Only the creator can trigger state transitions.
     if instance.created_by != user.id:
-        raise ScenePermissionDeniedError(
-            details={"reason": "only_creator_can_transition"}
-        )
+        raise ScenePermissionDeniedError(details={"reason": "only_creator_can_transition"})
 
     current_state = SceneState(instance.status)
     target_state = SceneStateMachine.get_target_state(current_state, action)
@@ -416,7 +432,7 @@ def transition_state(
         session=session,
     )
 
-    return _instance_to_read(instance, session)
+    return _instance_to_read(instance, session, viewer_user_id=user.id)
 
 
 def expire_stale_instances(session: Session) -> int:
@@ -460,9 +476,7 @@ def accept_invitation(
     part_repo = SceneParticipantRepository(session)
     participant = part_repo.get_by_instance_and_user(instance_id, user.id)
     if participant is None:
-        raise SceneNotFoundError(
-            details={"reason": "not_invited"}
-        )
+        raise SceneNotFoundError(details={"reason": "not_invited"})
     if participant.status != ParticipantStatus.INVITED.value:
         return _participant_to_read(participant)
 
@@ -491,9 +505,7 @@ def decline_invitation(
     part_repo = SceneParticipantRepository(session)
     participant = part_repo.get_by_instance_and_user(instance_id, user.id)
     if participant is None:
-        raise SceneNotFoundError(
-            details={"reason": "not_invited"}
-        )
+        raise SceneNotFoundError(details={"reason": "not_invited"})
     participant.status = ParticipantStatus.DECLINED.value
     part_repo.save(participant)
     session.commit()
@@ -518,13 +530,9 @@ def leave_scene(
     part_repo = SceneParticipantRepository(session)
     participant = part_repo.get_by_instance_and_user(instance_id, user.id)
     if participant is None:
-        raise SceneNotFoundError(
-            details={"reason": "not_a_participant"}
-        )
+        raise SceneNotFoundError(details={"reason": "not_a_participant"})
     if participant.is_creator:
-        raise ScenePermissionDeniedError(
-            details={"reason": "creator_cannot_leave"}
-        )
+        raise ScenePermissionDeniedError(details={"reason": "creator_cannot_leave"})
     participant.status = ParticipantStatus.LEFT.value
     part_repo.save(participant)
     session.commit()
@@ -617,9 +625,7 @@ def submit_private_preferences(
     part_repo = SceneParticipantRepository(session)
     participant = part_repo.get_by_instance_and_user(instance_id, user.id)
     if participant is None or participant.status != ParticipantStatus.ACCEPTED.value:
-        raise SceneConsentRequiredError(
-            details={"reason": "must_accept_invitation_first"}
-        )
+        raise SceneConsentRequiredError(details={"reason": "must_accept_invitation_first"})
 
     # Validate via plugin.
     registry = get_scene_registry()
@@ -734,9 +740,7 @@ def delete_submission(
     sub_repo = PrivateSubmissionRepository(session)
     submission = sub_repo.get_for_owner(instance_id, user.id)
     if submission is None:
-        raise SceneNotFoundError(
-            details={"reason": "no_submission"}
-        )
+        raise SceneNotFoundError(details={"reason": "no_submission"})
     sub_repo.soft_delete(submission)
     session.commit()
 
@@ -804,17 +808,13 @@ def cast_vote(
     part_repo = SceneParticipantRepository(session)
     participant = part_repo.get_by_instance_and_user(instance_id, user.id)
     if participant is None or participant.status != ParticipantStatus.ACCEPTED.value:
-        raise ScenePermissionDeniedError(
-            details={"reason": "must_be_accepted_participant"}
-        )
+        raise ScenePermissionDeniedError(details={"reason": "must_be_accepted_participant"})
 
     # Validate candidate exists in this instance.
     cand_repo = SceneCandidateRepository(session)
     candidate = cand_repo.get_by_id(candidate_id)
     if candidate is None or candidate.scene_instance_id != instance_id:
-        raise SceneNotFoundError(
-            details={"reason": "candidate_not_in_instance"}
-        )
+        raise SceneNotFoundError(details={"reason": "candidate_not_in_instance"})
 
     # Cast or replace vote.
     vote_repo = SceneVoteRepository(session)
@@ -892,9 +892,7 @@ def get_scene_result(
     result_repo = SceneResultRepository(session)
     result = result_repo.get_by_instance(instance_id)
     if result is None:
-        raise SceneNotFoundError(
-            details={"reason": "no_result_yet"}
-        )
+        raise SceneNotFoundError(details={"reason": "no_result_yet"})
 
     # Get selected candidate.
     cand_repo = SceneCandidateRepository(session)
@@ -919,13 +917,23 @@ def get_scene_result(
 # ---------------------------------------------------------------------------
 
 
-def _instance_to_read(instance: SceneInstance, session: Session) -> dict[str, Any]:
+def _instance_to_read(
+    instance: SceneInstance,
+    session: Session,
+    *,
+    viewer_user_id: UUID | None = None,
+) -> dict[str, Any]:
     """Convert a SceneInstance to a safe read dict — no private data."""
     part_repo = SceneParticipantRepository(session)
     sub_repo = PrivateSubmissionRepository(session)
 
     participant_count = part_repo.count_accepted(instance.id)
     submitted_count = sub_repo.count_by_instance(instance.id)
+    viewer_participant = (
+        part_repo.get_by_instance_and_user(instance.id, viewer_user_id)
+        if viewer_user_id is not None
+        else None
+    )
 
     return {
         "id": str(instance.id),
@@ -934,6 +942,7 @@ def _instance_to_read(instance: SceneInstance, session: Session) -> dict[str, An
         "current_phase": instance.current_phase,
         "created_by": str(instance.created_by),
         "conversation_id": str(instance.conversation_id) if instance.conversation_id else None,
+        "organization_id": str(instance.organization_id) if instance.organization_id else None,
         "public_context": _parse_context(instance.public_context_json),
         "expires_at": instance.expires_at.isoformat() if instance.expires_at else None,
         "completed_at": instance.completed_at.isoformat() if instance.completed_at else None,
@@ -943,6 +952,8 @@ def _instance_to_read(instance: SceneInstance, session: Session) -> dict[str, An
         "updated_at": instance.updated_at.isoformat() if instance.updated_at else None,
         "participant_count": participant_count,
         "submitted_count": submitted_count,
+        "participant_status": viewer_participant.status if viewer_participant else None,
+        "is_creator": bool(viewer_participant and viewer_participant.is_creator),
     }
 
 

@@ -80,11 +80,11 @@ export function AppShell({ children, requireAuth = true, adminOnly = false }: Ap
     return (
       <AuthProvider>
         <ErrorBoundary>
-          <div style={{ display: "flex", minHeight: "100vh" }}>
+          <div className="campus-app-shell">
             <NavRail />
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <div className="campus-app-window">
               <TopBar />
-              <main style={{ flex: 1, padding: "var(--space-lg)", overflow: "auto" }}>
+              <main className="campus-app-main">
                 {content}
               </main>
             </div>

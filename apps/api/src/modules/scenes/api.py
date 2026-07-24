@@ -22,6 +22,7 @@ Privacy:
 - All endpoints require authentication (get_current_user).
 - Only participants can access scene details.
 """
+
 from __future__ import annotations
 
 import json
@@ -40,6 +41,7 @@ from ..auth.csrf import require_csrf
 from ..auth.dependencies import get_current_user
 from ..users.models import User
 from . import chat_dorm_dinner
+from .coordinator import run_generation_phase
 from .models import (
     ParticipantStatus,
     PrivateSubmission,
@@ -112,7 +114,9 @@ def get_chat_dorm_dinner(
     return success(data=data, request_id=getattr(request.state, "correlation_id", None))
 
 
-@router.post("/conversations/{conversation_id}/dorm_dinner/participation", status_code=status.HTTP_200_OK)
+@router.post(
+    "/conversations/{conversation_id}/dorm_dinner/participation", status_code=status.HTTP_200_OK
+)
 async def set_chat_dorm_dinner_participation(
     conversation_id: UUID,
     request: Request,
@@ -130,7 +134,9 @@ async def set_chat_dorm_dinner_participation(
     return success(data=data, request_id=getattr(request.state, "correlation_id", None))
 
 
-@router.post("/conversations/{conversation_id}/dorm_dinner/preferences", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/conversations/{conversation_id}/dorm_dinner/preferences", status_code=status.HTTP_201_CREATED
+)
 async def submit_chat_dorm_dinner_preferences(
     conversation_id: UUID,
     request: Request,
@@ -139,7 +145,9 @@ async def submit_chat_dorm_dinner_preferences(
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, Any]:
     payload = await request.json()
-    preferences = payload.get("preferences") if isinstance(payload.get("preferences"), dict) else payload
+    preferences = (
+        payload.get("preferences") if isinstance(payload.get("preferences"), dict) else payload
+    )
     data = chat_dorm_dinner.submit_preferences(
         current_user,
         conversation_id,
@@ -149,7 +157,9 @@ async def submit_chat_dorm_dinner_preferences(
     return success(data=data, request_id=getattr(request.state, "correlation_id", None))
 
 
-@router.post("/conversations/{conversation_id}/dorm_dinner/debate/start", status_code=status.HTTP_200_OK)
+@router.post(
+    "/conversations/{conversation_id}/dorm_dinner/debate/start", status_code=status.HTTP_200_OK
+)
 async def start_chat_dorm_dinner_debate(
     conversation_id: UUID,
     request: Request,
@@ -167,7 +177,9 @@ async def start_chat_dorm_dinner_debate(
     return success(data=data, request_id=getattr(request.state, "correlation_id", None))
 
 
-@router.post("/conversations/{conversation_id}/dorm_dinner/votes", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/conversations/{conversation_id}/dorm_dinner/votes", status_code=status.HTTP_201_CREATED
+)
 async def vote_chat_dorm_dinner(
     conversation_id: UUID,
     request: Request,
@@ -185,7 +197,9 @@ async def vote_chat_dorm_dinner(
     return success(data=data, request_id=getattr(request.state, "correlation_id", None))
 
 
-@router.post("/conversations/{conversation_id}/dorm_dinner/next-negotiation", status_code=status.HTTP_200_OK)
+@router.post(
+    "/conversations/{conversation_id}/dorm_dinner/next-negotiation", status_code=status.HTTP_200_OK
+)
 def request_next_chat_dorm_dinner_negotiation(
     conversation_id: UUID,
     request: Request,
@@ -193,13 +207,13 @@ def request_next_chat_dorm_dinner_negotiation(
     current_user: User = Depends(get_current_user),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, Any]:
-    data = chat_dorm_dinner.request_next_negotiation(
-        current_user, conversation_id, db_session
-    )
+    data = chat_dorm_dinner.request_next_negotiation(current_user, conversation_id, db_session)
     return success(data=data, request_id=getattr(request.state, "correlation_id", None))
 
 
-@router.post("/conversations/{conversation_id}/dorm_dinner/votes/close", status_code=status.HTTP_200_OK)
+@router.post(
+    "/conversations/{conversation_id}/dorm_dinner/votes/close", status_code=status.HTTP_200_OK
+)
 def close_chat_dorm_dinner_vote(
     conversation_id: UUID,
     request: Request,
@@ -322,8 +336,7 @@ def _candidate_to_demo_read(candidate: SceneCandidate) -> dict[str, Any]:
         "candidate_key": candidate.candidate_key,
         "display_name": candidate.display_name,
         "public_metadata": (
-            json.loads(candidate.public_metadata_json)
-            if candidate.public_metadata_json else None
+            json.loads(candidate.public_metadata_json) if candidate.public_metadata_json else None
         ),
         "aggregate_score": candidate.aggregate_score or 0.0,
         "public_reason": candidate.public_reason,
@@ -338,7 +351,8 @@ def _submission_to_demo_read(submission: PrivateSubmission) -> dict[str, Any]:
         "id": str(submission.id),
         "scene_key": "dorm_dinner",
         "submitted_at": submission.updated_at.isoformat()
-        if submission.updated_at else submission.created_at.isoformat(),
+        if submission.updated_at
+        else submission.created_at.isoformat(),
         "status": "已提交",
     }
 
@@ -410,12 +424,14 @@ def get_dorm_dinner_status(
         )
         .first()
     )
-    return success(data={
-        "id": str(instance.id),
-        "status": instance.status,
-        "participant_count": participant_count,
-        "has_submitted": submission is not None,
-    })
+    return success(
+        data={
+            "id": str(instance.id),
+            "status": instance.status,
+            "participant_count": participant_count,
+            "has_submitted": submission is not None,
+        }
+    )
 
 
 @router.get("/dorm_dinner/preferences", status_code=status.HTTP_200_OK)
@@ -447,12 +463,14 @@ async def submit_dorm_dinner_preferences(
 ) -> dict[str, Any]:
     instance = _open_dorm_dinner_instance(current_user, db_session)
     if instance.status != SceneState.COLLECTING_PRIVATE_INPUT.value:
-        return success(data={
-            "submission_status": "ALREADY_CLOSED",
-            "capsule_generated": False,
-            "expires_at": None,
-            "submission_id": None,
-        })
+        return success(
+            data={
+                "submission_status": "ALREADY_CLOSED",
+                "capsule_generated": False,
+                "expires_at": None,
+                "submission_id": None,
+            }
+        )
     payload = await request.json()
     result = submit_private_preferences(
         current_user,
@@ -504,13 +522,15 @@ def list_dorm_dinner_votes(
             SceneVote.user_id == current_user.id,
         )
     }
-    return success(data=[
-        {
-            "candidate_key": c.candidate_key,
-            "has_voted": str(c.id) in votes,
-        }
-        for c in candidates
-    ])
+    return success(
+        data=[
+            {
+                "candidate_key": c.candidate_key,
+                "has_voted": str(c.id) in votes,
+            }
+            for c in candidates
+        ]
+    )
 
 
 @router.post("/dorm_dinner/votes", status_code=status.HTTP_201_CREATED)
@@ -583,17 +603,17 @@ def get_dorm_dinner_confirmation(
     if instance is None:
         return success(data={"confirmed": False})
     result = (
-        db_session.query(SceneResult)
-        .filter(SceneResult.scene_instance_id == instance.id)
-        .first()
+        db_session.query(SceneResult).filter(SceneResult.scene_instance_id == instance.id).first()
     )
     if result is None or result.selected_candidate_id is None:
         return success(data={"confirmed": False})
     candidate = db_session.get(SceneCandidate, result.selected_candidate_id)
-    return success(data={
-        "confirmed": True,
-        "confirmed_candidate": candidate.display_name if candidate else None,
-    })
+    return success(
+        data={
+            "confirmed": True,
+            "confirmed_candidate": candidate.display_name if candidate else None,
+        }
+    )
 
 
 @router.post("/dorm_dinner/confirmation", status_code=status.HTTP_200_OK)
@@ -606,15 +626,17 @@ async def confirm_dorm_dinner(
     payload = await request.json()
     candidate_key = str(payload.get("candidate_key") or "")
     candidate = next(
-        (c for c in _ensure_demo_candidates(instance, db_session) if c.candidate_key == candidate_key),
+        (
+            c
+            for c in _ensure_demo_candidates(instance, db_session)
+            if c.candidate_key == candidate_key
+        ),
         None,
     )
     if candidate is None:
         return success(data={"confirmed": False})
     result = (
-        db_session.query(SceneResult)
-        .filter(SceneResult.scene_instance_id == instance.id)
-        .first()
+        db_session.query(SceneResult).filter(SceneResult.scene_instance_id == instance.id).first()
     )
     if result is None:
         result = SceneResult(
@@ -705,6 +727,25 @@ def transition_scene(
         db_session,
         idempotency_key=body.idempotency_key,
     )
+    return success(
+        data=result,
+        request_id=getattr(http_request.state, "correlation_id", None),
+    )
+
+
+@router.post("/{instance_id}/process", status_code=status.HTTP_200_OK)
+def process_scene(
+    instance_id: UUID,
+    http_request: Request,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, Any]:
+    """Close collection, generate aggregate candidates and open voting."""
+    transition_state(current_user, instance_id, "start_processing", db_session)
+    generation = run_generation_phase(instance_id, db_session)
+    result = transition_state(current_user, instance_id, "candidates_ready", db_session)
+    result["generation"] = generation
     return success(
         data=result,
         request_id=getattr(http_request.state, "correlation_id", None),

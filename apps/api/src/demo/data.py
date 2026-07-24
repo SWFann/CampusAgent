@@ -144,28 +144,189 @@ class DemoOrganization:
 
 DEMO_SCHOOL = DemoOrganization(
     key="school",
-    name="JNU Campus Demo Lab",
+    name="信息科学技术学院",
     slug="jnu-campus" + DEMO_ORG_SLUG_SUFFIX,
-    type="SCHOOL",
+    type="COLLEGE",
     parent_key=None,
-    description="Fictional campus used for CampusAgent demos (P11).",
+    description="暨南大学信息科学技术学院官方组织空间。",
+    join_policy="CLOSED",
+)
+
+DEMO_PROJECT = DemoOrganization(
+    key="project",
+    name="Campus Agent",
+    slug="campus-agent-project" + DEMO_ORG_SLUG_SUFFIX,
+    type="TEAM",
+    parent_key=None,
+    description="Campus Agent 项目交流、任务协作与共同建设空间。",
+    visibility="MEMBERS_ONLY",
     join_policy="APPROVAL",
+)
+
+DEMO_LAB = DemoOrganization(
+    key="lab",
+    name="WNDS实验室",
+    slug="wnds-lab" + DEMO_ORG_SLUG_SUFFIX,
+    type="LAB",
+    parent_key=None,
+    description="模型互联网与智能系统研究、讨论和项目协作空间。",
+    visibility="MEMBERS_ONLY",
+    join_policy="INVITE_ONLY",
+)
+
+DEMO_CLUB = DemoOrganization(
+    key="club",
+    name="模型互联网",
+    slug="model-internet-club" + DEMO_ORG_SLUG_SUFFIX,
+    type="CLUB",
+    parent_key=None,
+    description="面向暨南大学学生的模型互联网兴趣交流与实践社团。",
+    join_policy="APPROVAL",
+)
+
+DEMO_COURSE = DemoOrganization(
+    key="course",
+    name="人工智能",
+    slug="artificial-intelligence-course" + DEMO_ORG_SLUG_SUFFIX,
+    type="COURSE",
+    parent_key=None,
+    description="人工智能课程通知、学习资料和课程协作空间。",
+    visibility="MEMBERS_ONLY",
+    join_policy="CLOSED",
 )
 
 DEMO_DORM = DemoOrganization(
     key="dorm",
-    name="Demo Dorm 301",
+    name="东9 T207",
     slug="demo-dorm-301" + DEMO_ORG_SLUG_SUFFIX,
     type="DORM",
-    parent_key="school",
-    description="Fictional dormitory 301 for the dinner demo.",
-    join_policy="OPEN",
+    parent_key=None,
+    description="东9栋 T207 寝室生活、公共事项与日常协商群体。",
+    visibility="PRIVATE",
+    join_policy="CLOSED",
 )
 
-DEMO_ORGANIZATIONS: list[DemoOrganization] = [DEMO_SCHOOL, DEMO_DORM]
-DEMO_ORGANIZATIONS_BY_KEY: dict[str, DemoOrganization] = {
-    o.key: o for o in DEMO_ORGANIZATIONS
-}
+DEMO_DISCOVER_ORGANIZATIONS: list[DemoOrganization] = [
+    DemoOrganization(
+        key="discover_open_source",
+        name="暨南大学开源软件社区",
+        slug="jnu-open-source" + DEMO_ORG_SLUG_SUFFIX,
+        type="CLUB",
+        parent_key=None,
+        description="面向全校学生的开源项目交流、贡献与实践社区。",
+        join_policy="OPEN",
+    ),
+    DemoOrganization(
+        key="discover_llm_reading",
+        name="大模型技术读书会",
+        slug="llm-reading" + DEMO_ORG_SLUG_SUFFIX,
+        type="OTHER",
+        parent_key=None,
+        description="共同阅读大模型、智能体与模型互联网方向的论文和技术资料。",
+        join_policy="APPROVAL",
+    ),
+    DemoOrganization(
+        key="discover_cv",
+        name="计算机视觉学习小组",
+        slug="computer-vision-study" + DEMO_ORG_SLUG_SUFFIX,
+        type="TEAM",
+        parent_key=None,
+        description="围绕视觉识别、多模态学习与工程实践开展学习协作。",
+        join_policy="OPEN",
+    ),
+    DemoOrganization(
+        key="discover_math",
+        name="数学建模竞赛队",
+        slug="math-modeling-team" + DEMO_ORG_SLUG_SUFFIX,
+        type="TEAM",
+        parent_key=None,
+        description="数学建模训练、组队和竞赛信息共享群体。",
+        join_policy="APPROVAL",
+    ),
+    DemoOrganization(
+        key="discover_challenge",
+        name="挑战杯项目共创组",
+        slug="challenge-cup" + DEMO_ORG_SLUG_SUFFIX,
+        type="TEAM",
+        parent_key=None,
+        description="面向挑战杯项目的选题讨论、成员匹配与材料共创。",
+        join_policy="APPROVAL",
+    ),
+    DemoOrganization(
+        key="discover_gba",
+        name="粤港澳大湾区创新实践社",
+        slug="gba-innovation" + DEMO_ORG_SLUG_SUFFIX,
+        type="CLUB",
+        parent_key=None,
+        description="关注湾区产业、创新创业和跨校实践机会。",
+        join_policy="APPROVAL",
+    ),
+    DemoOrganization(
+        key="discover_volunteer",
+        name="番禺校区志愿服务队",
+        slug="panyu-volunteer" + DEMO_ORG_SLUG_SUFFIX,
+        type="CLUB",
+        parent_key=None,
+        description="发布校内志愿服务、公益活动和岗位排班。",
+        join_policy="OPEN",
+    ),
+    DemoOrganization(
+        key="discover_photo",
+        name="校园摄影协会",
+        slug="campus-photo" + DEMO_ORG_SLUG_SUFFIX,
+        type="CLUB",
+        parent_key=None,
+        description="校园影像记录、摄影交流与活动拍摄协作。",
+        join_policy="OPEN",
+    ),
+    DemoOrganization(
+        key="discover_badminton",
+        name="周末羽毛球约练群",
+        slug="weekend-badminton" + DEMO_ORG_SLUG_SUFFIX,
+        type="OTHER",
+        parent_key=None,
+        description="面向校内成员的周末羽毛球约练和场地协调群体。",
+        join_policy="OPEN",
+    ),
+    DemoOrganization(
+        key="discover_english",
+        name="英语交流角",
+        slug="english-corner" + DEMO_ORG_SLUG_SUFFIX,
+        type="OTHER",
+        parent_key=None,
+        description="英语口语练习、主题分享和跨文化交流群体。",
+        join_policy="OPEN",
+    ),
+    DemoOrganization(
+        key="discover_freshman",
+        name="新生校园互助群",
+        slug="freshman-help" + DEMO_ORG_SLUG_SUFFIX,
+        type="OTHER",
+        parent_key=None,
+        description="帮助新同学了解课程、校园服务和日常生活。",
+        join_policy="APPROVAL",
+    ),
+    DemoOrganization(
+        key="discover_academic",
+        name="研究生学术交流组",
+        slug="graduate-academic" + DEMO_ORG_SLUG_SUFFIX,
+        type="TEAM",
+        parent_key=None,
+        description="跨方向学术报告、论文交流和科研经验分享群体。",
+        join_policy="INVITE_ONLY",
+    ),
+]
+
+DEMO_ORGANIZATIONS: list[DemoOrganization] = [
+    DEMO_PROJECT,
+    DEMO_LAB,
+    DEMO_SCHOOL,
+    DEMO_CLUB,
+    DEMO_COURSE,
+    DEMO_DORM,
+    *DEMO_DISCOVER_ORGANIZATIONS,
+]
+DEMO_ORGANIZATIONS_BY_KEY: dict[str, DemoOrganization] = {o.key: o for o in DEMO_ORGANIZATIONS}
 
 
 @dataclass(frozen=True)
@@ -178,7 +339,16 @@ class DemoMembership:
 
 DEMO_MEMBERSHIPS: list[DemoMembership] = [
     DemoMembership(user_key="admin", org_key="school", role="OWNER"),
+    DemoMembership(user_key="admin", org_key="project", role="ADMIN"),
+    DemoMembership(user_key="admin", org_key="lab", role="ADMIN"),
+    DemoMembership(user_key="admin", org_key="club", role="ADMIN"),
+    DemoMembership(user_key="admin", org_key="course", role="ADMIN"),
     DemoMembership(user_key="admin", org_key="dorm", role="ADMIN"),
+    DemoMembership(user_key="alice", org_key="project", role="OWNER"),
+    DemoMembership(user_key="alice", org_key="lab", role="OWNER"),
+    DemoMembership(user_key="alice", org_key="school", role="MEMBER"),
+    DemoMembership(user_key="alice", org_key="club", role="MEMBER"),
+    DemoMembership(user_key="alice", org_key="course", role="MEMBER"),
     DemoMembership(user_key="alice", org_key="dorm", role="MEMBER"),
     DemoMembership(user_key="bob", org_key="dorm", role="MEMBER"),
     DemoMembership(user_key="carol", org_key="dorm", role="MEMBER"),
@@ -195,7 +365,7 @@ class DemoConversation:
 
 DEMO_CONVERSATION = DemoConversation(
     key="dorm-chat",
-    title="Demo Dorm 301 Group Chat",
+    title="东9 T207 寝室群聊",
     type="GROUP",
     participant_keys=["alice", "bob", "carol"],
 )
@@ -299,6 +469,7 @@ DEMO_VOTES: list[dict[str, Any]] = [
 # Model gateway mock node (P7) — a single deterministic mock provider.
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class DemoModelNode:
     key: str
@@ -332,4 +503,3 @@ def is_demo_email(email: str) -> bool:
 def is_demo_org_slug(slug: str) -> bool:
     """Return True if an org slug belongs to the demo namespace."""
     return bool(slug) and slug.endswith(DEMO_ORG_SLUG_SUFFIX)
-

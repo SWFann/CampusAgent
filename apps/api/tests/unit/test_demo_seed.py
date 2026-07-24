@@ -71,7 +71,7 @@ class TestSeedCreatesData:
 
         convs = test_db_session.execute(
             select(Conversation).where(
-                Conversation.title == "Demo Dorm 301 Group Chat"
+                Conversation.title == "东9 T207 寝室群聊"
             )
         ).scalars().all()
         assert len(convs) == 1
