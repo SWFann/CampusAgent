@@ -7,3 +7,10 @@ regexes = [
   '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.\.\.''',
   '''eyJhbGciOiJIUzI1NiIs\.\.\.''',
 ]
+paths = [
+  '''apps/api/tests/security/test_prompt_injection\.py''',
+  '''apps/api/tests/unit/test_memory_encryption\.py''',
+  '''apps/api/tests/unit/test_model_privacy_leakage\.py''',
+  '''apps/api/tests/unit/test_release_scripts\.py''',
+  '''scripts/ops/recovery_drill\.py''',
+]
