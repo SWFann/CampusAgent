@@ -8,6 +8,7 @@ on:
 
 env:
   NODE_VERSION: "18"
+  PYTHON_VERSION: "3.11"
 
 permissions:
   contents: read
@@ -57,6 +58,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -89,7 +95,18 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:8000
 
       - name: Test backend
-        run: uv run --project apps/api --extra dev --frozen python -m pytest apps/api/tests -q -p no:cacheprovider
+        run: |
+          set -o pipefail
+          uv run --project apps/api --extra dev --frozen python --version
+          uv run --project apps/api --extra dev --frozen python -m pytest apps/api/tests -q -p no:cacheprovider 2>&1 | tee /tmp/campus-agent-pytest.log
+          test_status=${PIPESTATUS[0]}
+          if [ "$test_status" -ne 0 ]; then
+            {
+              echo "::error title=Backend pytest failed::Last 120 lines of pytest output follow"
+              tail -120 /tmp/campus-agent-pytest.log
+            } >&2
+            exit "$test_status"
+          fi
         env:
           APP_ENV: test
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campus_agent_test
